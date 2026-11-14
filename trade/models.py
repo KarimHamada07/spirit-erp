@@ -1270,3 +1270,58 @@ class CustodyClearance(models.Model):
             # المصروف بيظهر في التقارير وصافي الربح، ومش بيتخصم من العهدة العامة تاني
             Expense.objects.create(title=f"{self.description} (عهدة {self.holder})"[:150],
                                    amount=self.amount, date=self.date, custody_clearance=self)
+
+
+# ================= الحضور والانصراف (بصمة بصورة لايف + لوكيشن) =================
+class Workplace(models.Model):
+    """مكان شغل (المحل، المخزن...): البصمة جوه دايرة نصف قطرها radius_m بتتحسب 'في المكان'"""
+    name = models.CharField("الاسم", max_length=100)
+    latitude = models.DecimalField("خط العرض", max_digits=9, decimal_places=6)
+    longitude = models.DecimalField("خط الطول", max_digits=9, decimal_places=6)
+    radius_m = models.PositiveIntegerField("المسافة المسموحة (متر)", default=150)
+    is_active = models.BooleanField("نشط", default=True)
+
+    class Meta:
+        verbose_name = "مكان شغل"
+        verbose_name_plural = "أماكن الشغل (للبصمة)"
+
+    def __str__(self):
+        return self.name
+
+
+def _attendance_photo_path(instance, filename):
+    day = timezone.localdate()
+    return f"attendance/{day:%Y/%m}/{filename}"
+
+
+class Attendance(models.Model):
+    IN, OUT = "in", "out"
+    KINDS = [(IN, "حضور"), (OUT, "انصراف")]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                             related_name="attendance", verbose_name="الموظف")
+    kind = models.CharField("النوع", max_length=3, choices=KINDS)
+    at = models.DateTimeField("الوقت", default=timezone.now, db_index=True)
+    latitude = models.DecimalField("خط العرض", max_digits=9, decimal_places=6)
+    longitude = models.DecimalField("خط الطول", max_digits=9, decimal_places=6)
+    accuracy_m = models.PositiveIntegerField("دقة اللوكيشن (متر)", default=0)
+    workplace = models.ForeignKey(Workplace, on_delete=models.SET_NULL, null=True, blank=True,
+                                  verbose_name="أقرب مكان شغل")
+    distance_m = models.PositiveIntegerField("البعد عن المكان (متر)", null=True, blank=True)
+    inside = models.BooleanField("في مكان الشغل", default=False)
+    photo = models.FileField("الصورة", upload_to=_attendance_photo_path, storage=private_storage)
+    note = models.CharField("ملاحظة", max_length=200, blank=True)
+    ip = models.CharField("IP", max_length=64, blank=True)
+    device = models.CharField("الجهاز", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "بصمة"
+        verbose_name_plural = "الحضور والانصراف"
+        ordering = ["-at", "-id"]
+
+    def __str__(self):
+        return f"{self.user} — {self.get_kind_display()} {timezone.localtime(self.at):%Y-%m-%d %H:%M}"
+
+    @property
+    def map_url(self):
+        return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"

@@ -1,0 +1,104 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}الحضور والانصراف{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .tot { border: 1px solid var(--erp-line,#e2e2e4); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; background: var(--erp-card,#fff); }
+  .tot .n { font-size: 20px; font-weight: 700; }
+  .day { border: 1px solid var(--erp-line,#e2e2e4); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--erp-card,#fff); }
+  .day .top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; align-items: center; }
+  .day .who { font-weight: 700; }
+  .punches { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .pc { width: 120px; font-size: 12px; text-align: center; }
+  .pc img { width: 120px; height: 150px; object-fit: cover; border-radius: 10px; border: 2px solid #18a957; display: block; }
+  .pc.out img { border-color: #fe0000; }
+  .pc .k { font-weight: 700; margin-top: 4px; }
+  .badge-out { color: #fe0000; font-weight: 700; }
+  .open { color: #b07a00; font-weight: 700; }
+  .place { border: 1px dashed var(--erp-line,#ccc); border-radius: 12px; padding: 12px; margin-bottom: 16px; }
+</style>
+
+<form method="get" class="d-flex flex-wrap align-items-end mb-3" style="gap:10px">
+  <div><label class="mb-1 d-block">من</label><input type="date" name="from" value="{{ d1 }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">إلى</label><input type="date" name="to" value="{{ d2 }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">الموظف</label><select name="user" class="form-control">
+    <option value="">الكل</option>{% for u in users %}<option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">عرض</button>
+  <a class="btn btn-success" href="?from={{ d1 }}&to={{ d2 }}&user={{ user_id }}&export=xlsx">Excel</a>
+</form>
+
+<details class="place" {% if not workplaces %}open{% endif %}>
+  <summary><b>أماكن الشغل</b> ({{ workplaces|length }}) — البصمة جوه المسافة دي بتتحسب "في المكان"</summary>
+  <ul class="mt-2 mb-2">
+    {% for w in workplaces %}<li>{{ w.name }} — {{ w.radius_m }} متر{% if not w.is_active %} (متوقف){% endif %}
+      · <a href="https://www.google.com/maps?q={{ w.latitude }},{{ w.longitude }}" target="_blank" rel="noopener">الخريطة</a></li>
+    {% empty %}<li class="text-danger">لسه مفيش مكان شغل متحدد. روح المحل وضيفه من هنا بموقعك الحالي.</li>{% endfor %}
+  </ul>
+  {% if can_add_place %}
+  <form method="post" action="{% url 'workplace_add' %}" id="wp-form" class="d-flex flex-wrap align-items-center" style="gap:8px">
+    {% csrf_token %}
+    <input name="name" class="form-control" style="max-width:200px" placeholder="الاسم (مثلاً: المحل)" required>
+    <input name="radius" type="number" min="30" max="2000" value="150" class="form-control" style="max-width:120px" title="المسافة المسموحة بالمتر">
+    <input type="hidden" name="lat"><input type="hidden" name="lng">
+    <button type="submit" class="btn btn-dark"><i class="fas fa-location-crosshairs"></i> ضيف من مكاني الحالي</button>
+    <small class="text-muted">لازم تكون واقف في المكان نفسه. التعديل بعد كده من لوحة الإدارة.</small>
+  </form>
+  {% endif %}
+</details>
+
+{% if totals %}
+<div class="row">
+  {% for t in totals %}
+  <div class="col-lg-3 col-6"><div class="tot">
+    <div>{{ t.user.get_full_name|default:t.user.username }}</div>
+    <div class="n">{{ t.hours|floatformat:1 }} ساعة</div>
+    <div class="text-muted" style="font-size:12px">{{ t.days }} يوم{% if t.outside %} · <span class="badge-out">{{ t.outside }} بصمة برا المكان</span>{% endif %}</div>
+  </div></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% for r in rows %}
+<div class="day">
+  <div class="top">
+    <div><span class="who">{{ r.user.get_full_name|default:r.user.username }}</span> · {{ r.date|date:"D d/m/Y" }}</div>
+    <div>
+      حضور <b>{% if r.first_in %}{{ r.first_in.at|date:"H:i" }}{% else %}—{% endif %}</b> ·
+      انصراف <b>{% if r.last_out %}{{ r.last_out.at|date:"H:i" }}{% else %}—{% endif %}</b> ·
+      {{ r.hours }} ساعة
+      {% if r.open %}<span class="open">(لسه ما انصرفش)</span>{% endif %}
+    </div>
+  </div>
+  <div class="punches">
+    {% for p in r.punches %}
+    <div class="pc{% if not p.inside %} out{% endif %}">
+      <a href="{% url 'attendance_photo' p.pk %}" target="_blank"><img loading="lazy" src="{% url 'attendance_photo' p.pk %}" alt="صورة البصمة"></a>
+      <div class="k">{{ p.get_kind_display }} {{ p.at|date:"H:i" }}</div>
+      <div>{% if p.inside %}في {{ p.workplace }}{% elif p.workplace %}<span class="badge-out">برا المكان ({{ p.distance_m }} م)</span>{% else %}<span class="badge-out">مفيش مكان متحدد</span>{% endif %}</div>
+      <a href="{{ p.map_url }}" target="_blank" rel="noopener">الخريطة</a>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<p class="text-muted">مفيش بصمات في الفترة دي.</p>
+{% endfor %}
+
+<script>
+(function () {
+  var f = document.getElementById("wp-form");
+  if (!f) return;
+  f.addEventListener("submit", function (e) {
+    if (f.lat.value) return;
+    e.preventDefault();
+    if (!navigator.geolocation) { alert("الموبايل ده مش بيدعم اللوكيشن"); return; }
+    navigator.geolocation.getCurrentPosition(function (p) {
+      if (p.coords.accuracy > 100 && !confirm("دقة اللوكيشن ±" + Math.round(p.coords.accuracy) + " متر. تكمّل؟")) return;
+      f.lat.value = p.coords.latitude.toFixed(6); f.lng.value = p.coords.longitude.toFixed(6); f.submit();
+    }, function () { alert("لازم تسمح باستخدام اللوكيشن"); }, {enableHighAccuracy: true, timeout: 20000});
+  });
+})();
+</script>
+{% endblock %}

@@ -9,6 +9,8 @@ from trade.custody_views import (clearance_request, clearance_review, clearance_
                                  custody_receipt, custody_screenshot, custody_settle,
                                  holder_detail, my_custody)
 from trade.analytics_views import analytics
+from trade.attendance_views import (attendance_photo, attendance_report, my_attendance, punch,
+                                    workplace_add)
 from trade.audit_views import audit
 from trade.delete_views import (customer_delete, model_delete, purchase_delete,
                                  sale_delete)
@@ -65,6 +67,11 @@ urlpatterns = [
     path("reports/print/", report_print, name="report_print"),
     path("reports/profit/", profit_report, name="profit_report"),
     path("analytics/", analytics, name="analytics"),
+    path("attendance/", my_attendance, name="my_attendance"),
+    path("attendance/punch/", punch, name="attendance_punch"),
+    path("attendance/report/", attendance_report, name="attendance_report"),
+    path("attendance/workplace/add/", workplace_add, name="workplace_add"),
+    path("attendance/<int:pk>/photo/", attendance_photo, name="attendance_photo"),
     path("data/", data_center, name="data_center"),
     path("data/<str:key>/<str:kind>.xlsx", data_file, name="data_file"),
     path("data/<str:key>/upload/", data_upload, name="data_upload"),

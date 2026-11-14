@@ -62,6 +62,7 @@ Web > Reload. وبعد دقايق افتح https://erp.spiritegy.org/admin/ وس
 ## 8) التحديث لنسخة جديدة من الكود
    cd ~/erp_spirit
    DJANGO_SECRET_KEY=المفتاح python manage.py backup_db      # نسخة قبل أي تحديث
+   pip install -r requirements.txt     # لو اتضافت مكتبة جديدة (زي OpenCV للبصمة)
    DJANGO_SECRET_KEY=المفتاح python manage.py migrate
    DJANGO_SECRET_KEY=المفتاح python manage.py collectstatic --noinput
    وبعدين Web > Reload.

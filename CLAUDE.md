@@ -45,6 +45,10 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   بيعمله لوحده أول مرة)، ورصيده = اللي استلمه − تصفيات
   `CustodyClearance` المعتمدة. التصفية بتتطلب من المحاسب أو صاحب العهدة نفسه، وبتتحسب بس بموافقة
   `trade.approve_custodyclearance` (مدير الحسابات)، والصرف المعتمد بيعمل `Expense` مربوط بيها.
+- البصمة: `attendance.py` + `attendance_views.py`. صورة لايف من الكاميرا (getUserMedia، مفيش رفع ملف)
+  مع كود مؤقت في الـ session (مرة واحدة، 3 دقايق)، والسيرفر بيتأكد من وجود وش بـ OpenCV
+  (`opencv-python-headless`)، واللوكيشن بيتقارن بأماكن الشغل `Workplace`. الموظف اللي مالوش صلاحية
+  `view_saleinvoice` بيتحوّل من لوحة التحكم لـ "بصمتي". التقرير بصلاحية `view_attendance`.
 - أوامر: `backup_db`، `debt_reminders`، `stock_alerts`، `telegram_test`.
 
 ## اتفاقيات

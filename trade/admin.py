@@ -526,3 +526,30 @@ class CustodyClearanceAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# ================= الحضور =================
+from .models import Attendance, Workplace  # noqa: E402
+
+
+@admin.register(Workplace)
+class WorkplaceAdmin(admin.ModelAdmin):
+    list_display = ("name", "latitude", "longitude", "radius_m", "is_active")
+
+
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    """للاطلاع بس: البصمة بتتسجل من الموبايل بصورة لايف، ومحدش يقدر يعدّلها"""
+    list_display = ("user", "kind", "at", "inside", "distance_m", "workplace")
+    list_filter = ("kind", "inside", "user")
+    date_hierarchy = "at"
+    exclude = ("photo",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser

@@ -51,6 +51,10 @@ def _period(start, end):
 
 @staff_member_required
 def dashboard(request):
+    # الموظف اللي مالوش صلاحية على المبيعات (بيستخدم السيستم للبصمة) مش بيشوف أرقام المحل
+    if not request.user.has_perm("trade.view_saleinvoice"):
+        from django.shortcuts import redirect
+        return redirect("my_attendance")
     today = timezone.localdate()
     month_start = today.replace(day=1)
 

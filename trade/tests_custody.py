@@ -116,9 +116,9 @@ class CustodyPerPersonTests(TestCase):
         self.assertFalse(CustodySettlement.objects.exists())
 
     def test_menu_shows_my_custody_only_for_holders(self):
-        page = self.driver_c.get(reverse("dashboard")).content.decode()
+        page = self.driver_c.get(reverse("my_attendance")).content.decode()
         self.assertNotIn("عهدتي", page)
         CustodyHolder.objects.create(name="سيد", user=self.driver_user)
-        page = self.driver_c.get(reverse("dashboard")).content.decode()
+        page = self.driver_c.get(reverse("my_attendance")).content.decode()
         self.assertIn("عهدتي", page)
         self.assertIn("طلبات تصفية العهد", self.mgr_c.get(reverse("dashboard")).content.decode())
