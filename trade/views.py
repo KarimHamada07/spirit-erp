@@ -11,7 +11,6 @@ from .models import (ClothingModel, Customer, Expense, OnlineOrder,
 from .custody_views import custody_summary
 from .stock_views import _size_key
 
-LOW_STOCK = 5  # أي صنف كميته أقل من أو تساوي الرقم ده يظهر في التنبيهات
 DEC = DecimalField(max_digits=14, decimal_places=2)
 
 
@@ -68,7 +67,7 @@ def dashboard(request):
     )
 
     low_stock = (Variant.objects
-                 .filter(quantity__lte=LOW_STOCK, model__is_active=True)
+                 .filter(quantity__lte=F("model__low_stock_level"), model__is_active=True)
                  .select_related("model")
                  .order_by("quantity")[:10])
 
@@ -114,7 +113,7 @@ def dashboard(request):
         inventory_overview.append({
             "model": m,
             "total": sum(sizes.values()),
-            "sizes": [{"size": k, "qty": q, "low": q <= LOW_STOCK}
+            "sizes": [{"size": k, "qty": q, "low": q <= m.low_stock_level}
                       for k, q in sizes.items()],
         })
 
@@ -150,7 +149,6 @@ def dashboard(request):
         "stock_value": stock["value"] or 0,
         "stock_pieces": stock["pieces"] or 0,
         "low_stock": low_stock,
-        "low_stock_limit": LOW_STOCK,
         "top_models": top_models,
         "recent_sales": recent_sales,
         "pending_purchases": pending_purchases,

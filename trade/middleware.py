@@ -1,5 +1,13 @@
 from .notify import _current_ip, _current_user, client_ip
 
+# بيتحط في <head>: تعريف التطبيق (PWA) عشان يتثبت على الموبايل كأنه أبلكيشن
+HEAD = """<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="SPIRIT">
+"""
+
 THEME = r"""
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
 <style id="erp-theme">
@@ -129,6 +137,11 @@ input[type=checkbox],input[type=radio]{accent-color:var(--erp-red)}
   body{background:#fff!important;color:#000!important}
 }
 </style>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("/sw.js").catch(function () {}); });
+}
+</script>
 <script id="erp-theme-js">
 (function () {
   var T = {confirmTitle: "تأكيد", yes: "نعم، متأكد", no: "إلغاء", close: "\u2715 إغلاق القائمة",
@@ -278,6 +291,7 @@ class MobileSidebarMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
         self.snippet = THEME.encode("utf-8")
+        self.head = HEAD.encode("utf-8")
 
     def __call__(self, request):
         user_token = _current_user.set(getattr(request, "user", None))
@@ -294,7 +308,8 @@ class MobileSidebarMiddleware:
             and b"</body>" in response.content
             and b"vendor/adminlte/css/adminlte" in response.content   # صفحات القالب فقط
         ):
-            response.content = response.content.replace(b"</body>", self.snippet + b"</body>", 1)
+            content = response.content.replace(b"</body>", self.snippet + b"</body>", 1)
+            response.content = content.replace(b"</head>", self.head + b"</head>", 1)
             if response.has_header("Content-Length"):
                 response["Content-Length"] = str(len(response.content))
         return response

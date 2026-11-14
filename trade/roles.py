@@ -32,6 +32,7 @@ _SALES = [
 ]
 _CUSTOMERS = ["view_customer", "add_customer", "change_customer"]
 _PAYMENTS = ["view_payment", "add_payment"]
+_DEBT_FOLLOWUP = ["view_debtfollowup", "add_debtfollowup"]
 _CUSTODY = ["view_custodydeposit", "add_custodydeposit",
             "view_custodysettlement", "add_custodysettlement"]
 _EXPENSES = ["view_expense", "add_expense", "change_expense"]
@@ -44,15 +45,21 @@ _RETURNS_PURCHASE = ["view_purchasereturn", "add_purchasereturn", "change_purcha
                      "view_purchasereturnitem", "add_purchasereturnitem",
                      "change_purchasereturnitem"]
 
+_PRODUCTION = [f"{a}_{m}" for m in ("rawmaterial", "bomline", "materialpurchase",
+                                    "materialpurchaseitem", "productionorder",
+                                    "productionoutput", "productionmaterial")
+               for a in ("view", "add", "change")]
+_PRODUCTION_READ = [p for p in _PRODUCTION if p.startswith("view_")]
+
 # مصفوفة الصلاحيات: كل دور وقائمة أكواد الصلاحيات (app trade)
 ROLE_PERMISSIONS = {
-    ROLE_ACCOUNTANT: _CUSTOMERS + _PAYMENTS + _CUSTODY + _EXPENSES + _SALES
+    ROLE_ACCOUNTANT: _CUSTOMERS + _PAYMENTS + _DEBT_FOLLOWUP + _CUSTODY + _EXPENSES + _SALES
     + _PURCHASE + _ONLINE + ["view_activitylog"]
     + ["view_clothingmodel", "view_variant"]
-    + _TREASURY_READ + _TREASURY_ACT + _RETURNS_SALE + _RETURNS_PURCHASE,
+    + _TREASURY_READ + _TREASURY_ACT + _RETURNS_SALE + _RETURNS_PURCHASE + _PRODUCTION_READ,
 
     ROLE_WAREHOUSE_MANAGER: _STOCK_READ + _STOCK_WRITE + _PURCHASE + _ONLINE
-    + ["view_activitylog"] + _RETURNS_PURCHASE,
+    + ["view_activitylog"] + _RETURNS_PURCHASE + _PRODUCTION,
 
     ROLE_SALES: _STOCK_READ + _CUSTOMERS + _PAYMENTS + _SALES + _ONLINE
     + ["add_onlineorder", "view_onlineorder", "change_onlineorder"]

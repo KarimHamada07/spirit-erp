@@ -124,7 +124,7 @@
     <div class="kpi bg-k5"><i class="fas fa-exclamation-triangle"></i>
       <div class="label">أصناف قاربت على النفاد</div>
       <div class="value">{{ low_stock|length }}</div>
-      <div class="sub">الكمية {{ low_stock_limit }} أو أقل</div></div>
+      <div class="sub">وصلت لحد التنبيه بتاع الموديل</div></div>
   </div>
   <div class="col-lg-3 col-md-6">
     <div class="kpi bg-k7"><i class="fas fa-percentage"></i>
@@ -255,7 +255,7 @@
 </div>
 
 {{ chart|json_script:"chart-data" }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% load static %}<script src="{% static 'trade/vendor/chart.umd.min.js' %}"></script>
 <script>
   (function () {
     var d = JSON.parse(document.getElementById("chart-data").textContent);

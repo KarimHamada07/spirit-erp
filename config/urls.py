@@ -6,24 +6,30 @@ from trade.activity_views import activity, activity_ack, activity_feed
 from trade.icon_views import apple_touch_icon
 from trade.custody_views import (custody, custody_deposit, custody_detail,
                                  custody_receipt, custody_screenshot, custody_settle)
+from trade.analytics_views import analytics
 from trade.audit_views import audit
 from trade.delete_views import (customer_delete, model_delete, purchase_delete,
                                  sale_delete)
-from trade.report_views import report_export, report_print, reports
+from trade.report_views import profit_report, report_export, report_print, reports
 from trade.search_views import search_api
 from trade.customer_views import (customer_add, customer_detail, customer_pay, customer_set_seller,
                                   customer_statement_pdf, customers)
 from trade.online_views import (online_create, online_detail, online_list,
                                 online_new, online_status)
+from trade.pwa_views import manifest, offline, service_worker
 from trade.pos_views import pos, pos_checkout, pos_customer_prices, sale_pdf, sale_print
 from trade.stock_views import inventory, inventory_detail, purchase_confirm
 from trade.treasury_views import (commissions_view, daily_close_view,
                                   treasury, treasury_action)
+from trade.debt_views import debt_followup_add, debts
 from trade.views import dashboard
 
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
     path("apple-touch-icon.png", apple_touch_icon),
+    path("manifest.webmanifest", manifest, name="pwa_manifest"),
+    path("sw.js", service_worker, name="pwa_sw"),
+    path("offline/", offline, name="pwa_offline"),
     path("apple-touch-icon-precomposed.png", apple_touch_icon),
     path("dashboard/", dashboard, name="dashboard"),
     path("pos/", pos, name="pos"),
@@ -47,12 +53,16 @@ urlpatterns = [
     path("reports/", reports, name="reports"),
     path("reports/export/", report_export, name="report_export"),
     path("reports/print/", report_print, name="report_print"),
+    path("reports/profit/", profit_report, name="profit_report"),
+    path("analytics/", analytics, name="analytics"),
     path("audit/", audit, name="audit"),
     path("customers/<int:pk>/delete/", customer_delete, name="customer_delete"),
     path("inventory/<int:pk>/delete/", model_delete, name="model_delete"),
     path("sales/<int:pk>/delete/", sale_delete, name="sale_delete"),
     path("purchases/<int:pk>/delete/", purchase_delete, name="purchase_delete"),
     path("customers/", customers, name="customers"),
+    path("customers/debts/", debts, name="debts"),
+    path("customers/<int:pk>/followup/", debt_followup_add, name="debt_followup_add"),
     path("customers/add/", customer_add, name="customer_add"),
     path("customers/<int:pk>/", customer_detail, name="customer_detail"),
     path("customers/<int:pk>/pay/", customer_pay, name="customer_pay"),

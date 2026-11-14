@@ -108,7 +108,7 @@ def custody(request):
             .annotate(n=Count("id")).order_by("-n")[:30])],
         "methods": CustodySettlement.METHODS,
         "now": timezone.localtime().strftime("%Y-%m-%dT%H:%M"),
-        "today": date.today().isoformat(),
+        "today": timezone.localdate().isoformat(),
         "deposits": CustodyDeposit.objects.all()[:5],
         "can_add": request.user.has_perm("trade.add_custodysettlement"),
         "can_deposit": request.user.has_perm("trade.add_custodydeposit"),
@@ -182,7 +182,7 @@ def custody_deposit(request):
     try:
         when = date.fromisoformat(request.POST.get("date", ""))
     except ValueError:
-        when = date.today()
+        when = timezone.localdate()
     note = request.POST.get("note", "").strip()[:200]
     CustodyDeposit.objects.create(amount=amount, date=when, note=note,
                                   created_by=request.user)

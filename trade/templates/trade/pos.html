@@ -7,8 +7,23 @@
 <style>
   #products { max-height: 62vh; overflow-y: auto; }
   #products .list-group-item { cursor: pointer; border-left: 0; border-right: 0; transition: background .12s ease; }
-  #products .list-group-item:hover { background: #fff5f5; }
-  #products .list-group-item.oos { opacity: .45; cursor: not-allowed; background: #fff; }
+  #products .list-group-item:hover { background: rgba(254,0,0,.06); }
+  #products .list-group-item.oos { opacity: .45; cursor: not-allowed; background: transparent; }
+  .qty-ctl { display: flex; align-items: center; gap: 4px; }
+  .qty-ctl button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--erp-line,#ddd);
+    background: var(--erp-card,#fff); color: var(--erp-ink,#111); font-weight: 700; line-height: 1; padding: 0; }
+  .qty-ctl input { width: 56px; text-align: center; }
+  .search-row { display: flex; gap: 8px; }
+  #scan-btn { flex: 0 0 auto; display: none; }
+  #scanner { display: none; position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.92);
+    flex-direction: column; align-items: center; justify-content: center; padding: 16px; }
+  #scanner.show { display: flex; }
+  #scanner video { width: 100%; max-width: 480px; border-radius: 12px; border: 3px solid #fe0000; }
+  #scanner .scan-msg { color: #fff; margin: 12px 0; text-align: center; }
+  #pos-toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); z-index: 2000;
+    background: #000; color: #fff; padding: 8px 16px; border-radius: 20px; font-weight: 700;
+    opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #pos-toast.show { opacity: .95; }
   #products .list-group-item .name { font-weight: 700; }
   #products .list-group-item .code { font-size: 12px; color: #8a8a93; }
   #cart input.form-control { padding: 2px 6px; height: 32px; }
@@ -22,6 +37,8 @@
     #products { max-height: 45vh; }
     #products .list-group-item { padding: 14px 12px; font-size: 16px; }
     #cart input.form-control { height: 40px; font-size: 16px; }
+    .qty-ctl button { width: 40px; height: 40px; font-size: 20px; }
+    #cart td { padding: 8px 4px; }
     #search, #customer, #discount { font-size: 16px; height: 44px; }
     .total-box { font-size: 24px; }
     #checkout { width: 100%; margin-top: 10px; }
@@ -46,8 +63,12 @@
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header">
-        <input id="search" type="search" class="form-control"
-               placeholder="ابحث باسم الموديل أو الكود أو المقاس أو اللون، أو امسح الباركود..." autofocus>
+        <div class="search-row">
+          <input id="search" type="search" class="form-control"
+                 placeholder="ابحث باسم الموديل أو الكود أو المقاس أو اللون، أو امسح الباركود..." autofocus>
+          <button type="button" id="scan-btn" class="btn btn-dark" title="امسح الباركود بالكاميرا"
+                  aria-label="امسح الباركود بالكاميرا"><i class="fas fa-camera"></i></button>
+        </div>
         <small id="scan-hint" class="pos-hint d-block mt-1"></small>
       </div>
       <div class="card-body p-0">
@@ -122,6 +143,13 @@
     </div>
   </div>
 </div>
+
+<div id="scanner" role="dialog" aria-label="مسح الباركود">
+  <video id="scan-video" playsinline muted></video>
+  <div class="scan-msg" id="scan-msg">وجّه الكاميرا على الباركود</div>
+  <button type="button" id="scan-close" class="btn btn-danger btn-lg">إغلاق</button>
+</div>
+<div id="pos-toast" aria-live="polite"></div>
 
 <div id="mobilebar">
   <div>الإجمالي: <b id="mobile-total">0.00</b></div>
@@ -255,7 +283,9 @@
       var c = cart[id];
       html += '<tr data-id="' + id + '"><td>' + esc(c.label) +
         (c.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>' : "") + "</td>" +
-        '<td><input type="number" min="1" max="' + c.max + '" value="' + c.qty + '" class="form-control" data-f="qty"></td>' +
+        '<td><div class="qty-ctl"><button type="button" data-step="-1" aria-label="أقل">−</button>' +
+        '<input type="number" min="1" max="' + c.max + '" value="' + c.qty + '" class="form-control" data-f="qty">' +
+        '<button type="button" data-step="1" aria-label="أكتر">+</button></div></td>' +
         '<td><input type="number" min="0" step="0.01" value="' + c.price + '" class="form-control" data-f="price"' +
         (lockedPrice(c) ? ' readonly title="التعديل من مدير الحسابات"' : "") + "></td>" +
         '<td id="line-' + id + '">' + money(c.qty * c.price) + "</td>" +
@@ -299,6 +329,7 @@
                   price: known ? custPrices[id] : v.price, locked: known, max: v.qty};
     }
     renderCart();
+    toast("اتضاف: " + label(v) + " (" + cart[id].qty + ")");
   }
 
   elProducts.addEventListener("click", function (e) {
@@ -323,8 +354,66 @@
 
   elBody.addEventListener("click", function (e) {
     var id = e.target.getAttribute("data-del");
-    if (id) { delete cart[id]; renderCart(); }
+    if (id) { delete cart[id]; renderCart(); return; }
+    var step = e.target.closest("[data-step]");
+    if (step) {
+      var tr = step.closest("tr"), c = cart[tr.getAttribute("data-id")];
+      var n = c.qty + parseInt(step.getAttribute("data-step"), 10);
+      if (n < 1) return;
+      if (n > c.max) { toast("وصلت لأقصى كمية متاحة"); return; }
+      c.qty = n;
+      tr.querySelector('[data-f="qty"]').value = n;
+      updateTotals();
+    }
   });
+
+  // رسالة صغيرة لما صنف يتضاف (مهمة على الموبايل لأن الفاتورة تحت)
+  var toastTimer = null;
+  function toast(t) {
+    var el = document.getElementById("pos-toast");
+    el.textContent = t; el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 1200);
+  }
+
+  // ---- مسح الباركود بكاميرا الموبايل (لو المتصفح بيدعم BarcodeDetector) ----
+  (function () {
+    var btn = document.getElementById("scan-btn");
+    if (!("BarcodeDetector" in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    btn.style.display = "inline-block";
+    var box = document.getElementById("scanner"), video = document.getElementById("scan-video");
+    var msg = document.getElementById("scan-msg"), stream = null, running = false, detector = null;
+    function stop() {
+      running = false; box.classList.remove("show");
+      if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    }
+    function loop() {
+      if (!running) return;
+      detector.detect(video).then(function (codes) {
+        if (codes.length) {
+          var input = document.getElementById("search");
+          input.value = codes[0].rawValue;
+          if (navigator.vibrate) navigator.vibrate(60);
+          stop();
+          input.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+          return;
+        }
+        requestAnimationFrame(loop);
+      }).catch(function () { requestAnimationFrame(loop); });
+    }
+    btn.addEventListener("click", function () {
+      try { detector = new BarcodeDetector({formats: ["code_128", "ean_13", "ean_8", "code_39", "qr_code"]}); }
+      catch (e) { detector = new BarcodeDetector(); }
+      msg.textContent = "وجّه الكاميرا على الباركود";
+      box.classList.add("show");
+      navigator.mediaDevices.getUserMedia({video: {facingMode: "environment"}, audio: false}).then(function (s) {
+        stream = s; video.srcObject = s; return video.play();
+      }).then(function () { running = true; loop(); }).catch(function () {
+        msg.textContent = "مقدرتش أفتح الكاميرا. اسمح للموقع باستخدامها من إعدادات المتصفح.";
+      });
+    });
+    document.getElementById("scan-close").addEventListener("click", stop);
+  })();
 
   elDiscount.addEventListener("input", updateTotals);
   document.getElementById("search").addEventListener("input", renderProducts);

@@ -39,6 +39,8 @@ def config():
         "TOKEN": os.environ.get("TELEGRAM_BOT_TOKEN", ""),
         "CHAT_ID": os.environ.get("TELEGRAM_CHAT_ID", ""),
         "FEED_KEY": os.environ.get("TELEGRAM_FEED_KEY", ""),
+        # اختياري: شات المحاسب لتذكيرات التحصيل (لو مش موجود بتروح للشات العام)
+        "ACCOUNTANT_CHAT_ID": os.environ.get("TELEGRAM_ACCOUNTANT_CHAT_ID", ""),
     }
     try:
         with open(CONFIG_FILE, encoding="utf-8") as f:
@@ -117,7 +119,7 @@ def deliver_pending():
             return
         from .models import ActivityLog
         for ev in ActivityLog.objects.filter(sent=False).order_by("id")[:20]:
-            ok, detail = send_telegram(cfg["TOKEN"], cfg["CHAT_ID"], ev.message)
+            ok, detail = send_telegram(cfg["TOKEN"], chat_for(ev.audience, cfg), ev.message)
             if not ok:
                 _blocked_until = time.time() + 60
                 logger.warning("telegram send failed: %s", detail)
@@ -128,8 +130,16 @@ def deliver_pending():
         logger.exception("deliver_pending failed")
 
 
-def log_event(text, user=None):
-    """يسجل حدث. عمره ما يكسر العملية الأصلية."""
+def chat_for(audience, cfg=None):
+    """الشات اللي الرسالة تروحله: المحاسب له شات خاص لو متحدد"""
+    cfg = cfg or config()
+    if audience == "accountant" and cfg["ACCOUNTANT_CHAT_ID"]:
+        return cfg["ACCOUNTANT_CHAT_ID"]
+    return cfg["CHAT_ID"]
+
+
+def log_event(text, user=None, audience=""):
+    """يسجل حدث. عمره ما يكسر العملية الأصلية. audience="accountant" = تذكير للمحاسب."""
     try:
         from .models import ActivityLog
         user = user or _current_user.get()
@@ -137,7 +147,7 @@ def log_event(text, user=None):
         if user is not None and getattr(user, "is_authenticated", False):
             name = user.get_username()
         with transaction.atomic():
-            ActivityLog.objects.create(text=text, user_name=name)
+            ActivityLog.objects.create(text=text, user_name=name, audience=audience)
             if random.random() < 0.01:  # تنظيف الأحداث القديمة المرسلة
                 ActivityLog.objects.filter(
                     sent=True,

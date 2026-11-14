@@ -56,4 +56,33 @@ Web > Reload. وبعد دقايق افتح https://erp.spiritegy.org/admin/ وس
 ## ملاحظات
 - ملف `db.sqlite3` مش في الـ ZIP، فالقاعدة بتبدأ فاضية. الأرصدة الافتتاحية تتدخل من لوحة الإدارة.
 - المستخدمين (البائعين والمحاسب والسيلز) بيتعملوا من لوحة الإدارة، وبيتضافوا للمجموعات.
-- النسخ الاحتياطي: بعد ما يشتغل، هنضبط Scheduled task.
+- النسخ الاحتياطي والتذكيرات: الخطوة 8 تحت.
+
+## 8) التحديث لنسخة جديدة من الكود
+   cd ~/erp_spirit
+   DJANGO_SECRET_KEY=المفتاح python manage.py backup_db      # نسخة قبل أي تحديث
+   DJANGO_SECRET_KEY=المفتاح python manage.py migrate
+   DJANGO_SECRET_KEY=المفتاح python manage.py collectstatic --noinput
+   وبعدين Web > Reload.
+
+## 9) المهام اليومية (Tasks > Scheduled tasks)
+اعمل 3 مهام يومية (الوقت على PythonAnywhere بتوقيت UTC، يعني 22:00 UTC = 12 بالليل في مصر):
+
+| الوقت (UTC) | الأمر |
+|---|---|
+| 22:00 | `cd ~/erp_spirit && DJANGO_SECRET_KEY=المفتاح ~/.virtualenvs/spirit/bin/python manage.py backup_db --keep 14` |
+| 06:00 | `cd ~/erp_spirit && DJANGO_SECRET_KEY=المفتاح ~/.virtualenvs/spirit/bin/python manage.py debt_reminders --days 30` |
+| 06:05 | `cd ~/erp_spirit && DJANGO_SECRET_KEY=المفتاح ~/.virtualenvs/spirit/bin/python manage.py stock_alerts` |
+
+- **النسخ الاحتياطي**: بيتحفظ في `~/erp_spirit/backups/` (آخر 14 نسخة). كل نسخة فيها قاعدة البيانات
+  وصور إثبات العهدة. نزّل نسخة على جهازك كل أسبوع من Files عشان لو الحساب نفسه حصله حاجة.
+  - **الاسترجاع**: `tar xzf spirit-backup-XXXX.tar.gz` وبعدين انسخ `db.sqlite3` و `private_media` مكان
+    القديمين (بعد ما تاخد نسخة من الحالي) واعمل Reload.
+- **تذكير التحصيل**: بيروح للمحاسب بس (مش للعملاء). لو عايزه يروح لشات المحاسب لوحده، زوّد في
+  `~/.telegram_bot` السطر `ACCOUNTANT_CHAT_ID=رقم_الشات` (أو متغير البيئة `TELEGRAM_ACCOUNTANT_CHAT_ID`).
+  في وضع الناقل (الحساب المجاني) الرسالة بتوصل للناقل ومعاها `chat_id` الخاص بالمحاسب.
+- **ملخص المخزون**: الأصناف اللي وصلت لحد التنبيه بتاع موديلها (بيتظبط من صفحة الموديل، الافتراضي 5)
+  والخامات اللي قربت تخلص.
+
+## 10) أمان
+- HSTS متفعّل لمدة شهر (`DJANGO_HSTS_SECONDS` لو عايز تغيّرها). اتأكد إن الموقع شغال https قبل الرفع.
