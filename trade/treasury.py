@@ -8,6 +8,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 
 from .models import (CashBox, CashEntry, CashTransfer, CommissionRate, OnlineOrder,
                      Payment, Seller, SaleInvoice, Supplier, SupplierPayment)
@@ -71,7 +72,7 @@ def record_customer_payment(customer, box, amount, pay_date=None, invoice=None, 
     amount = Decimal(amount)
     if amount <= 0:
         raise ValidationError("المبلغ لازم يكون أكبر من صفر")
-    pay_date = pay_date or date.today()
+    pay_date = pay_date or timezone.localdate()
     payment = Payment.objects.create(
         customer=customer, invoice=invoice, box=box, amount=amount, date=pay_date,
         method=PAYMENT_METHOD_FOR_BOX[box.method], notes=notes[:200])
@@ -87,7 +88,7 @@ def record_supplier_payment(supplier, box, amount, pay_date=None, notes=""):
         raise ValidationError("المبلغ لازم يكون أكبر من صفر")
     if amount > supplier.balance:
         raise ValidationError(f"المبلغ أكبر من المستحق للمورد ({supplier.balance:.2f})")
-    pay_date = pay_date or date.today()
+    pay_date = pay_date or timezone.localdate()
     payment = SupplierPayment.objects.create(supplier=supplier, box=box, amount=amount,
                                              date=pay_date, notes=notes[:200])
     CashEntry.post(box, -amount, "supplier_payment", f"سداد {supplier.name}", date=pay_date,
@@ -101,7 +102,7 @@ def create_transfer(from_box, to_box, amount, transfer_date=None, note="", user=
     amount = Decimal(amount)
     if amount <= 0:
         raise ValidationError("المبلغ لازم يكون أكبر من صفر")
-    transfer_date = transfer_date or date.today()
+    transfer_date = transfer_date or timezone.localdate()
     t = CashTransfer(from_box=from_box, to_box=to_box, amount=amount, date=transfer_date,
                      note=note[:200], created_by=user)
     t.clean()

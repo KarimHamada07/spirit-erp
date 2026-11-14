@@ -1,0 +1,134 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+
+{% block content_title %}التحليلات{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .kpi { border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; background: var(--erp-card,#fff);
+         color: var(--erp-ink,#111); border: 1px solid var(--erp-line,#e2e2e4); }
+  .kpi .label { font-size: 14px; opacity: .85; }
+  .kpi .value { font-size: 24px; font-weight: 700; line-height: 1.3; direction: ltr; unicode-bidi: isolate; text-align: right; }
+  .kpi .sub { font-size: 12px; opacity: .85; }
+  .kpi.dark { background: #000; color: #fff; border-color: #000; }
+  .kpi.red { background: #fe0000; color: #fff; border-color: #fe0000; }
+  .up { color: #0a7d33; font-weight: 700; } .down { color: #fe0000; font-weight: 700; }
+  .kpi.dark .up, .kpi.red .up, .kpi.dark .down, .kpi.red .down { color: #fff; }
+  [data-bs-theme=dark] .up { color: #4cd07d; }
+  .chart-box { position: relative; height: 300px; }
+  .chart-box.sm { height: 260px; }
+  .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  @media (max-width: 767px) { .chart-box { height: 240px; } .kpi .value { font-size: 20px; } }
+</style>
+
+<p class="text-muted">آخر 12 شهر ({{ data.start|date:"d/m/Y" }} → {{ data.today|date:"d/m/Y" }}). الأرقام من الفواتير المؤكدة والأونلاين المحصّل.
+  للتفاصيل: <a href="{% url 'profit_report' %}">تقرير الربحية</a> · <a href="{% url 'reports' %}">التقارير</a></p>
+
+<div class="row">
+  <div class="col-lg-3 col-6"><div class="kpi dark"><div class="label">مبيعات الشهر ده</div>
+    <div class="value">{{ data.current.revenue|floatformat:2|intcomma }}</div>
+    <div class="sub">{% if data.growth_revenue is not None %}<span class="{% if data.growth_revenue >= 0 %}up{% else %}down{% endif %}">{% if data.growth_revenue >= 0 %}▲{% else %}▼{% endif %} {{ data.growth_revenue|floatformat:1 }}%</span> عن الشهر اللي فات{% else %}مفيش شهر قبله للمقارنة{% endif %}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi red"><div class="label">ربح الشهر ده</div>
+    <div class="value">{{ data.current.profit|floatformat:2|intcomma }}</div>
+    <div class="sub">{% if data.growth_profit is not None %}<span class="{% if data.growth_profit >= 0 %}up{% else %}down{% endif %}">{% if data.growth_profit >= 0 %}▲{% else %}▼{% endif %} {{ data.growth_profit|floatformat:1 }}%</span> عن الشهر اللي فات{% else %}قبل المصروفات{% endif %}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi"><div class="label">مبيعات 12 شهر</div>
+    <div class="value">{{ data.year_revenue|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi"><div class="label">صافي ربح 12 شهر</div>
+    <div class="value">{{ data.year_net|floatformat:2|intcomma }}</div><div class="sub">بعد المصروفات</div></div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title">المبيعات والربح والمصروفات — شهرياً</h3></div>
+  <div class="card-body"><div class="chart-box"><canvas id="cMonths" aria-label="رسم المبيعات الشهرية" role="img"></canvas></div></div>
+</div>
+
+<div class="row">
+  <div class="col-lg-6"><div class="card mb-3">
+    <div class="card-header"><h3 class="card-title">الأكتر مبيعاً (بالقطعة)</h3></div>
+    <div class="card-body"><div class="chart-box"><canvas id="cTopQty" role="img" aria-label="الأكتر مبيعاً"></canvas></div></div></div></div>
+  <div class="col-lg-6"><div class="card mb-3">
+    <div class="card-header"><h3 class="card-title">الأكتر ربحاً</h3></div>
+    <div class="card-body"><div class="chart-box"><canvas id="cTopProfit" role="img" aria-label="الأكتر ربحاً"></canvas></div></div></div></div>
+</div>
+
+<div class="row">
+  <div class="col-lg-4"><div class="card mb-3">
+    <div class="card-header"><h3 class="card-title">المبيعات حسب القناة</h3></div>
+    <div class="card-body"><div class="chart-box sm"><canvas id="cChannels" role="img" aria-label="القنوات"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card mb-3">
+    <div class="card-header"><h3 class="card-title">نقدي وآجل (الفواتير)</h3></div>
+    <div class="card-body"><div class="chart-box sm"><canvas id="cPay" role="img" aria-label="نقدي وآجل"></canvas></div></div></div></div>
+  <div class="col-lg-4"><div class="card mb-3">
+    <div class="card-header"><h3 class="card-title">المبيعات حسب أيام الأسبوع</h3></div>
+    <div class="card-body"><div class="chart-box sm"><canvas id="cWeek" role="img" aria-label="أيام الأسبوع"></canvas></div></div></div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><h3 class="card-title">أداء البائعين</h3></div>
+  <div class="card-body"><div class="chart-box sm"><canvas id="cSellers" role="img" aria-label="أداء البائعين"></canvas></div></div>
+  <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>البائع</th><th>فواتير/أوردرات</th><th>المبيعات</th><th>الربح</th><th>الهامش</th><th>متوسط الفاتورة</th></tr></thead>
+    {% for s in data.sellers %}
+    <tr><td><b>{{ s.name }}</b></td><td>{{ s.count }}</td><td class="num">{{ s.revenue|floatformat:2|intcomma }}</td>
+      <td class="num">{{ s.profit|floatformat:2|intcomma }}</td>
+      <td class="num">{% if s.margin is not None %}{{ s.margin|floatformat:1 }}%{% else %}—{% endif %}</td>
+      <td class="num">{{ s.avg|floatformat:2|intcomma }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="text-muted p-3">مفيش مبيعات لسه.</td></tr>{% endfor %}
+  </table></div></div>
+</div>
+
+{{ data.chart|json_script:"an-data" }}
+{% load static %}<script src="{% static 'trade/vendor/chart.umd.min.js' %}"></script>
+<script>
+(function () {
+  if (!window.Chart) return;
+  var d = JSON.parse(document.getElementById("an-data").textContent);
+  var dark = document.documentElement.getAttribute("data-bs-theme") === "dark";
+  var ink = dark ? "#e6e6ea" : "#222", grid = dark ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.06)";
+  var RED = "#fe0000", BLACK = dark ? "#d9d9de" : "#111111", GREY = "#9a9aa2", SOFT = dark ? "#ff8a91" : "#ff8080";
+  Chart.defaults.font.family = "Cairo, 'Segoe UI', Tahoma, sans-serif";
+  Chart.defaults.color = ink;
+  var money = function (v) { return Number(v).toLocaleString("en-US", {maximumFractionDigits: 0}); };
+  var scales = { x: { grid: { color: grid } }, y: { beginAtZero: true, grid: { color: grid }, ticks: { callback: money } } };
+  var base = { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" },
+    tooltip: { callbacks: { label: function (c) { return " " + (c.dataset.label || c.label) + ": " + money(c.parsed.y !== undefined ? c.parsed.y : c.parsed); } } } } };
+  function opts(extra) { return Object.assign({}, base, extra || {}); }
+
+  new Chart(document.getElementById("cMonths"), { type: "bar",
+    data: { labels: d.months, datasets: [
+      { label: "المبيعات", data: d.revenue, backgroundColor: RED, borderRadius: 5, order: 2 },
+      { label: "الربح", data: d.profit, backgroundColor: BLACK, borderRadius: 5, order: 2 },
+      { label: "المصروفات", data: d.expenses, backgroundColor: GREY, borderRadius: 5, order: 2 },
+      { label: "صافي الربح", data: d.net, type: "line", borderColor: SOFT, backgroundColor: SOFT, tension: .3, order: 1 } ] },
+    options: opts({ scales: scales }) });
+
+  var hbar = function (id, src, color, label, isMoney) {
+    new Chart(document.getElementById(id), { type: "bar",
+      data: { labels: src.labels, datasets: [{ label: label, data: src.values, backgroundColor: color, borderRadius: 5 }] },
+      options: opts({ indexAxis: "y", plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, grid: { color: grid }, ticks: isMoney ? { callback: money } : {} }, y: { grid: { display: false } } } }) });
+  };
+  hbar("cTopQty", d.top_qty, BLACK, "قطعة", false);
+  hbar("cTopProfit", d.top_profit, RED, "الربح", true);
+
+  var doughnut = function (id, src, colors) {
+    new Chart(document.getElementById(id), { type: "doughnut",
+      data: { labels: src.labels, datasets: [{ data: src.values, backgroundColor: colors, borderWidth: 0 }] },
+      options: opts({ cutout: "62%" }) });
+  };
+  doughnut("cChannels", d.channels, [RED, BLACK, GREY]);
+  doughnut("cPay", d.pay, [BLACK, RED]);
+
+  new Chart(document.getElementById("cWeek"), { type: "bar",
+    data: { labels: d.weekday.labels, datasets: [{ label: "المبيعات", data: d.weekday.values, backgroundColor: RED, borderRadius: 5 }] },
+    options: opts({ plugins: { legend: { display: false } }, scales: scales }) });
+
+  new Chart(document.getElementById("cSellers"), { type: "bar",
+    data: { labels: d.sellers.labels, datasets: [
+      { label: "المبيعات", data: d.sellers.revenue, backgroundColor: RED, borderRadius: 5 },
+      { label: "الربح", data: d.sellers.profit, backgroundColor: BLACK, borderRadius: 5 } ] },
+    options: opts({ scales: scales }) });
+})();
+</script>
+{% endblock %}

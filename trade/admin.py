@@ -31,7 +31,8 @@ _print_labels.short_description = "طباعة ملصقات الباركود لل
 
 @admin.register(ClothingModel)
 class ClothingModelAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "is_active")
+    list_display = ("name", "code", "low_stock_level", "is_active")
+    list_editable = ("low_stock_level",)
     search_fields = ("name", "code")
     inlines = [VariantInline]
     actions = [_print_labels]
@@ -303,3 +304,155 @@ class SaleReturnAdmin(admin.ModelAdmin):
         if obj is not None and obj.is_confirmed:
             return False
         return super().has_change_permission(request, obj)
+
+
+# ================= متابعة التحصيل =================
+from .models import (BOMLine, DebtFollowUp, MaterialPurchase, MaterialPurchaseItem,  # noqa: E402
+                     ProductionMaterial, ProductionOrder, ProductionOutput, RawMaterial)
+
+
+@admin.register(DebtFollowUp)
+class DebtFollowUpAdmin(admin.ModelAdmin):
+    list_display = ("customer", "note", "next_date", "created_by", "created_at")
+    list_filter = ("next_date",)
+    search_fields = ("customer__name", "note")
+    autocomplete_fields = ("customer",)
+
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by_id:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+# ================= الإنتاج =================
+@admin.register(RawMaterial)
+class RawMaterialAdmin(admin.ModelAdmin):
+    list_display = ("name", "unit", "quantity", "avg_cost", "low_stock_level", "is_active")
+    list_filter = ("unit", "is_active")
+    search_fields = ("name",)
+    readonly_fields = ("quantity", "avg_cost")
+
+
+class BOMLineInline(admin.TabularInline):
+    model = BOMLine
+    extra = 1
+    autocomplete_fields = ("material",)
+
+
+# مكونات القطعة بتتعدل من صفحة الموديل نفسها
+ClothingModelAdmin.inlines = [VariantInline, BOMLineInline]
+
+
+class MaterialPurchaseItemInline(admin.TabularInline):
+    model = MaterialPurchaseItem
+    extra = 3
+    autocomplete_fields = ("material",)
+
+
+def _confirm_material_purchases(modeladmin, request, queryset):
+    for p in queryset:
+        try:
+            p.confirm()
+            messages.success(request, f"تم تأكيد {p} وإضافة الخامات للمخزن")
+        except ValidationError as e:
+            messages.error(request, f"{p}: {' '.join(e.messages)}")
+
+
+_confirm_material_purchases.short_description = "تأكيد الاستلام (إضافة الخامات للمخزن)"
+
+
+@admin.register(MaterialPurchase)
+class MaterialPurchaseAdmin(admin.ModelAdmin):
+    list_display = ("id", "supplier", "date", "total", "is_confirmed")
+    list_filter = ("is_confirmed",)
+    inlines = [MaterialPurchaseItemInline]
+    actions = [_confirm_material_purchases]
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.is_confirmed:
+            return False
+        return super().has_change_permission(request, obj)
+
+
+class ProductionOutputInline(admin.TabularInline):
+    model = ProductionOutput
+    extra = 3
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # المقاسات بتاعة موديل الأمر بس
+        if db_field.name == "variant":
+            obj_id = request.resolver_match.kwargs.get("object_id")
+            if obj_id:
+                order = ProductionOrder.objects.filter(pk=obj_id).first()
+                if order:
+                    kwargs["queryset"] = Variant.objects.filter(model=order.model_id)
+            kwargs.setdefault("queryset", Variant.objects.select_related("model"))
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class ProductionMaterialInline(admin.TabularInline):
+    model = ProductionMaterial
+    extra = 1
+    readonly_fields = ("unit_cost",)
+    autocomplete_fields = ("material",)
+
+
+def _po_action(method, done_msg):
+    def action(modeladmin, request, queryset):
+        for o in queryset:
+            try:
+                getattr(o, method)()
+                messages.success(request, f"{o}: {done_msg}")
+            except ValidationError as e:
+                messages.error(request, f"{o}: {' '.join(e.messages)}")
+    action.__name__ = f"po_{method}"
+    return action
+
+
+_po_bom = _po_action("fill_from_bom", "اتحسبت الخامات من مكونات الموديل")
+_po_bom.short_description = "احسب الخامات من مكونات الموديل (BOM)"
+_po_complete = _po_action("complete", "اتسلّم للمخزن واتحسبت تكلفة القطعة")
+_po_complete.short_description = "تسليم للمخزن (صرف الخامات وإضافة القطع)"
+_po_cancel = _po_action("cancel", "اتلغى")
+_po_cancel.short_description = "إلغاء الأوامر المحددة"
+
+
+@admin.register(ProductionOrder)
+class ProductionOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "model", "date", "workshop", "pieces_display", "status",
+                    "unit_cost_display")
+    list_filter = ("status", "model")
+    search_fields = ("model__name", "model__code", "workshop")
+    inlines = [ProductionOutputInline, ProductionMaterialInline]
+    actions = [_po_bom, _po_complete, _po_cancel]
+    readonly_fields = ("status", "material_cost", "unit_cost", "completed_at", "estimate_display")
+
+    @admin.display(description="القطع")
+    def pieces_display(self, obj):
+        return obj.pieces
+
+    @admin.display(description="تكلفة القطعة")
+    def unit_cost_display(self, obj):
+        if obj.status == obj.DONE:
+            return f"{obj.unit_cost:,.2f}"
+        est = obj.estimate()
+        return f"~{est['unit_cost']:,.2f} (متوقع)" if est["pieces"] else "—"
+
+    @admin.display(description="التكلفة المتوقعة")
+    def estimate_display(self, obj):
+        if not obj.pk:
+            return "احفظ الأمر الأول"
+        e = obj.estimate()
+        return (f"{e['pieces']} قطعة — خامات {e['material_cost']:,.2f} + مصنعية "
+                f"{obj.labor_cost_per_piece * e['pieces']:,.2f} + مصاريف {obj.other_costs:,.2f} "
+                f"= {e['total']:,.2f} ← القطعة {e['unit_cost']:,.2f}")
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.status != obj.DRAFT:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.status == obj.DONE:
+            return False
+        return super().has_delete_permission(request, obj)

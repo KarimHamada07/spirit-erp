@@ -13,7 +13,6 @@ from django.views.decorators.http import require_POST
 from .models import ClothingModel, PurchaseInvoice
 
 DEC = DecimalField(max_digits=14, decimal_places=2)
-LOW_STOCK = 5  # نفس الحد المستخدم في لوحة التحكم
 
 SIZE_ORDER = {
     "XXS": 0, "XS": 1, "S": 2, "M": 3, "L": 4, "XL": 5,
@@ -41,7 +40,7 @@ def inventory(request):
                      variants_count=Count("variants", distinct=True),
                      low_variants=Count(
                          "variants",
-                         filter=Q(variants__quantity__lte=LOW_STOCK),
+                         filter=Q(variants__quantity__lte=F("low_stock_level")),
                          distinct=True),
                      stock_value=Coalesce(
                          Sum(F("variants__quantity") * F("variants__avg_cost"),
@@ -59,7 +58,6 @@ def inventory(request):
         "grand_value": sum((m.stock_value for m in items), Decimal("0")),
         "models_count": len(items),
         "low_total": sum(m.low_variants for m in items),
-        "low_limit": LOW_STOCK,
     }
     return render(request, "trade/inventory.html", context)
 
@@ -73,7 +71,7 @@ def inventory_detail(request, pk):
     for v in variants:
         if v.quantity <= 0:
             status = "out"
-        elif v.quantity <= LOW_STOCK:
+        elif v.quantity <= model.low_stock_level:
             status = "low"
         else:
             status = "ok"
@@ -95,7 +93,7 @@ def inventory_detail(request, pk):
         "rows": rows,
         "total_qty": total_qty,
         "total_value": sum((r["value"] for r in rows), Decimal("0")),
-        "low_limit": LOW_STOCK,
+        "low_limit": model.low_stock_level,
     }
     return render(request, "trade/inventory_detail.html", context)
 

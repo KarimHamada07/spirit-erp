@@ -24,6 +24,9 @@ class ClothingModel(models.Model):
     code = models.CharField("الكود", max_length=30, unique=True)
     description = models.TextField("وصف", blank=True)
     is_active = models.BooleanField("نشط", default=True)
+    low_stock_level = models.PositiveIntegerField(
+        "حد التنبيه", default=5,
+        help_text="لما كمية أي مقاس/لون توصل للرقم ده أو أقل يجيلك تنبيه إن المخزون قرب يخلص")
 
     class Meta:
         verbose_name = "موديل"
@@ -75,8 +78,9 @@ class Supplier(models.Model):
 
     @property
     def balance(self):
-        """المستحق للمورد = فواتير التوريد المؤكدة - مرتجعات مؤكدة - مدفوعات"""
+        """المستحق للمورد = فواتير التوريد + مشتريات الخامات المؤكدة - مرتجعات مؤكدة - مدفوعات"""
         bought = sum((inv.total for inv in self.purchaseinvoice_set.filter(is_confirmed=True)), ZERO)
+        bought += sum((p.total for p in self.material_purchases.filter(is_confirmed=True)), ZERO)
         returned = sum((r.total for r in self.purchase_returns.filter(is_confirmed=True)), ZERO)
         paid = sum((p.amount for p in self.supplier_payments.all()), ZERO)
         return bought - returned - paid
@@ -107,7 +111,7 @@ class CustomerQuerySet(models.QuerySet):
                            return_doc__refund_mode="account",
                            return_doc__invoice__payment_type="credit")
                    .order_by().values("return_doc__invoice__customer")
-                   .annotate(s=Sum(F("quantity") * F("sale_item__unit_price"), output_field=DEC))
+                   .annotate(s=Sum(F("quantity") * F("unit_refund"), output_field=DEC))
                    .values("s"))
         return (self
                 .annotate(
@@ -239,10 +243,24 @@ class SaleInvoice(models.Model):
         return sum((p.amount for p in self.payments.all()), ZERO)
 
     @property
+    def net_ratio(self):
+        """نسبة اللي بيفضل من سعر البند بعد خصم الفاتورة (1 = مفيش خصم)"""
+        gross = sum((i.quantity * i.unit_price for i in self.items.all()), ZERO)
+        if not gross:
+            return Decimal("1")
+        return (gross - self.discount) / gross
+
+    @property
+    def returned_on_account(self):
+        """مرتجعات مؤكدة اتخصمت من مديونية الفاتورة دي"""
+        return sum((r.total for r in self.returns.filter(is_confirmed=True, refund_mode="account")),
+                   ZERO)
+
+    @property
     def remaining(self):
         if self.payment_type != "credit":
             return ZERO
-        return self.total - self.paid_total
+        return self.total - self.returned_on_account - self.paid_total
 
     @transaction.atomic
     def confirm(self):
@@ -499,6 +517,9 @@ class ActivityLog(models.Model):
     user_name = models.CharField("المستخدم", max_length=150, blank=True)
     text = models.TextField("الحدث")
     sent = models.BooleanField("أُرسل لتليجرام", default=False, db_index=True)
+    AUDIENCES = [("", "الجروب العام"), ("accountant", "المحاسب")]
+    audience = models.CharField("مرسل إلى", max_length=20, choices=AUDIENCES, blank=True,
+                                default="")
 
     class Meta:
         verbose_name = "حدث"
@@ -814,8 +835,13 @@ class SaleReturn(models.Model):
 
     @property
     def total(self):
-        return sum((i.quantity * i.sale_item.unit_price for i in self.items.select_related("sale_item")),
-                   ZERO)
+        """قيمة المرتجع: بسعر البيع بعد نصيبه من خصم الفاتورة (بعد التأكيد بتتثبت)"""
+        items = list(self.items.select_related("sale_item"))
+        if self.is_confirmed:
+            return sum((i.quantity * i.unit_refund for i in items), ZERO)
+        ratio = self.invoice.net_ratio
+        return sum((i.quantity * (i.sale_item.unit_price * ratio).quantize(Decimal("0.01"))
+                    for i in items), ZERO)
 
     @transaction.atomic
     def confirm(self):
@@ -829,8 +855,11 @@ class SaleReturn(models.Model):
             raise ValidationError("الخصم من المديونية للفواتير الآجل بس")
         if self.refund_mode == "box" and not self.refund_box_id:
             raise ValidationError("اختار الخزنة اللي هترد منها الفلوس")
+        ratio = self.invoice.net_ratio
         for item in self.items.select_related("sale_item__variant"):
             si = item.sale_item
+            item.unit_refund = (si.unit_price * ratio).quantize(Decimal("0.01"))
+            item.save(update_fields=["unit_refund"])
             already = (SaleReturnItem.objects
                        .filter(sale_item=si, return_doc__is_confirmed=True)
                        .aggregate(s=Sum("quantity"))["s"] or 0)
@@ -839,6 +868,7 @@ class SaleReturn(models.Model):
             v = Variant.objects.select_for_update().get(pk=si.variant_id)
             v.add_stock(item.quantity, si.unit_cost)
             v.save()
+        self.is_confirmed = True  # عشان total يقرا السعر المتثبت
         if self.refund_mode == "box":
             CashEntry.post(self.refund_box, -self.total, "refund",
                            f"مرتجع بيع #{self.pk}", invoice=self.invoice,
@@ -852,6 +882,9 @@ class SaleReturnItem(models.Model):
     sale_item = models.ForeignKey(SaleItem, on_delete=models.PROTECT, related_name="return_items",
                                   verbose_name="البند الأصلي")
     quantity = models.PositiveIntegerField("الكمية")
+    unit_refund = models.DecimalField("قيمة القطعة المرتجعة", max_digits=12, decimal_places=2,
+                                      default=0, editable=False,
+                                      help_text="سعر البيع بعد نصيب القطعة من خصم الفاتورة")
 
     class Meta:
         verbose_name = "بند مرتجع عميل"
@@ -859,3 +892,253 @@ class SaleReturnItem(models.Model):
 
     def __str__(self):
         return f"{self.sale_item.variant} × {self.quantity}"
+
+
+# ================= متابعة تحصيل المديونيات (للمحاسب) =================
+class DebtFollowUp(models.Model):
+    """ملاحظة متابعة من المحاسب على مديونية عميل: اتكلم معاه، وعده يدفع إمتى"""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="followups",
+                                 verbose_name="العميل")
+    note = models.CharField("الملاحظة", max_length=300)
+    next_date = models.DateField("ميعاد المتابعة الجاي", null=True, blank=True,
+                                 help_text="التذكير هيرجع للمحاسب في اليوم ده")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                   on_delete=models.SET_NULL, editable=False,
+                                   verbose_name="سجّلها")
+    created_at = models.DateTimeField("الوقت", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "متابعة تحصيل"
+        verbose_name_plural = "متابعات التحصيل"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.customer}: {self.note}"
+
+
+# ================= الإنتاج: الخامات وأوامر التشغيل =================
+QTY = dict(max_digits=12, decimal_places=3)
+
+
+class RawMaterial(models.Model):
+    """خامة (قماش، خيط، زراير، تيكيت...) ليها مخزون ومتوسط تكلفة زي الأصناف"""
+    UNITS = [("m", "متر"), ("kg", "كيلو"), ("pc", "قطعة"), ("roll", "طوب/رول"), ("box", "علبة")]
+    name = models.CharField("اسم الخامة", max_length=120, unique=True)
+    unit = models.CharField("الوحدة", max_length=5, choices=UNITS, default="m")
+    quantity = models.DecimalField("الكمية بالمخزن", default=0, editable=False, **QTY)
+    avg_cost = models.DecimalField("متوسط التكلفة للوحدة", max_digits=12, decimal_places=4,
+                                   default=0, editable=False)
+    low_stock_level = models.DecimalField("حد التنبيه", default=0, **QTY)
+    is_active = models.BooleanField("نشطة", default=True)
+
+    class Meta:
+        verbose_name = "خامة"
+        verbose_name_plural = "الخامات"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_unit_display()})"
+
+    def add_stock(self, qty, unit_cost):
+        qty, unit_cost = Decimal(qty), Decimal(unit_cost)
+        new_qty = self.quantity + qty
+        if new_qty > 0:
+            self.avg_cost = ((self.quantity * self.avg_cost) + (qty * unit_cost)) / new_qty
+        self.quantity = new_qty
+
+
+class BOMLine(models.Model):
+    """مكونات القطعة الواحدة من الموديل (للحساب التلقائي لأوامر التشغيل)"""
+    model = models.ForeignKey(ClothingModel, on_delete=models.CASCADE, related_name="bom",
+                              verbose_name="الموديل")
+    material = models.ForeignKey(RawMaterial, on_delete=models.PROTECT, verbose_name="الخامة")
+    qty_per_piece = models.DecimalField("الكمية للقطعة", validators=[MinValueValidator(Decimal("0.001"))],
+                                        **QTY)
+
+    class Meta:
+        verbose_name = "مكوّن"
+        verbose_name_plural = "مكونات القطعة (BOM)"
+        unique_together = ("model", "material")
+
+    def __str__(self):
+        return f"{self.material} × {self.qty_per_piece}"
+
+
+class MaterialPurchase(models.Model):
+    """شراء خامات من مورد: بتزود مخزون الخامات وبتتحسب على حساب المورد"""
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="material_purchases",
+                                 verbose_name="المورد")
+    date = models.DateField("التاريخ", default=timezone.localdate)
+    notes = models.CharField("ملاحظات", max_length=200, blank=True)
+    is_confirmed = models.BooleanField("مؤكدة", default=False, editable=False)
+
+    class Meta:
+        verbose_name = "شراء خامات"
+        verbose_name_plural = "مشتريات الخامات"
+        ordering = ["-date", "-id"]
+
+    def __str__(self):
+        return f"خامات #{self.pk} - {self.supplier}"
+
+    @property
+    def total(self):
+        return sum((i.quantity * i.unit_cost for i in self.items.all()), ZERO)
+
+    @transaction.atomic
+    def confirm(self):
+        if self.is_confirmed:
+            raise ValidationError("الفاتورة مؤكدة بالفعل")
+        if not self.items.exists():
+            raise ValidationError("الفاتورة بدون خامات")
+        for item in self.items.all():
+            m = RawMaterial.objects.select_for_update().get(pk=item.material_id)
+            m.add_stock(item.quantity, item.unit_cost)
+            m.save()
+        self.is_confirmed = True
+        self.save()
+
+
+class MaterialPurchaseItem(models.Model):
+    purchase = models.ForeignKey(MaterialPurchase, on_delete=models.CASCADE, related_name="items")
+    material = models.ForeignKey(RawMaterial, on_delete=models.PROTECT, verbose_name="الخامة")
+    quantity = models.DecimalField("الكمية", validators=[MinValueValidator(Decimal("0.001"))], **QTY)
+    unit_cost = models.DecimalField("سعر الوحدة", max_digits=12, decimal_places=2)
+
+    class Meta:
+        verbose_name = "بند خامات"
+        verbose_name_plural = "بنود الخامات"
+
+    def __str__(self):
+        return f"{self.material} × {self.quantity}"
+
+
+class ProductionOrder(models.Model):
+    """أمر تشغيل: بيصرف خامات ويطلّع قطع جاهزة على المخزون بتكلفة محسوبة"""
+    DRAFT, DONE, CANCELLED = "draft", "done", "cancelled"
+    STATUSES = [(DRAFT, "تحت التشغيل"), (DONE, "اتسلّم للمخزن"), (CANCELLED, "ملغي")]
+
+    model = models.ForeignKey(ClothingModel, on_delete=models.PROTECT, related_name="production_orders",
+                              verbose_name="الموديل")
+    date = models.DateField("تاريخ الأمر", default=timezone.localdate)
+    status = models.CharField("الحالة", max_length=10, choices=STATUSES, default=DRAFT,
+                              editable=False, db_index=True)
+    workshop = models.CharField("الورشة / المشغل", max_length=120, blank=True)
+    labor_cost_per_piece = models.DecimalField("مصنعية القطعة", max_digits=12, decimal_places=2,
+                                               default=0)
+    other_costs = models.DecimalField("مصاريف تانية (إجمالي)", max_digits=12, decimal_places=2,
+                                      default=0, help_text="نقل، طباعة، تغليف... بتتوزع على القطع")
+    notes = models.TextField("ملاحظات", blank=True)
+    material_cost = models.DecimalField("تكلفة الخامات", max_digits=14, decimal_places=2, default=0,
+                                        editable=False)
+    unit_cost = models.DecimalField("تكلفة القطعة", max_digits=12, decimal_places=2, default=0,
+                                    editable=False)
+    completed_at = models.DateTimeField("وقت التسليم", null=True, blank=True, editable=False)
+
+    class Meta:
+        verbose_name = "أمر تشغيل"
+        verbose_name_plural = "أوامر التشغيل"
+        ordering = ["-date", "-id"]
+
+    def __str__(self):
+        return f"تشغيل #{self.pk} - {self.model.name}"
+
+    @property
+    def pieces(self):
+        return sum((o.quantity for o in self.outputs.all()), 0)
+
+    def estimate(self):
+        """تكلفة متوقعة (بأسعار الخامات الحالية) قبل التسليم"""
+        pieces = self.pieces
+        mat = sum((u.quantity * u.material.avg_cost for u in self.materials.select_related("material")),
+                  ZERO)
+        total = mat + self.labor_cost_per_piece * pieces + self.other_costs
+        return {"pieces": pieces, "material_cost": mat, "total": total,
+                "unit_cost": (total / pieces) if pieces else ZERO}
+
+    @transaction.atomic
+    def fill_from_bom(self):
+        """يحسب الخامات المطلوبة من مكونات الموديل × عدد القطع (بيمسح الخامات الحالية)"""
+        if self.status != self.DRAFT:
+            raise ValidationError("الأمر مقفول")
+        pieces = self.pieces
+        if not pieces:
+            raise ValidationError("حدد المقاسات والكميات الأول")
+        bom = list(self.model.bom.all())
+        if not bom:
+            raise ValidationError("الموديل مالوش مكونات (BOM) متسجلة")
+        self.materials.all().delete()
+        for line in bom:
+            ProductionMaterial.objects.create(order=self, material_id=line.material_id,
+                                              quantity=line.qty_per_piece * pieces)
+
+    @transaction.atomic
+    def complete(self):
+        """تسليم للمخزن: يصرف الخامات ويضيف القطع بتكلفتها"""
+        order = ProductionOrder.objects.select_for_update().get(pk=self.pk)
+        if order.status != self.DRAFT:
+            raise ValidationError("الأمر ده اتقفل قبل كده")
+        outputs = list(self.outputs.select_related("variant"))
+        pieces = sum(o.quantity for o in outputs)
+        if not pieces:
+            raise ValidationError("الأمر بدون قطع")
+        for o in outputs:
+            if o.variant.model_id != self.model_id:
+                raise ValidationError(f"الصنف {o.variant} مش من نفس الموديل")
+        material_cost = ZERO
+        for use in self.materials.all():
+            m = RawMaterial.objects.select_for_update().get(pk=use.material_id)
+            if m.quantity < use.quantity:
+                raise ValidationError(f"الخامة {m} مش كفاية (المتاح {m.quantity:g})")
+            use.unit_cost = m.avg_cost
+            use.save(update_fields=["unit_cost"])
+            material_cost += use.quantity * m.avg_cost
+            m.quantity -= use.quantity
+            m.save()
+        total = material_cost + self.labor_cost_per_piece * pieces + self.other_costs
+        unit_cost = (total / pieces).quantize(Decimal("0.01"))
+        for o in outputs:
+            v = Variant.objects.select_for_update().get(pk=o.variant_id)
+            v.add_stock(o.quantity, unit_cost)
+            v.save()
+        self.material_cost = material_cost.quantize(Decimal("0.01"))
+        self.unit_cost = unit_cost
+        self.status = self.DONE
+        self.completed_at = timezone.now()
+        self.save()
+        log_event(f"🏭 أمر تشغيل #{self.pk} اتسلّم للمخزن: {self.model.name} — {pieces} قطعة"
+                  f"\nتكلفة القطعة: {unit_cost:,.2f} (خامات {self.material_cost:,.2f})")
+
+    def cancel(self):
+        if self.status != self.DRAFT:
+            raise ValidationError("مينفعش تلغي أمر اتسلّم")
+        self.status = self.CANCELLED
+        self.save(update_fields=["status"])
+
+
+class ProductionOutput(models.Model):
+    order = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, related_name="outputs")
+    variant = models.ForeignKey(Variant, on_delete=models.PROTECT, verbose_name="المقاس/اللون")
+    quantity = models.PositiveIntegerField("عدد القطع", validators=[MinValueValidator(1)])
+
+    class Meta:
+        verbose_name = "قطع الأمر"
+        verbose_name_plural = "القطع المطلوبة"
+
+    def __str__(self):
+        return f"{self.variant} × {self.quantity}"
+
+
+class ProductionMaterial(models.Model):
+    order = models.ForeignKey(ProductionOrder, on_delete=models.CASCADE, related_name="materials")
+    material = models.ForeignKey(RawMaterial, on_delete=models.PROTECT, verbose_name="الخامة")
+    quantity = models.DecimalField("الكمية المصروفة", validators=[MinValueValidator(Decimal("0.001"))],
+                                   **QTY)
+    unit_cost = models.DecimalField("تكلفة الوحدة وقت الصرف", max_digits=12, decimal_places=4,
+                                    default=0, editable=False)
+
+    class Meta:
+        verbose_name = "خامة مصروفة"
+        verbose_name_plural = "الخامات المصروفة"
+
+    def __str__(self):
+        return f"{self.material} × {self.quantity}"

@@ -20,7 +20,7 @@ def _allowed(user):
 
 
 def _dates(request):
-    today = date.today()
+    today = timezone.localdate()
     try:
         d1 = date.fromisoformat(request.GET.get("from", ""))
     except ValueError:
@@ -184,3 +184,44 @@ def report_print(request):
     d1, d2 = _dates(request)
     return render(request, "trade/report_print.html",
                   {"data": collect(d1, d2), "shop_name": "SPIRIT | سبيريت"})
+
+
+# ================= تقرير الربحية (لكل موديل ومقاس) =================
+@staff_member_required
+def profit_report(request):
+    from .profit import profitability
+    if not _allowed(request.user):
+        raise PermissionDenied
+    d1, d2 = _dates(request)
+    data = profitability(d1, d2)
+    if request.GET.get("export") == "xlsx":
+        t = data["totals"]
+        def pct(x):
+            return round(float(x), 1) if x is not None else ""
+        return xlsx_response([
+            ("الربحية حسب الموديل",
+             ["الموديل", "الكود", "اتباع", "مرتجع", "الصافي", "المبيعات", "التكلفة", "الربح",
+              "الهامش %", "باقي بالمخزن", "قيمة المخزن"],
+             [[m["model"].name, m["model"].code, m["sold"], m["returned"], m["net_qty"],
+               m["revenue"], m["cost"], m["profit"], pct(m["margin"]), m["stock_qty"],
+               m["stock_value"]] for m in data["models"]]
+             + [["الإجمالي", "", t["sold"], t["returned"], t["sold"] - t["returned"],
+                 t["revenue"], t["cost"], t["profit"], pct(t["margin"]), "", ""]]),
+            ("الربحية حسب المقاس",
+             ["الموديل", "المقاس", "اللون", "اتباع", "مرتجع", "المبيعات", "التكلفة", "الربح",
+              "الهامش %", "ربح القطعة"],
+             [[m["model"].name, r["variant"].size, r["variant"].color, r["sold"], r["returned"],
+               r["revenue"], r["cost"], r["profit"], pct(r["margin"]),
+               r["unit_profit"] if r["unit_profit"] is not None else ""]
+              for m in data["models"] for r in m["variants"]]),
+            ("الشحن", ["البند", "القيمة"], [
+                ["أوردرات محصّلة", data["shipping"]["orders"]],
+                ["شحن على العملاء", data["shipping"]["fee"]],
+                ["تكلفة الشحن علينا", data["shipping"]["cost"]],
+                ["تكلفة شحن المرتجعات", data["shipping"]["returned_cost"]],
+                ["صافي الشحن", t["shipping_net"]],
+                ["الربح بعد الشحن", t["profit_after_shipping"]]]),
+        ], f"profit_{d1}_{d2}")
+    return render(request, "trade/profit.html", {
+        **admin.site.each_context(request), "title": "تقرير الربحية", "data": data,
+        "d1": d1.isoformat(), "d2": d2.isoformat()})

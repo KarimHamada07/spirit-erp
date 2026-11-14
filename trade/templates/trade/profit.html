@@ -1,0 +1,96 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+
+{% block content_title %}تقرير الربحية{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .kpi { border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; background: var(--erp-card,#fff); color: var(--erp-ink,#111); border: 1px solid var(--erp-line,#e2e2e4); }
+  .kpi .label { font-size: 14px; opacity: .85; }
+  .kpi .value { font-size: 24px; font-weight: 700; line-height: 1.3; }
+  .kpi .sub { font-size: 12px; opacity: .8; }
+  .kpi.dark { background: #000; color: #fff; border-color: #000; }
+  .kpi.red { background: #fe0000; color: #fff; border-color: #fe0000; }
+  .neg { color: #fe0000; font-weight: 700; }
+  tr.model-row { cursor: pointer; }
+  tr.model-row td:first-child::before { content: "▸ "; color: var(--erp-muted,#888); }
+  tr.model-row.open td:first-child::before { content: "▾ "; }
+  tr.var-row { display: none; font-size: 13px; background: var(--erp-soft,#f6f6f7); }
+  tr.var-row.show { display: table-row; }
+  .bar { height: 6px; border-radius: 3px; background: var(--erp-line,#e2e2e4); overflow: hidden; min-width: 60px; }
+  .bar > span { display: block; height: 100%; background: #fe0000; }
+  .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+</style>
+
+<p class="text-muted">الربح الحقيقي لكل موديل: سعر البيع بعد الخصم ناقص تكلفة الشراء (متوسط التكلفة وقت البيع)،
+  ومخصوم منه المرتجعات. اضغط على أي موديل عشان تشوف مقاساته.</p>
+
+<form method="get" class="d-flex flex-wrap align-items-end mb-3" style="gap:10px">
+  <div><label class="mb-1 d-block">من</label><input type="date" name="from" value="{{ d1 }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">إلى</label><input type="date" name="to" value="{{ d2 }}" class="form-control"></div>
+  <button class="btn btn-primary">عرض</button>
+  <a class="btn btn-success" href="?from={{ d1 }}&to={{ d2 }}&export=xlsx">Excel</a>
+  <a class="btn btn-outline-secondary" href="{% url 'reports' %}?from={{ d1 }}&to={{ d2 }}">التقارير العامة</a>
+</form>
+
+{% with t=data.totals %}
+<div class="row">
+  <div class="col-lg-3 col-6"><div class="kpi dark"><div class="label">المبيعات (صافي)</div>
+    <div class="value num">{{ t.revenue|floatformat:2|intcomma }}</div><div class="sub">{{ t.sold }} قطعة · {{ t.returned }} مرتجع</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi"><div class="label">تكلفة البضاعة</div>
+    <div class="value num">{{ t.cost|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi red"><div class="label">ربح الأصناف</div>
+    <div class="value num">{{ t.profit|floatformat:2|intcomma }}</div>
+    <div class="sub">هامش {% if t.margin is not None %}{{ t.margin|floatformat:1 }}%{% else %}—{% endif %}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi"><div class="label">بعد صافي الشحن</div>
+    <div class="value num">{{ t.profit_after_shipping|floatformat:2|intcomma }}</div>
+    <div class="sub">صافي الشحن <span class="num">{{ t.shipping_net|floatformat:2|intcomma }}</span></div></div></div>
+</div>
+{% endwith %}
+
+<div class="card">
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead><tr><th>الموديل / المقاس</th><th>اتباع</th><th>مرتجع</th><th>المبيعات</th><th>التكلفة</th><th>الربح</th><th>الهامش</th><th>ربح القطعة</th><th>بالمخزن</th></tr></thead>
+      <tbody>
+      {% for m in data.models %}
+        <tr class="model-row" data-m="{{ m.model.pk }}">
+          <td><b>{{ m.model.name }}</b> <small class="text-muted">{{ m.model.code }}</small></td>
+          <td>{{ m.sold }}</td><td>{{ m.returned|default:"—" }}</td>
+          <td class="num">{{ m.revenue|floatformat:2|intcomma }}</td>
+          <td class="num">{{ m.cost|floatformat:2|intcomma }}</td>
+          <td class="num {% if m.profit < 0 %}neg{% endif %}"><b>{{ m.profit|floatformat:2|intcomma }}</b></td>
+          <td>{% if m.margin is not None %}<span class="num">{{ m.margin|floatformat:1 }}%</span>
+            <div class="bar"><span style="width:{% if m.margin > 0 %}{{ m.margin|floatformat:0 }}{% else %}0{% endif %}%"></span></div>{% else %}—{% endif %}</td>
+          <td>—</td>
+          <td>{{ m.stock_qty }}</td>
+        </tr>
+        {% for r in m.variants %}
+        <tr class="var-row" data-p="{{ m.model.pk }}">
+          <td style="padding-right:28px">{{ r.variant.size }}{% if r.variant.color %} — {{ r.variant.color }}{% endif %}</td>
+          <td>{{ r.sold }}</td><td>{{ r.returned|default:"—" }}</td>
+          <td class="num">{{ r.revenue|floatformat:2|intcomma }}</td>
+          <td class="num">{{ r.cost|floatformat:2|intcomma }}</td>
+          <td class="num {% if r.profit < 0 %}neg{% endif %}">{{ r.profit|floatformat:2|intcomma }}</td>
+          <td class="num">{% if r.margin is not None %}{{ r.margin|floatformat:1 }}%{% else %}—{% endif %}</td>
+          <td class="num">{% if r.unit_profit is not None %}{{ r.unit_profit|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+          <td>{{ r.variant.quantity }}</td>
+        </tr>
+        {% endfor %}
+      {% empty %}
+        <tr><td colspan="9" class="text-muted p-3">مفيش مبيعات في الفترة دي.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+<script>
+document.querySelectorAll("tr.model-row").forEach(function (tr) {
+  tr.addEventListener("click", function () {
+    tr.classList.toggle("open");
+    document.querySelectorAll('tr.var-row[data-p="' + tr.dataset.m + '"]').forEach(function (x) { x.classList.toggle("show"); });
+  });
+});
+</script>
+{% endblock %}

@@ -8,6 +8,7 @@ from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from .models import CashBox, Customer, Payment, SaleInvoice, SaleReturn, Seller
 from .pdf_export import statement_pdf
@@ -57,7 +58,7 @@ def customer_detail(request, pk):
                 .order_by("-date", "-id"))
     invoice_rows = []
     for inv in invoices:
-        total = inv.total
+        total = inv.total - inv.returned_on_account  # المرتجع على الحساب بيقلل الفاتورة
         paid = sum((p.amount for p in inv.payments.all()), ZERO)
         invoice_rows.append({
             "invoice": inv, "total": total, "paid": paid,
@@ -73,7 +74,7 @@ def customer_detail(request, pk):
         "invoice_rows": invoice_rows,
         "open_invoices": [r for r in invoice_rows if r["remaining"] > 0],
         "payments": payments,
-        "today": date.today().isoformat(),
+        "today": timezone.localdate().isoformat(),
         "boxes": CashBox.objects.filter(is_active=True).exclude(method="shipping"),
         "sellers": Seller.objects.filter(is_active=True).order_by("name"),
         "can_change_seller": request.user.has_perm("trade.change_customer_seller"),
@@ -154,7 +155,7 @@ def customer_pay(request, pk):
     try:
         pay_date = date.fromisoformat(request.POST.get("date", ""))
     except ValueError:
-        pay_date = date.today()
+        pay_date = timezone.localdate()
 
     record_customer_payment(customer, box, amount, pay_date, invoice=invoice,
                             notes=request.POST.get("notes", "").strip()[:200])
@@ -213,7 +214,7 @@ def customer_statement_pdf(request, pk):
         "credit_total": credit_total,
         "paid_total": paid_total,
         "balance": credit_total - paid_total,
-        "as_of": date.today().isoformat(),
+        "as_of": timezone.localdate().isoformat(),
     }
     content = statement_pdf(customer, entries, totals)
     response = HttpResponse(content, content_type="application/pdf")

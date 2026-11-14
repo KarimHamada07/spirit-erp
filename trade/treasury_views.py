@@ -7,6 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import redirect, render
 from django.utils.dateparse import parse_date
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from .models import (CashBox, CashEntry, Customer, SaleInvoice, Supplier)
 from .treasury import (box_rows, commission_report, create_transfer, daily_close,
@@ -22,7 +23,7 @@ def _money(raw):
 
 
 def _date(raw):
-    return parse_date(raw or "") or date.today()
+    return parse_date(raw or "") or timezone.localdate()
 
 
 @staff_member_required
@@ -45,7 +46,7 @@ def treasury(request):
         "pay_boxes": CashBox.objects.filter(is_active=True).exclude(method="shipping"),
         "all_boxes": CashBox.objects.filter(is_active=True),
         "invoices": SaleInvoice.objects.filter(is_confirmed=True, payment_type="credit").order_by("-date", "-id")[:300],
-        "today": date.today().isoformat(),
+        "today": timezone.localdate().isoformat(),
     }
     return render(request, "trade/treasury.html", context)
 
@@ -120,7 +121,7 @@ def _month(raw):
             raise ValueError
         return y, m
     except ValueError:
-        today = date.today()
+        today = timezone.localdate()
         return today.year, today.month
 
 

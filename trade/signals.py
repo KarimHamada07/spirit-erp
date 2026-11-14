@@ -3,7 +3,7 @@ from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from .models import (CashTransfer, Customer, Expense, Payment, PurchaseInvoice,
+from .models import (CashTransfer, ClothingModel, Customer, Expense, Payment, PurchaseInvoice,
                      PurchaseReturn, SaleInvoice, SaleReturn, SupplierPayment,
                      Variant)
 from .notify import (LOW_STOCK, log_event, payment_text, purchase_return_text,
@@ -95,6 +95,13 @@ def _expense(sender, instance, created, **kw):
 
 
 # ---- تنبيه المخزون ----
+def _limit(variant):
+    """حد التنبيه بتاع الموديل (أو الافتراضي)"""
+    level = (ClothingModel.objects.filter(pk=variant.model_id)
+             .values_list("low_stock_level", flat=True).first())
+    return LOW_STOCK if level is None else level
+
+
 @receiver(pre_save, sender=Variant)
 def _variant_before(sender, instance, **kw):
     instance._old_qty = (
@@ -109,7 +116,7 @@ def _variant_after(sender, instance, created, **kw):
         return
     if instance.quantity <= 0 < old:
         log_event(f"⛔ نفد من المخزن: {instance}")
-    elif instance.quantity <= LOW_STOCK < old:
+    elif instance.quantity <= _limit(instance) < old:
         log_event(f"⚠️ مخزون منخفض: {instance} — الكمية {instance.quantity}")
 
 

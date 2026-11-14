@@ -10,7 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .models import ActivityLog
-from .notify import config
+from .notify import chat_for, config
 
 
 def _key_ok(request):
@@ -51,7 +51,11 @@ def activity_feed(request):
     if not _key_ok(request):
         return JsonResponse({"error": "forbidden"}, status=403)
     events = ActivityLog.objects.filter(sent=False).order_by("id")[:30]
-    return JsonResponse({"events": [{"id": e.id, "message": e.message} for e in events]})
+    cfg = config()
+    return JsonResponse({"events": [
+        {"id": e.id, "message": e.message, "audience": e.audience,
+         "chat_id": chat_for(e.audience, cfg) if e.audience else ""}
+        for e in events]})
 
 
 @csrf_exempt
