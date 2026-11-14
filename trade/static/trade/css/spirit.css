@@ -502,3 +502,13 @@ html[data-bs-theme="dark"] .content-header .content-title {
   color: #ffffff !important;
   opacity: 1 !important;
 }
+
+/* ===== إصلاح: صفوف الصفحات المخصصة جوه صف القالب (كانت بتزق المحتوى وبتسيب فراغ على الموبايل) =====
+   الصف الخارجي بتاع القالب بيبقى عادي، والكروت والصفوف اللي جواه كلهم على نفس الحافة */
+.app-content .container-fluid > .row:has(> .row) { margin-left: 0; margin-right: 0; }
+.app-content .container-fluid > .row:has(> .row) > :not([class*="col"]):not(.row) { padding-left: 0; padding-right: 0; }
+.row > .row {
+  flex: 0 0 auto; width: calc(100% + var(--bs-gutter-x)); max-width: none;
+  padding-left: 0; padding-right: 0;
+  margin-left: calc(-.5 * var(--bs-gutter-x)); margin-right: calc(-.5 * var(--bs-gutter-x));
+}

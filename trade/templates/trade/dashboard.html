@@ -36,12 +36,32 @@
   a.stat.collected .n { color: var(--erp-ink,#000000); }
   a.stat.returned .n { color: #fe0000; }
   a.stat.debt .n { color: #fe0000; }
+  .quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .quick a { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 12px; text-decoration: none;
+             background: var(--erp-card,#fff); color: var(--erp-ink,#111); border: 1px solid var(--erp-line,#e2e2e4); font-weight: 700; }
+  .quick a:hover { border-color: #fe0000; color: var(--erp-ink,#111); }
+  .quick a i { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: rgba(254,0,0,.1); color: #fe0000; font-size: 16px; flex: 0 0 auto; }
+  .quick a.main { background: #fe0000; color: #fff; border-color: #fe0000; }
+  .quick a.main i { background: rgba(255,255,255,.2); color: #fff; }
   @media (max-width: 767px) {
-    .kpi { padding: 14px 16px; margin-bottom: 12px; }
-    .kpi .value { font-size: 24px; }
-    .kpi i { font-size: 30px; }
+    .quick { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .quick a { padding: 10px; font-size: 14px; }
+    .kpi { padding: 12px 12px; margin-bottom: 12px; border-radius: 12px; }
+    .kpi .label { font-size: 12.5px; }
+    .kpi .value { font-size: 19px; }
+    .kpi .sub { font-size: 11px; }
+    .kpi i { display: none; }
+    a.stat { padding: 10px 6px; margin-bottom: 10px; }
+    a.stat .n { font-size: 20px; }
   }
 </style>
+
+<div class="quick no-print">
+  {% if perms.trade.add_saleinvoice %}<a class="main" href="{% url 'pos' %}"><i class="fas fa-cash-register"></i>بيع جديد</a>{% endif %}
+  {% if perms.trade.add_onlineorder %}<a href="{% url 'online_new' %}"><i class="fas fa-truck-fast"></i>أوردر أونلاين</a>{% endif %}
+  {% if perms.trade.add_payment %}<a href="{% url 'customers' %}?debt=1"><i class="fas fa-hand-holding-dollar"></i>تحصيل من عميل</a>{% endif %}
+  {% if perms.trade.add_purchaseinvoice %}<a href="{% url 'admin:trade_purchaseinvoice_add' %}"><i class="fas fa-dolly"></i>توريد جديد</a>{% endif %}
+</div>
 
 {% if pending_purchases %}
 <div class="card card-warning card-outline mb-4">
@@ -87,25 +107,25 @@
 {% endif %}
 
 <div class="row">
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k1"><i class="fas fa-cash-register"></i>
       <div class="label">مبيعات اليوم</div>
       <div class="value">{{ today.revenue|floatformat:2|intcomma }}</div>
       <div class="sub">{{ today.invoices }} فاتورة · {{ today.pieces }} قطعة</div></div>
   </div>
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k2"><i class="fas fa-coins"></i>
       <div class="label">ربح اليوم</div>
       <div class="value">{{ today.profit|floatformat:2|intcomma }}</div>
       <div class="sub">قبل المصروفات</div></div>
   </div>
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k3"><i class="fas fa-chart-line"></i>
       <div class="label">مبيعات الشهر</div>
       <div class="value">{{ month.revenue|floatformat:2|intcomma }}</div>
       <div class="sub">{{ month.invoices }} فاتورة · {{ month.pieces }} قطعة</div></div>
   </div>
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k4"><i class="fas fa-wallet"></i>
       <div class="label">صافي ربح الشهر</div>
       <div class="value">{{ net_profit|floatformat:2|intcomma }}</div>
@@ -114,25 +134,25 @@
 </div>
 
 <div class="row">
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k6"><i class="fas fa-boxes"></i>
       <div class="label">قيمة المخزون (بالتكلفة)</div>
       <div class="value">{{ stock_value|floatformat:2|intcomma }}</div>
       <div class="sub">{{ stock_pieces }} قطعة بالمخزن</div></div>
   </div>
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k5"><i class="fas fa-exclamation-triangle"></i>
       <div class="label">أصناف قاربت على النفاد</div>
       <div class="value">{{ low_stock|length }}</div>
       <div class="sub">وصلت لحد التنبيه بتاع الموديل</div></div>
   </div>
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k7"><i class="fas fa-percentage"></i>
       <div class="label">هامش ربح الشهر</div>
       <div class="value">{% if month.revenue %}{% widthratio month.profit month.revenue 100 %}%{% else %}0%{% endif %}</div>
       <div class="sub">من إجمالي المبيعات</div></div>
   </div>
-  <div class="col-lg-3 col-md-6">
+  <div class="col-lg-3 col-6">
     <div class="kpi bg-k8"><i class="fas fa-receipt"></i>
       <div class="label">مصروفات الشهر</div>
       <div class="value">{{ month_expenses|floatformat:2|intcomma }}</div>

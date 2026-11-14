@@ -130,9 +130,36 @@ input[type=checkbox],input[type=radio]{accent-color:var(--erp-red)}
 #erp-confirm button{padding:10px 20px;border-radius:8px;border:1px solid var(--erp-ink);background:var(--erp-card);color:var(--erp-ink);font-size:15px;cursor:pointer}
 #erp-confirm button.yes{background:var(--erp-red);border-color:var(--erp-red);color:#fff;font-weight:700}
 
+/* ===== القايمة المقسمة ===== */
+#jazzy-sidebar .erp-nav-header{color:#8d8d95!important;font-size:12px;font-weight:700;letter-spacing:0;
+  padding:14px 16px 4px!important;text-transform:none}
+#jazzy-navigation{padding:0!important;margin:0}
+#jazzy-sidebar .nav-item{padding:0 10px}
+#jazzy-sidebar .nav-link{border-radius:8px;margin:1px 0;padding:8px 10px;width:100%}
+#jazzy-sidebar .nav-link p{font-size:14.5px}
+#jazzy-sidebar .nav-icon{width:22px;text-align:center;opacity:.85}
+
+/* ===== شريط الموبايل اللي تحت ===== */
+#erp-bottom{display:none}
+@media (max-width:991.98px){
+  #erp-bottom{display:flex;position:fixed;right:0;left:0;bottom:0;z-index:1035;background:var(--erp-card);
+    border-top:1px solid var(--erp-line);box-shadow:0 -4px 16px rgba(0,0,0,.08);
+    padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  #erp-bottom a,#erp-bottom button{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:6px 2px;border:0;background:none;color:var(--erp-muted);font-size:11.5px;font-weight:600;
+    text-decoration:none;border-radius:10px;min-height:52px;justify-content:center}
+  #erp-bottom i{font-size:19px}
+  #erp-bottom a.on{color:var(--erp-red)}
+  #erp-bottom a:active,#erp-bottom button:active{background:var(--erp-soft)}
+  body:has(#erp-bottom) .app-main{padding-bottom:76px}
+  /* الهيدر على الموبايل: أصغر */
+  .app-header .container-fluid{padding-top:4px;padding-bottom:4px}
+  .app-content-header h3{font-size:1.45rem}
+}
+
 /* ===== الطباعة: إخفاء القوائم والأزرار ===== */
 @media print{
-  #jazzy-sidebar,.app-header,.app-footer,#erp-backdrop,.erp-sidebar-close,.erp-search,#erp-confirm,.no-print{display:none!important}
+  #erp-bottom,#jazzy-sidebar,.app-header,.app-footer,#erp-backdrop,.erp-sidebar-close,.erp-search,#erp-confirm,.no-print{display:none!important}
   .app-wrapper,.app-main{display:block!important;margin:0!important;padding:0!important}
   body{background:#fff!important;color:#000!important}
 }
@@ -171,6 +198,12 @@ if ("serviceWorker" in navigator) {
     body.appendChild(bd);
   }
   window.addEventListener("load", function () { if (mobile()) closeSb(); });
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("#erp-bottom-menu")) { body.classList.add("sidebar-open"); }
+  });
+  /* القايمة: انزل للرابط المفتوح لو تحت */
+  var act = sb && sb.querySelector(".nav-link.active");
+  if (act && act.scrollIntoView) { act.scrollIntoView({block: "nearest"}); }
 
   /* ---------- زر الوضع الداكن/الفاتح ---------- */
   var header = document.querySelector(".app-header .container-fluid");
@@ -284,6 +317,20 @@ if ("serviceWorker" in navigator) {
 """
 
 
+def _swap_menu(content, request):
+    """يحط القايمة المقسمة مكان قايمة Jazzmin، ويزود شريط الموبايل اللي تحت"""
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return content
+    start = content.find(b'<ul class="nav sidebar-menu')
+    end = content.find(b"</nav>", start)
+    if start == -1 or end == -1:
+        return content  # القالب اتغير: سيب القايمة الأصلية
+    from .menu import render_bottom_bar, render_sidebar
+    content = (content[:start] + render_sidebar(request).encode("utf-8") + content[end:])
+    return content.replace(b"</body>", render_bottom_bar(request).encode("utf-8") + b"</body>", 1)
+
+
 class MobileSidebarMiddleware:
     """يحقن ثيم النظام (ألوان الشعار، الخط، الوضع الداكن، البحث اللحظي، نافذة التأكيد، إصلاح القايمة)
     ويحفظ المستخدم والـ IP للطلب الحالي عشان سجل المراجعة."""
@@ -309,7 +356,8 @@ class MobileSidebarMiddleware:
             and b"vendor/adminlte/css/adminlte" in response.content   # صفحات القالب فقط
         ):
             content = response.content.replace(b"</body>", self.snippet + b"</body>", 1)
-            response.content = content.replace(b"</head>", self.head + b"</head>", 1)
+            content = content.replace(b"</head>", self.head + b"</head>", 1)
+            response.content = _swap_menu(content, request)
             if response.has_header("Content-Length"):
                 response["Content-Length"] = str(len(response.content))
         return response
