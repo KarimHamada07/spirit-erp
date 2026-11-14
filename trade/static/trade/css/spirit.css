@@ -329,3 +329,8 @@ footer, footer.main-footer { display: none !important; }
 [data-bs-theme="dark"] .object-tools a { color: #fff !important; }
 [data-bs-theme="dark"] #changelist-filter h2 { background: #26262b; }
 [data-bs-theme="dark"] .small-box .small-box-footer { background: rgba(255,255,255,.06); color: #f5f5f7; }
+[data-bs-theme="dark"] .btn-dark, [data-bs-theme="dark"] .btn-success {
+  background: #2c2c33 !important; border-color: #3d3d46 !important; color: #fff !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .35);
+}
+[data-bs-theme="dark"] .btn-dark:hover, [data-bs-theme="dark"] .btn-success:hover { background: #3a3a43 !important; }
