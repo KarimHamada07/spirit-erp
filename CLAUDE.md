@@ -40,6 +40,10 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `data_io.py` + `data_views.py` — استيراد/تصدير Excel (فورم ← رفع ← معاينة ← تأكيد). كل نوع `Spec`؛
   الاستيراد ذري، وبيكتم رسايل تليجرام (`notify.muted`) ويبعت رسالة ملخص واحدة. محتاج صلاحية
   `trade.import_data`.
+- العهدة: `custody_views.py`. العهدة العامة (`custody_summary`) = المقبوضات − المصروفات − اللي اتسلّم.
+  التسليم بيتسجل على `CustodyHolder` (مستخدم أو اسم من بره)، ورصيده = اللي استلمه − تصفيات
+  `CustodyClearance` المعتمدة. التصفية بتتطلب من المحاسب أو صاحب العهدة نفسه، وبتتحسب بس بموافقة
+  `trade.approve_custodyclearance` (مدير الحسابات)، والصرف المعتمد بيعمل `Expense` مربوط بيها.
 - أوامر: `backup_db`، `debt_reminders`، `stock_alerts`، `telegram_test`.
 
 ## اتفاقيات

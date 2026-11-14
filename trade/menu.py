@@ -10,6 +10,7 @@ from django.utils.html import escape
 MENU = [
     ("", [
         ("لوحة التحكم", "dashboard", "fas fa-house", None),
+        ("عهدتي", "my_custody", "fas fa-wallet", "custody_holder"),
     ]),
     ("البيع", [
         ("نقطة البيع", "pos", "fas fa-cash-register", "trade.add_saleinvoice"),
@@ -39,6 +40,8 @@ MENU = [
         ("الخزينة", "treasury", "fas fa-vault", "trade.view_cashbox"),
         ("التقفيل اليومي", "daily_close", "fas fa-calendar-check", "trade.view_cashentry"),
         ("العهدة", "custody", "fas fa-hand-holding-usd", "trade.view_custodysettlement"),
+        ("طلبات تصفية العهد", "custody_approvals", "fas fa-clipboard-check",
+         "trade.approve_custodyclearance"),
         ("المصروفات", "admin:trade.expense", "fas fa-receipt", "trade.view_expense"),
         ("العمولات", "commissions", "fas fa-percent", "trade.view_cashentry"),
         ("حركات الخزن", "admin:trade.cashentry", "fas fa-list-ul", "trade.view_cashentry"),
@@ -86,6 +89,8 @@ def _allowed(user, perm):
         return True
     if perm == "superuser":
         return user.is_superuser
+    if perm == "custody_holder":  # الشخص اللي عليه عهدة مربوطة بحسابه
+        return getattr(user, "custody_holder", None) is not None
     return user.has_perm(perm)
 
 

@@ -4,8 +4,10 @@ from django.views.generic import RedirectView
 
 from trade.activity_views import activity, activity_ack, activity_feed
 from trade.icon_views import apple_touch_icon
-from trade.custody_views import (custody, custody_deposit, custody_detail,
-                                 custody_receipt, custody_screenshot, custody_settle)
+from trade.custody_views import (clearance_request, clearance_review, clearance_screenshot,
+                                 custody, custody_approvals, custody_deposit, custody_detail,
+                                 custody_receipt, custody_screenshot, custody_settle,
+                                 holder_add, holder_detail, my_custody)
 from trade.analytics_views import analytics
 from trade.audit_views import audit
 from trade.delete_views import (customer_delete, model_delete, purchase_delete,
@@ -49,6 +51,13 @@ urlpatterns = [
     path("custody/settle/", custody_settle, name="custody_settle"),
     path("custody/deposit/", custody_deposit, name="custody_deposit"),
     path("custody/<int:pk>/", custody_detail, name="custody_detail"),
+    path("custody/mine/", my_custody, name="my_custody"),
+    path("custody/approvals/", custody_approvals, name="custody_approvals"),
+    path("custody/holders/add/", holder_add, name="custody_holder_add"),
+    path("custody/holders/<int:pk>/", holder_detail, name="custody_holder"),
+    path("custody/holders/<int:pk>/clear/", clearance_request, name="custody_clearance_request"),
+    path("custody/clearance/<int:pk>/review/", clearance_review, name="custody_clearance_review"),
+    path("custody/clearance/<int:pk>/proof/", clearance_screenshot, name="custody_clearance_proof"),
     path("custody/<int:pk>/screenshot/", custody_screenshot, name="custody_screenshot"),
     path("custody/<int:pk>/receipt/", custody_receipt, name="custody_receipt"),
     path("search/api/", search_api, name="search_api"),

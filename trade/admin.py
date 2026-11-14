@@ -149,7 +149,26 @@ class SupplierAdmin(admin.ModelAdmin):
         if request.user.has_perm("trade.import_data"):
             return []
         return ["opening_balance", "opening_date"]
-admin.site.register(Expense)
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = ("title", "amount", "date", "from_custody")
+    list_filter = ("date",)
+    search_fields = ("title",)
+
+    @admin.display(boolean=True, description="من عهدة شخص")
+    def from_custody(self, obj):
+        return obj.custody_clearance_id is not None
+
+    # المصروف اللي اتسجل من تصفية عهدة بيتعدل من هناك بس (عشان رصيد العهدة يفضل مظبوط)
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.custody_clearance_id:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.custody_clearance_id:
+            return False
+        return super().has_delete_permission(request, obj)
 
 
 @admin.register(CustodySettlement)
@@ -159,7 +178,7 @@ class CustodySettlementAdmin(admin.ModelAdmin):
     search_fields = ("received_by", "notes")
     list_filter = ("method",)
     exclude = ("screenshot",)
-    readonly_fields = ("amount", "received_by", "method", "settled_at", "notes",
+    readonly_fields = ("amount", "holder", "received_by", "method", "settled_at", "notes",
                        "created_by", "created_at")
 
     @admin.display(boolean=True, description="إثبات")
@@ -467,3 +486,34 @@ class ProductionOrderAdmin(admin.ModelAdmin):
         if obj is not None and obj.status == obj.DONE:
             return False
         return super().has_delete_permission(request, obj)
+
+
+# ================= عهد الأشخاص =================
+from .models import CustodyClearance, CustodyHolder  # noqa: E402
+
+
+@admin.register(CustodyHolder)
+class CustodyHolderAdmin(admin.ModelAdmin):
+    list_display = ("name", "user", "phone", "is_active", "balance_display")
+    search_fields = ("name", "phone", "user__username")
+    list_filter = ("is_active",)
+
+    @admin.display(description="رصيد العهدة")
+    def balance_display(self, obj):
+        return f"{obj.totals()['balance']:,.2f}"
+
+
+@admin.register(CustodyClearance)
+class CustodyClearanceAdmin(admin.ModelAdmin):
+    """للاطلاع. الطلب والموافقة من صفحة عهدة الشخص (فيها فحص الرصيد والصلاحية)"""
+    list_display = ("holder", "kind", "amount", "date", "status", "requested_by", "reviewed_by")
+    list_filter = ("status", "kind", "holder")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
