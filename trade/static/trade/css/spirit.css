@@ -446,3 +446,18 @@ html[data-bs-theme="dark"] .main-header i,
 html[data-bs-theme="dark"] .main-sidebar i { color: #fff; }
 html[data-bs-theme="dark"] .table thead th { color: #fff !important; }
 html[data-bs-theme="dark"] .content-wrapper .text-danger, html[data-bs-theme="dark"] .content-wrapper .text-success { color: revert !important; }
+
+/* الماوس واقف على أيقونة في الشريط اللي فوق: تفضل بيضا ومش تبقى فاتحة */
+html[data-bs-theme="dark"] .main-header .nav-link:hover,
+html[data-bs-theme="dark"] .main-header .nav-link:focus,
+html[data-bs-theme="dark"] .main-header .btn:hover,
+html[data-bs-theme="dark"] .main-header .btn:focus,
+html[data-bs-theme="dark"] .main-header .nav-link:hover i,
+html[data-bs-theme="dark"] .main-header .btn:hover i,
+html[data-bs-theme="dark"] .main-header [data-toggle]:hover,
+html[data-bs-theme="dark"] .main-header [data-toggle]:hover i {
+  color: #fff !important;
+  background: #26262b !important;
+}
+html[data-bs-theme="dark"] .main-header .nav-link:hover,
+html[data-bs-theme="dark"] .main-header .btn:hover { border-radius: 10px; }
