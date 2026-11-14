@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}العمولات — {{ month }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<form method="get" class="form-inline mb-3">
+  <input type="month" name="month" value="{{ month }}" class="form-control mr-2">
+  <button class="btn btn-outline-primary">عرض</button>
+</form>
+<div class="alert alert-info">
+  النسب: قطاعي {{ report.rates.retail }}% · جملة {{ report.rates.wholesale }}% · أونلاين {{ report.rates.online }}%.
+  العمولة بتتحسب على الفلوس المحصّلة في الشهر (كاش + تحصيل الآجل + أونلاين المحصّل). مباشر ملوش عمولة.
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+  <thead><tr><th>البائع</th><th>قطاعي</th><th>جملة</th><th>أونلاين</th><th>الإجمالي المحصّل</th><th>العمولة</th></tr></thead>
+  <tbody>
+  {% for r in report.rows %}
+    <tr><td>{{ r.seller }}{% if not r.commissionable %} <small class="text-muted">(بدون عمولة)</small>{% endif %}</td>
+      <td>{{ r.retail|floatformat:2|intcomma }}</td><td>{{ r.wholesale|floatformat:2|intcomma }}</td>
+      <td>{{ r.online|floatformat:2|intcomma }}</td><td>{{ r.total|floatformat:2|intcomma }}</td>
+      <td><b>{{ r.commission|floatformat:2|intcomma }}</b></td></tr>
+  {% empty %}<tr><td colspan="6" class="text-muted">مفيش تحصيلات في الشهر ده</td></tr>{% endfor %}
+  <tr><td colspan="5"><b>إجمالي العمولات</b></td><td><b>{{ report.grand_commission|floatformat:2|intcomma }}</b></td></tr>
+  </tbody></table></div></div>
+{% endblock %}

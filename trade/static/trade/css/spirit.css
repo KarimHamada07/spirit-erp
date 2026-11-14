@@ -1,0 +1,227 @@
+/* SPIRIT — شكل حديث: أسود وأحمر، خط Cairo، كروت هادية بظل خفيف */
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap");
+
+:root {
+  --sp-red: #fe0000;
+  --sp-red-soft: rgba(254, 0, 0, .10);
+  --sp-ink: #0b0b0c;
+  --sp-ink-2: #55555c;
+  --sp-bg: #f4f4f6;
+  --sp-line: #ececf0;
+  --sp-radius: 16px;
+  --sp-shadow: 0 1px 2px rgba(16, 16, 20, .04), 0 8px 24px rgba(16, 16, 20, .06);
+}
+
+body,
+.content-wrapper,
+.main-footer,
+.main-header,
+.nav-sidebar,
+.btn,
+.form-control,
+.table,
+.card {
+  font-family: "Cairo", system-ui, -apple-system, "Segoe UI", sans-serif !important;
+}
+
+body { background: var(--sp-bg); color: var(--sp-ink); }
+.content-wrapper { background: var(--sp-bg) !important; }
+.content-header { padding-top: 22px; }
+.content-header h1, .content-header h2 {
+  font-weight: 800; font-size: 1.65rem; letter-spacing: -.01em; color: var(--sp-ink);
+}
+.breadcrumb { background: transparent; padding: 0; }
+.breadcrumb-item a { color: var(--sp-ink-2); }
+
+/* ---- الشريط الجانبي ---- */
+.main-sidebar, .main-sidebar.sidebar-dark-primary {
+  background: var(--sp-ink) !important;
+  box-shadow: none;
+}
+.brand-link {
+  background: var(--sp-ink) !important;
+  border-bottom: 1px solid #1d1d21 !important;
+  padding: 16px 18px !important;
+}
+.brand-text { font-weight: 900; letter-spacing: .08em; color: #fff !important; }
+.sidebar .user-panel { border-bottom: 1px solid #1d1d21 !important; }
+.nav-sidebar > .nav-item > .nav-link {
+  border-radius: 12px;
+  margin: 3px 10px;
+  color: #c9c9cf;
+  font-weight: 600;
+  transition: background .15s ease, color .15s ease;
+}
+.nav-sidebar > .nav-item > .nav-link:hover { background: #1b1b1f; color: #fff; }
+.nav-sidebar > .nav-item > .nav-link.active,
+.nav-sidebar .nav-link.active {
+  background: var(--sp-red) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(254, 0, 0, .25);
+}
+.nav-sidebar .nav-header {
+  color: #6f6f78; font-weight: 700; letter-spacing: .04em; padding-top: 18px;
+}
+.nav-treeview > .nav-item > .nav-link { border-radius: 10px; }
+
+/* ---- الهيدر ---- */
+.main-header.navbar {
+  background: rgba(255, 255, 255, .86) !important;
+  backdrop-filter: saturate(160%) blur(10px);
+  -webkit-backdrop-filter: saturate(160%) blur(10px);
+  border-bottom: 1px solid var(--sp-line) !important;
+  box-shadow: none !important;
+}
+.navbar-nav .nav-link { color: var(--sp-ink) !important; font-weight: 600; }
+
+/* ---- الكروت ---- */
+.card {
+  border: 0 !important;
+  border-radius: var(--sp-radius) !important;
+  box-shadow: var(--sp-shadow) !important;
+  overflow: hidden;
+}
+.card-header {
+  background: #fff !important;
+  border-bottom: 1px solid var(--sp-line) !important;
+  padding: 16px 20px !important;
+}
+.card-title { font-weight: 800; font-size: 1.05rem; }
+.card-body { padding: 20px; }
+.card-footer {
+  background: #fafafb !important;
+  border-top: 1px solid var(--sp-line) !important;
+  padding: 16px 20px !important;
+}
+
+/* ---- الأزرار ---- */
+.btn {
+  border-radius: 10px !important;
+  font-weight: 700;
+  padding: .45rem 1rem;
+  transition: transform .08s ease, box-shadow .15s ease, background .15s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn-danger, .btn-primary {
+  background: var(--sp-red) !important; border-color: var(--sp-red) !important;
+  box-shadow: 0 6px 14px rgba(254, 0, 0, .22);
+}
+.btn-danger:hover, .btn-primary:hover { background: #d90000 !important; }
+.btn-dark, .btn-success {
+  background: var(--sp-ink) !important; border-color: var(--sp-ink) !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, .18);
+}
+.btn-dark:hover, .btn-success:hover { background: #26262a !important; }
+.btn-outline-secondary {
+  color: var(--sp-ink) !important; border-color: #d6d6dc !important; background: #fff;
+}
+.btn-outline-secondary:hover { background: var(--sp-ink) !important; color: #fff !important; border-color: var(--sp-ink) !important; }
+.btn-lg { padding: .6rem 1.4rem; font-size: 1.05rem; }
+
+/* ---- الحقول ---- */
+.form-control, .custom-select {
+  border-radius: 10px !important;
+  border: 1px solid #dcdce2 !important;
+  background: #fff;
+  padding: .5rem .75rem;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.form-control:focus, .custom-select:focus {
+  border-color: var(--sp-red) !important;
+  box-shadow: 0 0 0 3px var(--sp-red-soft) !important;
+}
+label { font-weight: 600; color: var(--sp-ink-2); }
+.input-group-append .btn { border-radius: 0 10px 10px 0 !important; }
+.input-group-prepend .btn { border-radius: 10px 0 0 10px !important; }
+
+/* ---- الجداول ---- */
+.table { color: var(--sp-ink); }
+.table thead th {
+  background: #fafafb;
+  color: var(--sp-ink-2);
+  font-size: .85rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--sp-line) !important;
+  border-top: 0 !important;
+  white-space: nowrap;
+}
+.table td, .table th { vertical-align: middle; border-color: #f2f2f5 !important; }
+.table-hover tbody tr:hover { background: #fbf6f6; }
+.table-striped tbody tr:nth-of-type(odd) { background: #fcfcfd; }
+
+/* ---- الشارات والتنبيهات ---- */
+.badge { border-radius: 999px; padding: .4em .75em; font-weight: 700; }
+.alert { border: 0 !important; border-radius: 12px; font-weight: 600; }
+.alert-danger { background: var(--sp-red-soft); color: #a50000; }
+
+/* ---- بطاقات الأرقام (Small boxes / Info boxes) ---- */
+.small-box, .info-box {
+  border-radius: var(--sp-radius) !important;
+  box-shadow: var(--sp-shadow) !important;
+  border: 0 !important;
+}
+.small-box .inner h3, .info-box-number { font-weight: 900; }
+.small-box .icon { opacity: .10; }
+.small-box .small-box-footer {
+  border-radius: 0 0 var(--sp-radius) var(--sp-radius);
+  background: rgba(0, 0, 0, .06);
+  font-weight: 700;
+}
+.bg-info, .bg-success, .bg-warning, .bg-danger { color: #fff; }
+
+/* ---- الفورم بتاعة الإدارة ---- */
+.module, fieldset.module {
+  border: 0 !important;
+  border-radius: var(--sp-radius);
+  box-shadow: var(--sp-shadow);
+  background: #fff;
+  padding: 6px 4px;
+  margin-bottom: 16px;
+}
+.module h2, .module caption { font-weight: 800; }
+.submit-row, .actions {
+  border-radius: var(--sp-radius) !important;
+  background: #fff !important;
+  box-shadow: var(--sp-shadow);
+  border: 0 !important;
+}
+.nav-tabs .nav-link { border-radius: 10px 10px 0 0; font-weight: 700; color: var(--sp-ink-2); }
+.nav-tabs .nav-link.active { color: var(--sp-red); }
+
+/* ---- اختيار الفترات والتجميع ---- */
+.nav-pills .nav-link { border-radius: 999px; font-weight: 700; }
+.nav-pills .nav-link.active { background: var(--sp-ink); }
+
+/* ---- الفوتر ---- */
+.main-footer { background: transparent; border-top: 1px solid var(--sp-line); color: var(--sp-ink-2); }
+
+/* ---- على الموبايل ---- */
+@media (max-width: 767px) {
+  .content-header h1 { font-size: 1.35rem; }
+  .card-body { padding: 14px; }
+}
+
+/* ---- تفاصيل صغيرة ---- */
+.main-footer, footer.main-footer { display: none !important; }
+select.form-control, select.custom-select { min-width: 120px; }
+.input-group > .form-control { min-width: 0; }
+
+/* ---- صفحة تسجيل الدخول ---- */
+body.login-page {
+  background: radial-gradient(circle at 50% 0%, #1b1b1f 0%, #0b0b0c 60%) !important;
+  min-height: 100vh;
+}
+.login-box { width: 380px; max-width: calc(100% - 32px); margin: 8vh auto 0; }
+.login-logo { margin-bottom: 18px; }
+.login-logo img { width: 96px !important; height: auto !important; max-height: none !important; }
+.login-logo a { color: #fff; font-weight: 900; letter-spacing: .08em; }
+.login-box .card {
+  border-radius: 20px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45) !important;
+}
+.login-box .card-body { padding: 28px 28px 20px; }
+.login-box .btn-block, .login-box .btn { width: 100%; padding: .65rem 1rem; font-size: 1.05rem; }
+.login-box .form-control { height: 46px; }
+
+/* ---- الشعار في الشريط الجانبي ---- */
+.brand-image { max-height: 40px; width: auto; }

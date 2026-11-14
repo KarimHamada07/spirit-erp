@@ -1,0 +1,38 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}تقفيل اليوم — {{ report.day|date:"d/m/Y" }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<form method="get" class="form-inline mb-3">
+  <input type="date" name="day" value="{{ day }}" class="form-control mr-2">
+  <button class="btn btn-outline-primary">عرض</button>
+</form>
+
+<div class="card"><div class="card-header"><b>حصيلة اليوم بطريقة الدفع</b></div>
+  <div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>طريقة الدفع</th><th>الصافي</th></tr></thead>
+    <tbody>
+    {% for name, amount in report.by_method %}<tr><td>{{ name }}</td><td>{{ amount|floatformat:2|intcomma }}</td></tr>
+    {% empty %}<tr><td colspan="2" class="text-muted">مفيش حركات النهارده</td></tr>{% endfor %}
+    <tr><td><b>الإجمالي</b></td><td><b>{{ report.net|floatformat:2|intcomma }}</b></td></tr>
+    </tbody></table></div></div>
+
+<div class="card"><div class="card-header"><b>مين معاه كام</b></div>
+  <div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>الشخص</th><th>التفصيل</th></tr></thead>
+    <tbody>
+    {% for holder, methods in report.by_holder %}
+      <tr><td><b>{{ holder }}</b></td><td>{% for m, a in methods.items %}{{ m }}: {{ a|floatformat:2|intcomma }} &nbsp;{% endfor %}</td></tr>
+    {% empty %}<tr><td colspan="2" class="text-muted">—</td></tr>{% endfor %}
+    </tbody></table></div></div>
+
+<div class="card"><div class="card-header"><b>كل خزنة</b></div>
+  <div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>الخزنة</th><th>داخل</th><th>خارج</th><th>تحويلات</th></tr></thead>
+    <tbody>
+    {% for r in report.by_box %}<tr><td>{{ r.box.name }}</td><td>{{ r.in|floatformat:2|intcomma }}</td><td>{{ r.out|floatformat:2|intcomma }}</td><td>{{ r.transfers|floatformat:2|intcomma }}</td></tr>
+    {% empty %}<tr><td colspan="4" class="text-muted">—</td></tr>{% endfor %}
+    </tbody></table></div></div>
+
+<div class="alert alert-warning">مستحق من شركة الشحن لسه: <b>{{ report.shipping_outstanding|floatformat:2|intcomma }}</b></div>
+{% endblock %}

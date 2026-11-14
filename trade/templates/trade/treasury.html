@@ -1,0 +1,97 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}الخزينة{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .box-card { border:1px solid #e2e2e4; border-radius:12px; padding:14px; margin-bottom:12px; background:#fff; }
+  .box-card .bal { font-size:22px; font-weight:700; }
+  .due { background:#fe0000; color:#fff; border-radius:12px; padding:14px; margin-bottom:16px; }
+  .due .bal { font-size:24px; font-weight:700; }
+  .tag-in { color:#0a7d2c; font-weight:600; } .tag-out { color:#fe0000; font-weight:600; }
+</style>
+
+{% if messages %}{% for m in messages %}<div class="alert alert-{% if m.tags == 'error' %}danger{% else %}success{% endif %}">{{ m }}</div>{% endfor %}{% endif %}
+
+<div class="row">
+  <div class="col-lg-4">
+    {% for row in boxes %}
+    <a href="?box={{ row.box.pk }}" style="color:inherit;text-decoration:none">
+    <div class="box-card">
+      <div><b>{{ row.box.name }}</b> <small class="text-muted">{{ row.box.get_method_display }}{% if row.box.holder %} · {{ row.box.holder }}{% endif %}</small></div>
+      <div class="bal {% if row.balance < 0 %}tag-out{% endif %}">{{ row.balance|floatformat:2|intcomma }}</div>
+    </div></a>
+    {% endfor %}
+    <div class="due">
+      <div>مستحق من شركة الشحن (لسه ما اتحصلش)</div>
+      <div class="bal">{{ shipping_due|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="mb-3">
+      <a href="{% url 'daily_close' %}" class="btn btn-outline-primary btn-block">تقفيل اليوم</a>
+      <a href="{% url 'commissions' %}" class="btn btn-outline-primary btn-block mt-2">العمولات</a>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card card-outline card-primary"><div class="card-header"><b>تحصيل من عميل</b></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'treasury_action' %}" class="row">{% csrf_token %}
+          <input type="hidden" name="action" value="customer_pay">
+          <div class="col-md-4 mb-2"><select name="customer" class="form-control" required>
+            <option value="">— العميل —</option>{% for c in customers %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-3 mb-2"><select name="box" class="form-control" required>
+            {% for b in pay_boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-2 mb-2"><input name="amount" type="number" step="0.01" min="0.01" class="form-control" placeholder="المبلغ" required></div>
+          <div class="col-md-3 mb-2"><input name="date" type="date" value="{{ today }}" class="form-control"></div>
+          <div class="col-md-6 mb-2"><select name="invoice" class="form-control"><option value="">— على الحساب (بدون فاتورة) —</option>
+            {% for inv in invoices %}<option value="{{ inv.pk }}">فاتورة #{{ inv.pk }} — {{ inv.customer.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-4 mb-2"><input name="notes" class="form-control" placeholder="ملاحظة"></div>
+          <div class="col-md-2 mb-2"><button class="btn btn-success btn-block">سجّل</button></div>
+        </form>
+      </div></div>
+
+    <div class="card card-outline card-secondary"><div class="card-header"><b>سداد مورد / مصنع</b></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'treasury_action' %}" class="row">{% csrf_token %}
+          <input type="hidden" name="action" value="supplier_pay">
+          <div class="col-md-4 mb-2"><select name="supplier" class="form-control" required>
+            {% for s in suppliers %}<option value="{{ s.pk }}">{{ s.name }} (مستحق {{ s.balance|floatformat:2 }})</option>{% endfor %}</select></div>
+          <div class="col-md-3 mb-2"><select name="box" class="form-control" required>
+            {% for b in pay_boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-2 mb-2"><input name="amount" type="number" step="0.01" min="0.01" class="form-control" placeholder="المبلغ" required></div>
+          <div class="col-md-3 mb-2"><input name="date" type="date" value="{{ today }}" class="form-control"></div>
+          <div class="col-md-10 mb-2"><input name="notes" class="form-control" placeholder="ملاحظة"></div>
+          <div class="col-md-2 mb-2"><button class="btn btn-secondary btn-block">سدّد</button></div>
+        </form>
+      </div></div>
+
+    <div class="card card-outline card-warning"><div class="card-header"><b>تحويل بين الخزن / استلام من شركة الشحن</b></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'treasury_action' %}" class="row">{% csrf_token %}
+          <input type="hidden" name="action" value="transfer">
+          <div class="col-md-3 mb-2"><select name="from_box" class="form-control">
+            {% for b in all_boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-3 mb-2"><select name="to_box" class="form-control">
+            {% for b in all_boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
+          <div class="col-md-2 mb-2"><input name="amount" type="number" step="0.01" min="0.01" class="form-control" placeholder="المبلغ" required></div>
+          <div class="col-md-2 mb-2"><input name="date" type="date" value="{{ today }}" class="form-control"></div>
+          <div class="col-md-2 mb-2"><button class="btn btn-warning btn-block">حوّل</button></div>
+          <div class="col-md-12 mb-2"><input name="note" class="form-control" placeholder="ملاحظة (مثلاً: استلام من شركة الشحن، نقل عهدة)"></div>
+        </form>
+      </div></div>
+
+    <div class="card"><div class="card-header d-flex justify-content-between">
+      <b>آخر الحركات{% if selected_box %} — خزنة محددة{% endif %}</b>
+      {% if selected_box %}<a href="{% url 'treasury' %}">كل الخزن</a>{% endif %}</div>
+      <div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>التاريخ</th><th>الخزنة</th><th>النوع</th><th>البيان</th><th>المبلغ</th></tr></thead>
+        <tbody>
+        {% for e in entries %}
+          <tr><td>{{ e.date|date:"d/m/Y" }}</td><td>{{ e.box.name }}</td><td>{{ e.get_kind_display }}</td>
+            <td>{{ e.description }}{% if e.customer %} · {{ e.customer.name }}{% endif %}{% if e.supplier %} · {{ e.supplier.name }}{% endif %}</td>
+            <td class="{% if e.amount < 0 %}tag-out{% else %}tag-in{% endif %}">{{ e.amount|floatformat:2|intcomma }}</td></tr>
+        {% empty %}<tr><td colspan="5" class="text-muted">لسه مفيش حركات</td></tr>{% endfor %}
+        </tbody></table></div></div>
+  </div>
+</div>
+{% endblock %}

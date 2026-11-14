@@ -1,0 +1,39 @@
+{% load humanize %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>تقرير {{ data.d1 }} → {{ data.d2 }}</title>
+  <style>
+    body { font-family: Cairo, Tahoma, sans-serif; margin: 0; background: #f2f2f2; color: #111; }
+    .sheet { margin: 16px auto; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.15); box-sizing: border-box; }
+    h1 { margin: 0 0 4px; font-size: 22px; } h2 { font-size: 16px; margin: 18px 0 6px; border-bottom: 2px solid #fe0000; padding-bottom: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #000000; color: #fff; padding: 5px; text-align: right; } td { padding: 5px; border-bottom: 1px solid #ddd; }
+    .sum { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; } .sum div { flex: 1 1 150px; border: 1px solid #ccc; border-radius: 8px; padding: 8px; }
+    .sum b { display: block; font-size: 18px; } tr { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+  {% include "trade/_print_bar.html" with default_size="a4" %}
+  <div class="sheet">
+    <h1>{{ shop_name }} — تقرير المبيعات والأرباح</h1>
+    <div>الفترة: {{ data.d1|date:"d/m/Y" }} إلى {{ data.d2|date:"d/m/Y" }}</div>
+    <div class="sum">
+      <div>إجمالي المبيعات<b>{{ data.summary.revenue|floatformat:2|intcomma }}</b></div>
+      <div>إجمالي الربح<b>{{ data.summary.profit|floatformat:2|intcomma }}</b></div>
+      <div>المصروفات<b>{{ data.summary.expenses|floatformat:2|intcomma }}</b></div>
+      <div>صافي الربح<b>{{ data.summary.net|floatformat:2|intcomma }}</b></div>
+    </div>
+    <h2>الربح حسب الموديل (قبل الخصم)</h2>
+    <table><thead><tr><th>الموديل</th><th>الكمية</th><th>المبيعات</th><th>التكلفة</th><th>الربح</th></tr></thead>
+    {% for name, m in data.by_model.items %}<tr><td>{{ name }}</td><td>{{ m.qty }}</td><td>{{ m.revenue|floatformat:2|intcomma }}</td><td>{{ m.cost|floatformat:2|intcomma }}</td><td>{{ m.profit|floatformat:2|intcomma }}</td></tr>{% endfor %}</table>
+    <h2>فواتير البيع ({{ data.sales|length }})</h2>
+    <table><thead><tr><th>#</th><th>التاريخ</th><th>العميل</th><th>النوع</th><th>القطع</th><th>الصافي</th><th>الربح</th></tr></thead>
+    {% for x in data.sales %}<tr><td>{{ x.no }}</td><td>{{ x.date|date:"d/m/Y" }}</td><td>{{ x.customer|default:"—" }}</td><td>{{ x.type }}</td><td>{{ x.pieces }}</td><td>{{ x.total|floatformat:2|intcomma }}</td><td>{{ x.profit|floatformat:2|intcomma }}</td></tr>{% endfor %}</table>
+    {% if data.expenses %}<h2>المصروفات</h2>
+    <table><thead><tr><th>التاريخ</th><th>البند</th><th>المبلغ</th></tr></thead>
+    {% for e in data.expenses %}<tr><td>{{ e.date|date:"d/m/Y" }}</td><td>{{ e.title }}</td><td>{{ e.amount|floatformat:2|intcomma }}</td></tr>{% endfor %}</table>{% endif %}
+  </div>
+</body>
+</html>

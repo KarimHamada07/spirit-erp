@@ -1,0 +1,65 @@
+{# شريط اختيار حجم الورق قبل الطباعة: حراري 80mm / A6 / A5 / A4. الاستخدام: {% include "trade/_print_bar.html" with default_size="a5" %} #}
+<style id="erp-print-css">
+  .print-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: 14px; }
+  .print-bar button, .print-bar a { font-family: inherit; font-size: 15px; padding: 8px 16px; border-radius: 8px;
+    border: 1px solid #000000; background: #fff; color: #000000; cursor: pointer; text-decoration: none; }
+  .print-bar button.active { background: #000000; color: #fff; }
+  .print-bar .go { background: #fe0000; border-color: #fe0000; color: #fff; font-weight: 700; }
+  /* مقاس الورقة على الشاشة (معاينة) = عرض الورقة كاملة بهوامشها */
+  body.print-pos .sheet { width: 80mm; padding: 4mm; min-height: 0; font-size: 11px; }
+  body.print-a6  .sheet { width: 105mm; padding: 5mm; min-height: 0; font-size: 11px; }
+  body.print-a5  .sheet { width: 148mm; padding: 8mm; min-height: 0; font-size: 13px; }
+  body.print-a4  .sheet { width: 210mm; padding: 10mm; min-height: 0; font-size: 15px; }
+  body.print-pos .sheet table, body.print-pos .sheet td, body.print-pos .sheet th { font-size: 11px; }
+  body.print-pos .sheet .sign, body.print-pos .sheet .foot { display: none; }
+  body.print-pos .sheet .sum { width: 100%; margin: 8px 0 0; }
+  body.print-pos .sheet h1 { font-size: 15px; }
+  body.print-a4 .sheet table, body.print-a4 .sheet td, body.print-a4 .sheet th { font-size: 15px; }
+  body.print-a4 .sheet h1 { font-size: 28px; }
+  @media print {
+    .print-bar, .actions, .no-print { display: none !important; }
+    html, body { background: #fff !important; margin: 0 !important; }
+    .sheet { box-shadow: none !important; margin: 0 auto !important; padding: 0 !important; }
+    body.print-pos .sheet { width: 72mm; }
+    body.print-a6  .sheet { width: 95mm; }
+    body.print-a5  .sheet { width: 132mm; }
+    body.print-a4  .sheet { width: 190mm; }
+  }
+</style>
+<div class="print-bar no-print" data-default="{{ default_size|default:'a5' }}">
+  <span>حجم الورق:</span>
+  <button type="button" data-size="pos">حراري 80mm</button>
+  <button type="button" data-size="a6">A6</button>
+  <button type="button" data-size="a5">A5</button>
+  <button type="button" data-size="a4">A4</button>
+  <button type="button" class="go" id="print-go">طباعة</button>
+</div>
+<script>
+(function () {
+  var bar = document.querySelector(".print-bar");
+  // الورقة (بالـ mm) + هامش الصفحة: الحراري بيتطبع على رول 80mm
+  // أبعاد صريحة بالـ mm (المتصفح مش بيعرف الاسم A6)
+  var PAGES = {pos: ["80mm 297mm", "4mm"], a6: ["105mm 148mm", "5mm"], a5: ["148mm 210mm", "8mm"], a4: ["210mm 297mm", "10mm"]};
+  var def = bar.getAttribute("data-default") || "a5";
+  var saved = null;
+  try { saved = localStorage.getItem("erp-print-size"); } catch (e) {}
+  var style = document.createElement("style");
+  style.id = "erp-page-size";
+  document.head.appendChild(style);
+  function setSize(k) {
+    if (!PAGES[k]) k = def;
+    ["pos", "a6", "a5", "a4"].forEach(function (s) { document.body.classList.remove("print-" + s); });
+    document.body.classList.add("print-" + k);
+    style.textContent = "@page{size:" + PAGES[k][0] + ";margin:" + PAGES[k][1] + "}";
+    bar.querySelectorAll("button[data-size]").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-size") === k);
+    });
+    try { localStorage.setItem("erp-print-size", k); } catch (e) {}
+  }
+  bar.querySelectorAll("button[data-size]").forEach(function (b) {
+    b.addEventListener("click", function () { setSize(b.getAttribute("data-size")); });
+  });
+  document.getElementById("print-go").addEventListener("click", function () { window.print(); });
+  setSize(saved && PAGES[saved] ? saved : def);
+})();
+</script>

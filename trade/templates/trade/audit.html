@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}سجل المراجعة{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .au td { vertical-align: top; } .au .lines { font-size: 12px; color: var(--erp-muted,#5a5a5e); white-space: pre-line; }
+  .act-create { background: #000000; color: #fff; } .act-update { background: #b4b4b4; color: var(--erp-ink,#111); }
+  .act-delete, .act-login_failed { background: #fe0000; color: #fff; } .act-login, .act-logout { background: transparent; border: 1px solid #000000; color: var(--erp-ink,#111); }
+  .au .badge { padding: 4px 10px; border-radius: 10px; font-size: 12px; }
+</style>
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-3"><input name="q" value="{{ g.q }}" class="form-control" placeholder="بحث في السجل أو المستخدم..."></div>
+  <div class="col-md-2"><select name="user" class="form-select"><option value="">كل المستخدمين</option>{% for u in users %}<option value="{{ u }}" {% if g.user == u %}selected{% endif %}>{{ u }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><select name="action" class="form-select"><option value="">كل الإجراءات</option>{% for k, v in actions %}<option value="{{ k }}" {% if g.action == k %}selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="col-md-2"><select name="model" class="form-select"><option value="">كل الأنواع</option>{% for m in models %}<option value="{{ m }}" {% if g.model == m %}selected{% endif %}>{{ m }}</option>{% endfor %}</select></div>
+  <div class="col-md-1"><input type="date" name="from" value="{{ g.from }}" class="form-control"></div>
+  <div class="col-md-1"><input type="date" name="to" value="{{ g.to }}" class="form-control"></div>
+  <div class="col-md-1 d-flex" style="gap:6px"><button class="btn btn-primary">بحث</button></div>
+</form>
+<div class="mb-3"><a class="btn btn-success btn-sm" href="?{{ qs_without_page }}&export=xlsx">تصدير Excel</a></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-sm mb-0 au">
+  <thead><tr><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>النوع</th><th>السجل</th><th>التفاصيل</th><th>IP</th></tr></thead>
+  {% for r in rows %}
+  <tr>
+    <td style="white-space:nowrap">{{ r.a.created_at|date:"d/m/Y H:i:s" }}</td>
+    <td><b>{{ r.a.username|default:"—" }}</b></td>
+    <td><span class="badge act-{{ r.a.action }}">{{ r.a.get_action_display }}</span></td>
+    <td>{{ r.a.model }}</td><td>{{ r.a.object_repr }}</td>
+    <td class="lines">{% for l in r.lines %}{{ l }}{% if not forloop.last %}
+{% endif %}{% endfor %}</td>
+    <td>{{ r.a.ip }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="7" class="text-muted p-3">لا توجد سجلات.</td></tr>{% endfor %}
+</table></div></div></div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="d-flex justify-content-center mt-3" style="gap:10px">
+  {% if page.has_previous %}<a class="btn btn-outline-secondary" href="?{{ qs_without_page }}&page={{ page.previous_page_number }}">السابق</a>{% endif %}
+  <span class="align-self-center">صفحة {{ page.number }} من {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="btn btn-outline-secondary" href="?{{ qs_without_page }}&page={{ page.next_page_number }}">التالي</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+Django==5.2.18
+django-jazzmin==3.0.5
+openpyxl==3.1.5
+reportlab==5.1.0
+arabic-reshaper==3.1.0
+python-bidi==0.6.12
+pillow==13.0.0
