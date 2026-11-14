@@ -1,11 +1,11 @@
 import os
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import (DecimalField, ExpressionWrapper, F, OuterRef,
                               Subquery, Sum, Value)
@@ -22,6 +22,11 @@ class ClothingModel(models.Model):
     """موديل ملابس (يمكن إضافة أي عدد من الموديلات)"""
     name = models.CharField("اسم الموديل", max_length=100)
     code = models.CharField("الكود", max_length=30, unique=True)
+    CATEGORIES = [("jacket", "جاكيت"), ("knitwear", "تريكو"), ("pants", "بنطلون"),
+                  ("sweatshirt", "سويت شيرت"), ("tshirt", "تيشيرت"), ("suit", "بدلة"),
+                  ("shorts", "شورت"), ("shirt", "قميص")]
+    category = models.CharField("التصنيف", max_length=20, choices=CATEGORIES, blank=True,
+                                db_index=True)
     description = models.TextField("وصف", blank=True)
     is_active = models.BooleanField("نشط", default=True)
     low_stock_level = models.PositiveIntegerField(
@@ -212,14 +217,19 @@ class SaleInvoice(models.Model):
 
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True,
                                  blank=True, verbose_name="العميل")
-    date = models.DateField("التاريخ")
+    # التاريخ بيتحط تلقائي بتاريخ النهارده (البياع مش بيغيّره)
+    date = models.DateField("التاريخ", default=timezone.localdate)
     payment_type = models.CharField("نوع الفاتورة", max_length=10,
                                     choices=PAYMENT_TYPES, default="cash")
     channel = models.CharField("القناة", max_length=10, choices=CHANNELS,
                                default="retail")
     seller = models.ForeignKey("Seller", on_delete=models.SET_NULL, null=True,
                                blank=True, related_name="invoices", verbose_name="البائع")
-    discount = models.DecimalField("خصم", max_digits=12, decimal_places=2, default=0)
+    discount = models.DecimalField("خصم (مبلغ)", max_digits=12, decimal_places=2, default=0,
+                                   help_text="لو كتبت نسبة، المبلغ بيتحسب منها لوحده")
+    discount_percent = models.DecimalField(
+        "خصم (نسبة %)", max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))])
     notes = models.TextField("ملاحظات", blank=True)
     is_confirmed = models.BooleanField("مؤكدة", default=False, editable=False)
 
@@ -231,7 +241,14 @@ class SaleInvoice(models.Model):
         verbose_name = "فاتورة بيع"
         verbose_name_plural = "فواتير البيع"
         permissions = [("change_customer_price",
-                        "تعديل سعر صنف لعميل سبق له شراءه (مدير الحسابات)")]
+                        "تعديل سعر صنف لعميل سبق له شراءه (مدير الحسابات)"),
+                       ("change_invoice_date", "تعديل تاريخ فاتورة البيع (مدير الحسابات)")]
+
+    def apply_percent(self):
+        """لو الخصم بالنسبة: المبلغ = نسبة من مجموع البنود"""
+        if self.discount_percent:
+            gross = sum((i.quantity * i.unit_price for i in self.items.all()), ZERO)
+            self.discount = (gross * self.discount_percent / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     def __str__(self):
         return f"بيع #{self.pk}"
@@ -279,6 +296,7 @@ class SaleInvoice(models.Model):
             raise ValidationError("البيع الآجل لازم يكون له عميل")
         if not self.items.exists():
             raise ValidationError("الفاتورة بدون أصناف")
+        self.apply_percent()
         for item in self.items.select_related("variant"):
             v = Variant.objects.select_for_update().get(pk=item.variant_id)
             if v.quantity < item.quantity:

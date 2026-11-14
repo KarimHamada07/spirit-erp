@@ -121,7 +121,8 @@ def invoice_pdf(invoice, ctx):
     story.append(Spacer(1, 6 * mm))
     summary = [
         ["الإجمالي قبل الخصم", _money(ctx["gross"])],
-        ["الخصم", _money(invoice.discount)],
+        ["الخصم" + (f" ({invoice.discount_percent.normalize():f}%)" if invoice.discount_percent else ""),
+         _money(invoice.discount)],
         ["الصافي", _money(ctx["total"])],
     ]
     for p in ctx["payments"]:

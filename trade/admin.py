@@ -31,9 +31,12 @@ _print_labels.short_description = "طباعة ملصقات الباركود لل
 
 @admin.register(ClothingModel)
 class ClothingModelAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "low_stock_level", "is_active")
-    list_editable = ("low_stock_level",)
+    list_display = ("name", "code", "category", "low_stock_level", "is_active")
+    list_editable = ("category", "low_stock_level")
+    list_filter = ("category", "is_active")
     search_fields = ("name", "code")
+    fieldsets = (("بيانات الموديل", {"fields": ("name", "code", "category", "description",
+                                                "low_stock_level", "is_active")}),)
     inlines = [VariantInline]
     actions = [_print_labels]
 
@@ -92,6 +95,12 @@ class SaleInvoiceAdmin(admin.ModelAdmin):
     list_filter = ("payment_type", "is_confirmed")
     inlines = [SaleItemInline]
     actions = [_confirm, _export_sales]
+
+    def get_readonly_fields(self, request, obj=None):
+        # التاريخ بيتحط لوحده بتاريخ النهارده؛ تعديله لمدير الحسابات بس
+        if request.user.has_perm("trade.change_invoice_date"):
+            return ()
+        return ("date",)
 
 
 @admin.register(Customer)
