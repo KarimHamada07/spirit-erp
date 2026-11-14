@@ -418,3 +418,31 @@ html[data-bs-theme="dark"] .card-header h3 { color: #f5f5f7 !important; }
 html[data-bs-theme="dark"] .card-header { background: #18181c !important; }
 html[data-bs-theme="dark"] .chip { background: #26262b; color: #f0f0f3; }
 html[data-bs-theme="dark"] a.stat .t { color: #a8a8b0; }
+
+/* ===== الوضع الداكن: كل النصوص والأيقونات بيضا ===== */
+html[data-bs-theme="dark"] .content-wrapper,
+html[data-bs-theme="dark"] .content-wrapper label,
+html[data-bs-theme="dark"] .content-wrapper td,
+html[data-bs-theme="dark"] .content-wrapper th,
+html[data-bs-theme="dark"] .content-wrapper p,
+html[data-bs-theme="dark"] .content-wrapper li,
+html[data-bs-theme="dark"] .content-wrapper span,
+html[data-bs-theme="dark"] .content-wrapper small,
+html[data-bs-theme="dark"] .content-wrapper h1,
+html[data-bs-theme="dark"] .content-wrapper h2,
+html[data-bs-theme="dark"] .content-wrapper h3,
+html[data-bs-theme="dark"] .content-wrapper h4,
+html[data-bs-theme="dark"] .content-wrapper h5,
+html[data-bs-theme="dark"] .content-wrapper .card-title,
+html[data-bs-theme="dark"] .content-wrapper .breadcrumb-item a,
+html[data-bs-theme="dark"] .content-wrapper .breadcrumb-item,
+html[data-bs-theme="dark"] .content-wrapper .nav-tabs .nav-link,
+html[data-bs-theme="dark"] .main-header .nav-link,
+html[data-bs-theme="dark"] .main-sidebar .nav-link,
+html[data-bs-theme="dark"] .main-sidebar .nav-header,
+html[data-bs-theme="dark"] .main-sidebar .brand-text { color: #fff; }
+html[data-bs-theme="dark"] .content-wrapper i,
+html[data-bs-theme="dark"] .main-header i,
+html[data-bs-theme="dark"] .main-sidebar i { color: #fff; }
+html[data-bs-theme="dark"] .table thead th { color: #fff !important; }
+html[data-bs-theme="dark"] .content-wrapper .text-danger, html[data-bs-theme="dark"] .content-wrapper .text-success { color: revert !important; }
