@@ -31,13 +31,16 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `audit.py` — سجل المراجعة (قبل/بعد) للموديلات في `TRACKED`.
 - `roles.py` — مصفوفة صلاحيات الأدوار (مجموعات Django بتتحدث بعد كل migrate). أي موديل جديد لازم
   صلاحياته تتضاف هنا للدور المناسب.
-- `middleware.py` — بيحقن الثيم (CSS/JS) ووسوم الـ PWA في صفحات القالب.
+- `middleware.py` — بيحقن الثيم (CSS/JS) ووسوم الـ PWA في صفحات القالب، وبيبدّل قايمة Jazzmin بقايمتنا.
+- `menu.py` — القايمة الجانبية المقسمة (البيع، العملاء، المخزون...) وشريط الموبايل اللي تحت. أي صفحة جديدة
+  تتضاف في `MENU` بصلاحيتها.
 - `pwa_views.py` — manifest و service worker (الصفحات دايماً من السيرفر؛ الكاش للملفات الثابتة بس).
 - أوامر: `backup_db`، `debt_reminders`، `stock_alerts`، `telegram_test`.
 
 ## اتفاقيات
 - الصفحات المخصصة بتورث `admin/base.html` وبتمرر `admin.site.each_context(request)`، ومحمية بـ
-  `staff_member_required` + `has_perm`. روابطها في القايمة من `JAZZMIN_SETTINGS["custom_links"]`.
+  `staff_member_required` + `has_perm`. روابطها في القايمة من `trade/menu.py`.
+- قوالب الصفحات بتحط `<div class="row">` جوه صف القالب على طول؛ `spirit.css` فيه إصلاح للحالة دي.
 - التاريخ: استخدم `timezone.localdate()` مش `date.today()` (السيرفر UTC والنظام بتوقيت القاهرة).
 - الألوان: أحمر `#fe0000` وأسود، ومتغيرات `--erp-*` للوضع الداكن. Chart.js محلي في
   `static/trade/vendor/` (مفيش CDN).

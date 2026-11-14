@@ -238,3 +238,29 @@ class BackupAndPwaTests(Base):
         self.assertEqual(self.client.get("/offline/").status_code, 200)
         page = self.client.get(reverse("dashboard")).content.decode()
         self.assertIn('rel="manifest"', page.split("</head>")[0])
+
+
+class MenuTests(Base):
+    def test_menu_is_grouped_and_follows_permissions(self):
+        page = self.client.get(reverse("customers")).content.decode()
+        self.assertIn("erp-nav-header", page)
+        self.assertIn("متابعة التحصيل", page)
+        self.assertIn('id="erp-bottom"', page)
+        self.assertNotIn("<p>Dashboard</p>", page)  # قايمة Jazzmin القديمة اتشالت
+        # الرابط المفتوح بس هو اللي متعلّم (مش "العملاء" لما تكون في متابعة التحصيل)
+        page = self.client.get(reverse("debts")).content.decode()
+        self.assertEqual(page.count('class="nav-link active"'), 1)
+        self.assertIn('href="/customers/debts/" class="nav-link active"', page)
+
+        sales = User.objects.create_user("s", password="pw", is_staff=True)
+        sales.groups.add(Group.objects.get(name="سيلز"))
+        c = Client()
+        c.force_login(sales)
+        page = c.get(reverse("dashboard")).content.decode()
+        self.assertIn("نقطة البيع", page)
+        nav = page.split('id="jazzy-navigation"')[1].split("</ul>")[0]
+        for hidden in ("التقارير", "الإنتاج", "سجل المراجعة", "متابعة التحصيل"):
+            self.assertNotIn(hidden, nav)
+
+    def test_pos_has_no_bottom_bar(self):
+        self.assertNotContains(self.client.get(reverse("pos")), 'id="erp-bottom"')

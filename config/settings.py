@@ -99,7 +99,8 @@ JAZZMIN_SETTINGS = {
     "custom_css": "trade/css/spirit.css",
     "use_google_fonts_cdn": False,  # الخط بييجي من spirit.css
     "show_ui_builder": False,
-    "show_theme_chooser": True,  # زرار لوحة الألوان: فاتح / داكن / تلقائي
+    # الوضع الداكن/الفاتح من زرار القمر (middleware). قوالب bootswatch بتبوّظ ألوان المحل
+    "show_theme_chooser": False,
     "related_modal_active": True,
     # صفحات النظام في القايمة الجانبية (كل رابط بيظهر بس لللي عنده الصلاحية)
     "custom_links": {
