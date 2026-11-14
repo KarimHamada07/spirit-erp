@@ -246,3 +246,19 @@ def supplier_payment_text(p):
     if p.notes:
         line += f"\nملاحظة: {p.notes}"
     return line
+
+
+# أسماء الموديلات بالعربي للرسايل (بدل أسماء Django الإنجليزي)
+MODEL_AR = {
+    "clothingmodel": "موديل", "variant": "صنف", "supplier": "مورد", "customer": "عميل",
+    "seller": "بائع", "commissionrate": "نسبة عمولة", "user": "مستخدم", "group": "صلاحيات",
+    "saleinvoice": "فاتورة بيع", "purchaseinvoice": "فاتورة شراء", "payment": "دفعة",
+    "onlineorder": "طلب أونلاين", "expense": "مصروف", "custodydeposit": "إيداع عهدة",
+    "custodysettlement": "تصفية عهدة", "cashbox": "خزنة", "cashentry": "حركة خزنة",
+    "cashtransfer": "تحويل", "supplierpayment": "تسديد مورد",
+    "salereturn": "مرتجع بيع", "purchasereturn": "مرتجع توريد",
+}
+
+
+def model_ar(model_name, fallback=""):
+    return MODEL_AR.get((model_name or "").lower(), fallback or model_name or "")

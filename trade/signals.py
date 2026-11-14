@@ -137,5 +137,7 @@ def _admin_action(sender, instance, created, **kw):
         return
     verb = {ADDITION: "➕ إضافة", CHANGE: "✏️ تعديل",
             DELETION: "🗑 حذف"}.get(instance.action_flag, "⚙️ إجراء")
-    log_event(f"{verb} من لوحة الإدارة\n{instance.content_type}: {instance.object_repr}",
+    from .notify import model_ar
+    mname = instance.content_type.model if instance.content_type else ""
+    log_event(f"{verb} من لوحة الإدارة\n{model_ar(mname, mname)}: {instance.object_repr}",
               user=instance.user)

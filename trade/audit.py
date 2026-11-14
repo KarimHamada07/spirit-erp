@@ -12,7 +12,7 @@ from django.dispatch import receiver
 from .models import (AuditLog, ClothingModel, CustodyDeposit, CustodySettlement,
                      Customer, Expense, OnlineOrder, Payment, PurchaseInvoice,
                      SaleInvoice, Supplier, Variant)
-from .notify import client_ip, current_actor, log_event
+from .notify import client_ip, current_actor, log_event, model_ar
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -121,7 +121,7 @@ def _before_save(sender, instance, raw=False, **kw):
 def _after_save(sender, instance, created, raw=False, **kw):
     if raw:
         return
-    label = str(sender._meta.verbose_name)
+    label = model_ar(sender._meta.model_name, str(sender._meta.verbose_name))
     if created:
         snap = {k: v for k, v in snapshot(instance).items() if v != ""}
         write("create", model=label, object_id=instance.pk, object_repr=_repr(instance),
@@ -148,7 +148,7 @@ def _after_delete(sender, instance, **kw):
     write("delete", model=str(sender._meta.verbose_name), object_id=instance.pk,
           object_repr=getattr(instance, "_audit_repr", f"#{instance.pk}"),
           changes=dict(list(getattr(instance, "_audit_snap", {}).items())[:14]))
-    _notify("delete", sender, instance, str(sender._meta.verbose_name),
+    _notify("delete", sender, instance, model_ar(sender._meta.model_name, str(sender._meta.verbose_name)),
             getattr(instance, "_audit_repr", f"#{instance.pk}"))
 
 
