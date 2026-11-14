@@ -9,7 +9,8 @@ from django.utils.html import escape
 
 MENU = [
     ("", [
-        ("لوحة التحكم", "dashboard", "fas fa-house", None),
+        ("لوحة التحكم", "dashboard", "fas fa-house", "trade.view_saleinvoice"),
+        ("بصمتي", "my_attendance", "fas fa-fingerprint", None),
         ("عهدتي", "my_custody", "fas fa-wallet", "custody_holder"),
     ]),
     ("البيع", [
@@ -60,6 +61,7 @@ MENU = [
         ("المستخدمين", "admin:auth.user", "fas fa-user-shield", "auth.view_user"),
         ("الأدوار والصلاحيات", "admin:auth.group", "fas fa-users-gear", "auth.view_group"),
         ("استيراد وتصدير Excel", "data_center", "fas fa-file-import", "trade.import_data"),
+        ("الحضور والانصراف", "attendance_report", "fas fa-user-clock", "trade.view_attendance"),
         ("سجل المراجعة", "audit", "fas fa-clock-rotate-left", "trade.view_auditlog"),
         ("سجل النشاط وتليجرام", "activity", "fas fa-bell", "superuser"),
     ]),
@@ -67,7 +69,8 @@ MENU = [
 
 # شريط الموبايل اللي تحت: أهم 4 صفحات + زرار القايمة
 BOTTOM = [
-    ("الرئيسية", "dashboard", "fas fa-house", None),
+    ("الرئيسية", "dashboard", "fas fa-house", "trade.view_saleinvoice"),
+    ("بصمتي", "my_attendance", "fas fa-fingerprint", None),
     ("بيع", "pos", "fas fa-cash-register", "trade.add_saleinvoice"),
     ("العملاء", "customers", "fas fa-user-group", "trade.view_customer"),
     ("المخزون", "inventory", "fas fa-boxes-stacked", "trade.view_variant"),

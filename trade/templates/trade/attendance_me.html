@@ -1,0 +1,154 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}بصمتي{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .att { max-width: 520px; margin: 0 auto; }
+  .att .kind { text-align: center; font-size: 15px; color: var(--erp-muted,#666); margin-bottom: 8px; }
+  .att .kind b { font-size: 22px; color: var(--erp-ink,#111); }
+  .cam { position: relative; background: #000; border-radius: 18px; overflow: hidden; aspect-ratio: 3 / 4;
+         width: min(100%, calc(40vh * .75)); margin: 0 auto; }
+  .cam video, .cam img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cam video { transform: scaleX(-1); }   /* زي المراية */
+  .cam .ring { position: absolute; inset: 14% 18% 22%; border: 3px dashed rgba(255,255,255,.75); border-radius: 50%; pointer-events: none; }
+  .cam .msg { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px; text-align: center; color: #fff;
+              background: linear-gradient(transparent, rgba(0,0,0,.75)); font-weight: 600; }
+  .loc { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 10px 0; font-size: 14px; }
+  .loc .dot { width: 10px; height: 10px; border-radius: 50%; background: #bbb; }
+  .loc.ok .dot { background: #18a957; } .loc.bad .dot { background: #fe0000; }
+  .shoot { display: block; width: 100%; height: 64px; border: 0; border-radius: 16px; background: #fe0000; color: #fff;
+           font-size: 20px; font-weight: 700; margin-top: 8px; }
+  .shoot:disabled { opacity: .45; }
+  .shoot.out { background: #000; }
+  .again { display: none; width: 100%; margin-top: 8px; }
+  .result { display: none; text-align: center; padding: 18px; border-radius: 16px; margin-top: 12px; font-size: 18px; font-weight: 700; }
+  .result.ok { display: block; background: #e8f7ee; color: #0a6b34; }
+  .result.err { display: block; background: #fdecea; color: #b00000; }
+  [data-bs-theme=dark] .result.ok { background: #0f3320; color: #7ee2a8; }
+  [data-bs-theme=dark] .result.err { background: #3a1212; color: #ff9a9a; }
+  .today { margin-top: 18px; border: 1px solid var(--erp-line,#e2e2e4); border-radius: 14px; padding: 12px 14px; background: var(--erp-card,#fff); }
+  .today .p { display: flex; justify-content: space-between; padding: 6px 0; border-top: 1px dashed var(--erp-line,#e2e2e4); }
+  .today .p:first-of-type { border-top: 0; }
+  .warn { color: #fe0000; font-size: 12px; }
+</style>
+
+<div class="att">
+  <div class="kind">البصمة دي: <b id="kind-label">{% if kind == "in" %}حضور{% else %}انصراف{% endif %}</b></div>
+
+  <div class="cam">
+    <video id="video" playsinline muted autoplay></video>
+    <img id="shot" alt="" style="display:none">
+    <div class="ring" id="ring"></div>
+    <div class="msg" id="cam-msg">بنفتح الكاميرا...</div>
+  </div>
+
+  <div class="loc" id="loc"><span class="dot"></span><span id="loc-msg">بنحدد مكانك...</span></div>
+
+  <button type="button" id="shoot" class="shoot{% if kind == 'out' %} out{% endif %}" disabled>
+    <i class="fas fa-camera"></i> صوّر وسجّل {% if kind == "in" %}الحضور{% else %}الانصراف{% endif %}
+  </button>
+  <button type="button" id="again" class="btn btn-dark btn-lg again"><i class="fas fa-rotate-right"></i> صوّر تاني</button>
+  <div class="result" id="result"></div>
+
+  {% if not has_workplace %}<p class="text-muted mt-2" style="font-size:13px">لسه مكان الشغل ما اتحددش، فالبصمة هتتسجل بمكانك من غير ما نقارنه بالمحل.</p>{% endif %}
+
+  <div class="today">
+    <b>النهارده</b>{% if summary.hours %} — {{ summary.hours }} ساعة{% endif %}
+    {% for p in punches %}
+      <div class="p"><span>{{ p.get_kind_display }}</span>
+        <span>{{ p.at|date:"H:i" }}{% if not p.inside %} <span class="warn">(برا المكان)</span>{% endif %}</span></div>
+    {% empty %}<div class="text-muted mt-1">لسه ما بصمتش النهارده.</div>{% endfor %}
+  </div>
+</div>
+
+<script>
+(function () {
+  var TOKEN = "{{ token }}", URL_ = "{% url 'attendance_punch' %}", CSRF = "{{ csrf_token }}";
+  var video = document.getElementById("video"), shot = document.getElementById("shot");
+  var btn = document.getElementById("shoot"), again = document.getElementById("again");
+  var camMsg = document.getElementById("cam-msg"), result = document.getElementById("result");
+  var loc = document.getElementById("loc"), locMsg = document.getElementById("loc-msg");
+  var pos = null, camOk = false, busy = false;
+
+  function ready() { btn.disabled = busy || !(camOk && pos); }
+  function show(kind, text) { result.className = "result " + kind; result.textContent = text; }
+
+  // ---- اللوكيشن (لازم) ----
+  if (!navigator.geolocation) {
+    loc.className = "loc bad"; locMsg.textContent = "الموبايل ده مش بيدعم اللوكيشن";
+  } else {
+    navigator.geolocation.watchPosition(function (p) {
+      if (!pos || p.coords.accuracy <= pos.accuracy) {
+        pos = {lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy)};
+      }
+      var good = pos.accuracy <= {{ 300 }};
+      loc.className = "loc " + (good ? "ok" : "bad");
+      locMsg.textContent = good ? "تم تحديد مكانك (±" + pos.accuracy + " متر)"
+                                : "اللوكيشن مش دقيق (±" + pos.accuracy + " متر)، شغّل الـ GPS";
+      ready();
+    }, function () {
+      loc.className = "loc bad";
+      locMsg.textContent = "لازم تسمح باستخدام اللوكيشن من إعدادات المتصفح";
+    }, {enableHighAccuracy: true, maximumAge: 0, timeout: 20000});
+  }
+
+  // ---- الكاميرا الأمامية (صورة لايف بس، مفيش اختيار من الاستوديو) ----
+  function startCam() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      camMsg.textContent = "المتصفح ده مش بيدعم الكاميرا. استخدم كروم أو سفاري"; return;
+    }
+    navigator.mediaDevices.getUserMedia({video: {facingMode: "user", width: {ideal: 960}}, audio: false})
+      .then(function (s) { video.srcObject = s; return video.play(); })
+      .then(function () { camOk = true; camMsg.textContent = "خلّي وشك جوه الدايرة"; ready(); })
+      .catch(function () { camMsg.textContent = "لازم تسمح باستخدام الكاميرا من إعدادات المتصفح"; });
+  }
+  startCam();
+
+  btn.addEventListener("click", function () {
+    if (btn.disabled) return;
+    busy = true; ready();
+    var c = document.createElement("canvas");
+    var w = video.videoWidth, h = video.videoHeight, s = Math.min(1, 960 / Math.max(w, h));
+    c.width = Math.round(w * s); c.height = Math.round(h * s);
+    var ctx = c.getContext("2d");
+    ctx.translate(c.width, 0); ctx.scale(-1, 1);   // نفس اللي ظاهر في المراية
+    ctx.drawImage(video, 0, 0, c.width, c.height);
+    shot.src = c.toDataURL("image/jpeg", 0.85); shot.style.display = "block"; video.style.display = "none";
+    document.getElementById("ring").style.display = "none";
+    camMsg.textContent = "بنتأكد من الصورة...";
+    c.toBlob(function (blob) {
+      var fd = new FormData();
+      fd.append("photo", blob, "live.jpg");
+      fd.append("token", TOKEN);
+      fd.append("lat", pos.lat); fd.append("lng", pos.lng); fd.append("accuracy", pos.accuracy);
+      fetch(URL_, {method: "POST", headers: {"X-CSRFToken": CSRF}, body: fd, credentials: "same-origin"})
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.ok) {
+            camMsg.textContent = "✓ اتسجلت";
+            show("ok", "✓ " + d.kind + " الساعة " + d.time + " — " + d.where);
+            if (navigator.vibrate) navigator.vibrate(80);
+            btn.style.display = "none";
+            setTimeout(function () { location.reload(); }, 2500);
+          } else {
+            TOKEN = d.token || TOKEN;
+            show("err", d.error); camMsg.textContent = "ما اتسجلتش";
+            btn.style.display = "none"; again.style.display = "block";
+          }
+        })
+        .catch(function () { show("err", "مفيش اتصال بالنت. جرّب تاني"); again.style.display = "block"; btn.style.display = "none"; })
+        .finally(function () { busy = false; ready(); });
+    }, "image/jpeg", 0.85);
+  });
+
+  again.addEventListener("click", function () {
+    shot.style.display = "none"; video.style.display = "block";
+    document.getElementById("ring").style.display = "block";
+    result.className = "result"; again.style.display = "none"; btn.style.display = "block";
+    camMsg.textContent = "خلّي وشك جوه الدايرة"; ready();
+  });
+})();
+</script>
+{% endblock %}
