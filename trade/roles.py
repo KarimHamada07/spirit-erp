@@ -34,7 +34,10 @@ _CUSTOMERS = ["view_customer", "add_customer", "change_customer"]
 _PAYMENTS = ["view_payment", "add_payment"]
 _DEBT_FOLLOWUP = ["view_debtfollowup", "add_debtfollowup"]
 _CUSTODY = ["view_custodydeposit", "add_custodydeposit",
-            "view_custodysettlement", "add_custodysettlement"]
+            "view_custodysettlement", "add_custodysettlement",
+            "view_custodyholder", "add_custodyholder",
+            "view_custodyclearance", "add_custodyclearance"]
+# الموافقة على تصفية العهد: مدير الحسابات بس (عنده كل الصلاحيات)
 _EXPENSES = ["view_expense", "add_expense", "change_expense"]
 _TREASURY_READ = ["view_cashbox", "view_cashentry", "view_cashtransfer", "view_supplierpayment",
                   "view_seller", "view_commissionrate"]

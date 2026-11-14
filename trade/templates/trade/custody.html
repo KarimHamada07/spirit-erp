@@ -28,14 +28,14 @@
 
 <div class="row">
   <div class="col-lg-3 col-12">
-    <div class="kpi main{% if s.balance < 0 %} neg{% endif %}"><div class="label">العهدة الحالية (المبالغ الموجودة)</div>
+    <div class="kpi main{% if s.balance < 0 %} neg{% endif %}"><div class="label">العهدة العامة (المبالغ الموجودة)</div>
       <div class="value">{{ s.balance|floatformat:2|intcomma }}</div></div>
   </div>
   <div class="col-lg-3 col-6"><div class="kpi"><div class="label">إجمالي المقبوضات</div>
     <div class="value">{{ s.total_in|floatformat:2|intcomma }}</div></div></div>
   <div class="col-lg-3 col-6"><div class="kpi"><div class="label">المصروفات</div>
     <div class="value">{{ s.expenses|floatformat:2|intcomma }}</div></div></div>
-  <div class="col-lg-3 col-12"><div class="kpi"><div class="label">اللي اتصفّى</div>
+  <div class="col-lg-3 col-12"><div class="kpi"><div class="label">اتسلّم عهد للأشخاص</div>
     <div class="value">{{ s.settled|floatformat:2|intcomma }}</div></div></div>
 </div>
 
@@ -44,21 +44,25 @@
   مبيعات نقدي <b>{{ s.cash_sales|floatformat:2|intcomma }}</b> ·
   أونلاين محصّل <b>{{ s.online|floatformat:2|intcomma }}</b> ·
   دفعات عملاء <b>{{ s.payments|floatformat:2|intcomma }}</b> ·
-  إضافات يدوية <b>{{ s.deposits|floatformat:2|intcomma }}</b>
+  إضافات يدوية <b>{{ s.deposits|floatformat:2|intcomma }}</b>{% if s.returned %} ·
+  رجع من عهد الأشخاص <b>{{ s.returned|floatformat:2|intcomma }}</b>{% endif %}
 </div></div>
 
 {% if can_add %}
 <details class="box settle">
-  <summary>تصفية عهدة</summary>
+  <summary>تسليم عهدة لشخص</summary>
   <form method="post" action="{% url 'custody_settle' %}" enctype="multipart/form-data" class="formcard" id="settle-form">
     {% csrf_token %}
     <div class="row">
       <div class="col-md-4 mb-2"><label class="mb-1">المبلغ</label>
         <input name="amount" id="amount" type="number" step="0.01" min="0.01" class="form-control" required
                value="{% if s.balance > 0 %}{{ s.balance|stringformat:'.2f' }}{% endif %}"></div>
-      <div class="col-md-4 mb-2"><label class="mb-1">المستلم (مين استلم المبلغ)</label>
-        <input name="received_by" id="receiver" list="receivers" class="form-control" required maxlength="120" autocomplete="off">
-        <datalist id="receivers">{% for r in receivers %}<option value="{{ r }}">{% endfor %}</datalist></div>
+      <div class="col-md-4 mb-2"><label class="mb-1">المستلم (هتتسجل على عهدته)</label>
+        <select name="holder" id="receiver" class="form-control" required>
+          <option value="">— اختار الشخص —</option>
+          {% for h in holder_choices %}<option value="{{ h.pk }}">{{ h.name }}{% if not h.user_id %} (من بره){% endif %}</option>{% endfor %}
+        </select>
+        {% if can_add_holder %}<small><a href="#add-holder" onclick="document.getElementById('add-holder').open=true">+ شخص جديد</a></small>{% endif %}</div>
       <div class="col-md-4 mb-2"><label class="mb-1">طريقة التسليم</label>
         <select name="method" class="form-control">{% for k, v in methods %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
     </div>
@@ -72,7 +76,7 @@
       <input name="screenshot" id="shot" type="file" accept="image/*" class="form-control" style="height:auto;padding:8px">
       <img id="preview" alt="">
       <small class="text-muted">الصورة بتتصغّر تلقائياً قبل الرفع، وبتتحفظ في مكان خاص ما بيتفتحش غير من جوه النظام.</small></div>
-    <button class="btn btn-lg" style="background:#fe0000;color:#fff">تسجيل التصفية</button>
+    <button class="btn btn-lg" style="background:#fe0000;color:#fff">تسجيل التسليم</button>
   </form>
 </details>
 {% endif %}
@@ -93,13 +97,43 @@
 </details>
 {% endif %}
 
-{% if by_receiver %}
-<div class="card mb-3"><div class="card-header"><h3 class="card-title">إجمالي اللي استلمه كل شخص</h3></div>
-<div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
-  {% for r in by_receiver %}<tr><td><a href="?q={{ r.received_by|urlencode }}">{{ r.received_by }}</a></td>
-    <td>{{ r.n }} تصفية</td><td><b>{{ r.total|floatformat:2|intcomma }}</b></td></tr>{% endfor %}
-</table></div></div></div>
+{% if can_add_holder %}
+<details class="box deposit" id="add-holder">
+  <summary>+ شخص يستلم عهدة</summary>
+  <form method="post" action="{% url 'custody_holder_add' %}" class="formcard">
+    {% csrf_token %}
+    <p class="text-muted mb-2">اربطه بحسابه في النظام عشان يقدر يفتح "عهدتي" ويطلب تصفية بنفسه، أو سيبه من غير حساب (سواق، مندوب...).</p>
+    <div class="row">
+      <div class="col-md-4 mb-2"><input name="name" class="form-control" placeholder="الاسم" required maxlength="120"></div>
+      <div class="col-md-3 mb-2"><input name="phone" class="form-control" placeholder="الموبايل (اختياري)" maxlength="30"></div>
+      <div class="col-md-3 mb-2"><select name="user" class="form-control">
+        <option value="">— من غير حساب (من بره) —</option>
+        {% for u in free_users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>{% endfor %}
+      </select></div>
+      <div class="col-md-2 mb-2"><button class="btn btn-dark btn-block" style="height:44px">إضافة</button></div>
+    </div>
+  </form>
+</details>
 {% endif %}
+
+{% if pending_count %}
+<div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap" style="gap:8px">
+  <span>فيه <b>{{ pending_count }}</b> طلب تصفية عهدة مستني موافقتك.</span>
+  <a class="btn btn-sm btn-dark" href="{% url 'custody_approvals' %}">راجع الطلبات</a>
+</div>
+{% endif %}
+
+<div class="card mb-3"><div class="card-header"><h3 class="card-title">العهدة على كل شخص</h3></div>
+<div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+  <thead><tr><th>الشخص</th><th>استلم</th><th>اتصفّى</th><th>مستني موافقة</th><th>الرصيد عنده</th></tr></thead>
+  {% for r in holders %}<tr>
+    <td><a href="{% url 'custody_holder' r.holder.pk %}"><b>{{ r.holder.name }}</b></a>
+      <div class="text-muted" style="font-size:12px">{% if r.holder.user %}حساب: {{ r.holder.user.get_username }}{% else %}من بره النظام{% endif %}</div></td>
+    <td>{{ r.received|floatformat:2|intcomma }}</td><td>{{ r.cleared|floatformat:2|intcomma }}</td>
+    <td>{% if r.pending %}<span class="text-danger">{{ r.pending|floatformat:2|intcomma }}</span>{% else %}—{% endif %}</td>
+    <td><b>{{ r.balance|floatformat:2|intcomma }}</b></td></tr>
+  {% empty %}<tr><td colspan="5" class="text-muted p-3">لسه مفيش حد استلم عهدة.</td></tr>{% endfor %}
+</table></div></div></div>
 
 <form method="get" class="mb-3 d-flex flex-wrap align-items-center" style="gap:10px">
   <input type="search" name="q" value="{{ q }}" class="form-control" style="max-width:340px;height:44px" placeholder="ابحث باسم المستلم أو الملاحظات...">
@@ -115,7 +149,7 @@
     <tr>
       <td><a href="{% url 'custody_detail' t.pk %}">{{ t.pk }}</a></td>
       <td style="white-space:nowrap">{{ t.settled_at|date:"d/m/Y H:i" }}</td>
-      <td><b>{{ t.received_by }}</b>{% if t.notes %}<div class="text-muted" style="font-size:12px">{{ t.notes }}</div>{% endif %}</td>
+      <td><b>{% if t.holder_id %}<a href="{% url 'custody_holder' t.holder_id %}">{{ t.received_by }}</a>{% else %}{{ t.received_by }}{% endif %}</b>{% if t.notes %}<div class="text-muted" style="font-size:12px">{{ t.notes }}</div>{% endif %}</td>
       <td><b>{{ t.amount|floatformat:2|intcomma }}</b></td>
       <td>{{ t.get_method_display }}</td>
       <td>{% if t.has_proof %}<a href="{% url 'custody_detail' t.pk %}"><img class="thumb" loading="lazy" src="{% url 'custody_screenshot' t.pk %}" alt="إثبات"></a>
@@ -162,8 +196,9 @@
     img.src = prev.src;
   });
   document.getElementById("settle-form").addEventListener("submit", function (e) {
-    var msg = "تأكيد تصفية " + document.getElementById("amount").value + " للمستلم: " +
-              document.getElementById("receiver").value + "؟";
+    var sel = document.getElementById("receiver");
+    var msg = "تأكيد تسليم " + document.getElementById("amount").value + " على عهدة: " +
+              (sel.selectedOptions[0] ? sel.selectedOptions[0].text : "") + "؟";
     if (!confirm(msg)) e.preventDefault();
   });
 })();

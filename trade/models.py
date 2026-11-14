@@ -511,6 +511,10 @@ class Expense(models.Model):
     title = models.CharField("البند", max_length=150)
     amount = models.DecimalField("المبلغ", max_digits=12, decimal_places=2)
     date = models.DateField("التاريخ")
+    custody_clearance = models.OneToOneField(
+        "CustodyClearance", on_delete=models.PROTECT, null=True, blank=True, editable=False,
+        related_name="expense", verbose_name="من تصفية عهدة",
+        help_text="مصروف اتصرف من عهدة شخص (اتخصم من رصيده هو مش من العهدة العامة)")
 
     class Meta:
         verbose_name = "مصروف"
@@ -576,6 +580,8 @@ class CustodySettlement(models.Model):
 
     amount = models.DecimalField("المبلغ", max_digits=12, decimal_places=2,
                                  validators=[MinValueValidator(Decimal("0.01"))])
+    holder = models.ForeignKey("CustodyHolder", on_delete=models.PROTECT, null=True, blank=True,
+                               related_name="handouts", verbose_name="صاحب العهدة")
     received_by = models.CharField("المستلم", max_length=120)
     method = models.CharField("طريقة التسليم", max_length=10, choices=METHODS,
                               default="cash")
@@ -1151,3 +1157,98 @@ class ProductionMaterial(models.Model):
 
     def __str__(self):
         return f"{self.material} × {self.quantity}"
+
+
+# ================= العهدة على الأشخاص =================
+class CustodyHolder(models.Model):
+    """الشخص اللي بيستلم عهدة: مستخدم في النظام، أو اسم من بره (سواق، مندوب...)"""
+    name = models.CharField("الاسم", max_length=120, unique=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                blank=True, related_name="custody_holder",
+                                verbose_name="حسابه في النظام",
+                                help_text="لو مربوط بحساب، يقدر يفتح 'عهدتي' ويطلب تصفية بنفسه")
+    phone = models.CharField("الموبايل", max_length=30, blank=True)
+    is_active = models.BooleanField("نشط", default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "صاحب عهدة"
+        verbose_name_plural = "أصحاب العهد"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def totals(self):
+        received = self.handouts.aggregate(s=Sum("amount"))["s"] or ZERO
+        approved = self.clearances.filter(status=CustodyClearance.APPROVED)
+        cleared = approved.aggregate(s=Sum("amount"))["s"] or ZERO
+        pending = (self.clearances.filter(status=CustodyClearance.PENDING)
+                   .aggregate(s=Sum("amount"))["s"] or ZERO)
+        return {"received": received, "cleared": cleared, "pending": pending,
+                "balance": received - cleared}
+
+
+class CustodyClearance(models.Model):
+    """تصفية عهدة شخص: صرف منها (مصروف بإيصال) أو رجّع فلوس. مش بتتحسب غير بموافقة مدير الحسابات."""
+    SPENT, RETURNED = "spent", "returned"
+    KINDS = [(SPENT, "صرف (مصروف)"), (RETURNED, "رجّع فلوس للعهدة العامة")]
+    PENDING, APPROVED, REJECTED = "pending", "approved", "rejected"
+    STATUSES = [(PENDING, "مستني الموافقة"), (APPROVED, "اتوافق عليها"), (REJECTED, "اترفضت")]
+
+    holder = models.ForeignKey(CustodyHolder, on_delete=models.PROTECT, related_name="clearances",
+                               verbose_name="صاحب العهدة")
+    kind = models.CharField("النوع", max_length=10, choices=KINDS, default=SPENT)
+    amount = models.DecimalField("المبلغ", max_digits=12, decimal_places=2,
+                                 validators=[MinValueValidator(Decimal("0.01"))])
+    date = models.DateField("التاريخ", default=timezone.localdate)
+    description = models.CharField("البيان", max_length=200,
+                                   help_text="اتصرفت في إيه؟ (بنزين، نقل، خامات...)")
+    screenshot = models.FileField("صورة الإيصال", upload_to="custody/clear/",
+                                  storage=private_storage, blank=True)
+    status = models.CharField("الحالة", max_length=10, choices=STATUSES, default=PENDING,
+                              db_index=True)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+                                     related_name="custody_requests", verbose_name="طلبها")
+    requested_at = models.DateTimeField("وقت الطلب", auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                    on_delete=models.SET_NULL, related_name="custody_reviews",
+                                    verbose_name="راجعها")
+    reviewed_at = models.DateTimeField("وقت المراجعة", null=True, blank=True)
+    review_note = models.CharField("ملاحظة المراجعة", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "تصفية عهدة شخص"
+        verbose_name_plural = "تصفيات عهد الأشخاص"
+        ordering = ["-requested_at", "-id"]
+        permissions = [("approve_custodyclearance", "الموافقة على تصفية العهد (مدير الحسابات)")]
+
+    def __str__(self):
+        return f"{self.holder}: {self.get_kind_display()} {self.amount}"
+
+    @property
+    def has_proof(self):
+        return bool(self.screenshot)
+
+    @transaction.atomic
+    def review(self, user, approve, note=""):
+        obj = CustodyClearance.objects.select_for_update().get(pk=self.pk)
+        if obj.status != self.PENDING:
+            raise ValidationError("الطلب ده اتراجع قبل كده")
+        if not user.has_perm("trade.approve_custodyclearance"):
+            raise ValidationError("الموافقة لمدير الحسابات بس")
+        if obj.requested_by_id == user.pk and not user.is_superuser:
+            raise ValidationError("مينفعش توافق على طلب انت اللي عامله")
+        if approve:
+            balance = self.holder.totals()["balance"]
+            if self.amount > balance:
+                raise ValidationError(f"المبلغ أكبر من رصيد عهدة {self.holder} ({balance:,.2f})")
+        self.status = self.APPROVED if approve else self.REJECTED
+        self.reviewed_by = user
+        self.reviewed_at = timezone.now()
+        self.review_note = note[:200]
+        self.save()
+        if approve and self.kind == self.SPENT:
+            # المصروف بيظهر في التقارير وصافي الربح، ومش بيتخصم من العهدة العامة تاني
+            Expense.objects.create(title=f"{self.description} (عهدة {self.holder})"[:150],
+                                   amount=self.amount, date=self.date, custody_clearance=self)

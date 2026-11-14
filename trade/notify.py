@@ -280,6 +280,7 @@ MODEL_AR = {
     "custodysettlement": "تصفية عهدة", "cashbox": "خزنة", "cashentry": "حركة خزنة",
     "cashtransfer": "تحويل", "supplierpayment": "تسديد مورد",
     "salereturn": "مرتجع بيع", "purchasereturn": "مرتجع توريد",
+    "custodyholder": "صاحب عهدة", "custodyclearance": "تصفية عهدة شخص",
 }
 
 

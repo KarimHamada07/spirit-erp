@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% load humanize %}
 
-{% block content_title %}تصفية عهدة #{{ st.pk }}{% endblock %}
+{% block content_title %}تسليم عهدة #{{ st.pk }}{% endblock %}
 {% block breadcrumbs %}{% endblock %}
 
 {% block content %}
@@ -13,7 +13,7 @@
   <div class="col-lg-5">
     <div class="card"><div class="card-body">
       <div style="font-size:34px;font-weight:700;color:#fe0000">{{ st.amount|floatformat:2|intcomma }}</div>
-      <p class="mb-1"><b>المستلم:</b> {{ st.received_by }}</p>
+      <p class="mb-1"><b>المستلم:</b> {% if st.holder_id %}<a href="{% url 'custody_holder' st.holder_id %}">{{ st.received_by }}</a> (اتسجلت على عهدته){% else %}{{ st.received_by }}{% endif %}</p>
       <p class="mb-1"><b>الطريقة:</b> {{ st.get_method_display }}</p>
       <p class="mb-1"><b>الوقت:</b> {{ st.settled_at|date:"d/m/Y H:i" }}</p>
       {% if st.notes %}<p class="mb-1"><b>ملاحظات:</b> {{ st.notes }}</p>{% endif %}
