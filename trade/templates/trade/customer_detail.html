@@ -18,7 +18,6 @@
 </style>
 
 <div class="mb-3">
-  <a href="{% url 'customer_statement_pdf' customer.pk %}" class="btn btn-outline-primary">كشف الحساب PDF</a>
   <a href="{% url 'customers' %}" class="btn btn-outline-secondary">&rarr; كل العملاء</a>
   {% if customer.phone %}<a href="tel:{{ customer.phone }}" class="btn btn-outline-primary">اتصال {{ customer.phone }}</a>{% endif %}
   <span class="btn btn-light disabled">البائع: <b>{{ customer.seller.name|default:"—" }}</b></span>
@@ -35,6 +34,9 @@
         data-confirm-title="تأكيد الحذف">{% csrf_token %}
     <button type="submit" class="btn btn-outline-primary">حذف العميل</button></form>
 </div>
+
+{% url 'customer_statement_pdf' customer.pk as pdf_url %}{% url 'customer_statement' customer.pk 'xlsx' as xlsx_url %}
+{% include "trade/_statement_box.html" with pdf_url=pdf_url xlsx_url=xlsx_url %}
 
 <div class="row">
   <div class="col-md-4 col-6"><div class="kpi bg-k1"><div class="label">إجمالي الآجل</div>

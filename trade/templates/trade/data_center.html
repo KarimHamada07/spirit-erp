@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}استيراد وتصدير البيانات{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .steps { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .steps div { flex: 1 1 180px; padding: 12px 14px; border-radius: 12px; background: var(--erp-soft,#f1f1f2); font-size: 14px; }
+  .steps b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #fe0000; color: #fff; margin-left: 6px; font-size: 13px; }
+  .dcard { border: 1px solid var(--erp-line,#e2e2e4); border-radius: 14px; background: var(--erp-card,#fff); padding: 16px; margin-bottom: 16px; height: calc(100% - 16px); display: flex; flex-direction: column; }
+  .dcard h3 { font-size: 18px; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+  .dcard h3 i { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(254,0,0,.1); color: #fe0000; font-size: 16px; }
+  .dcard .cols { font-size: 13px; color: var(--erp-muted,#666); margin: 6px 0 12px; line-height: 1.8; }
+  .dcard .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .dcard form { margin-top: auto; border-top: 1px dashed var(--erp-line,#ddd); padding-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .dcard form input[type=file] { flex: 1 1 200px; }
+  .req { color: #fe0000; font-weight: 700; }
+</style>
+
+<div class="steps">
+  <div><b>1</b>نزّل الفورم (أو صدّر البيانات الحالية لو عايز تعدّلها)</div>
+  <div><b>2</b>املا البيانات في Excel. العمود الأحمر لازم</div>
+  <div><b>3</b>ارفع الملف وراجع المعاينة: هتشوف الجديد والتحديث والغلط</div>
+  <div><b>4</b>دوس تأكيد، والبيانات تتسجل كلها مرة واحدة</div>
+</div>
+
+<div class="row">
+{% for c in cards %}
+  <div class="col-lg-6" id="{{ c.spec.key }}">
+    <div class="dcard">
+      <h3><i class="{{ c.spec.icon }}"></i>{{ c.spec.title }}</h3>
+      <div class="cols">الأعمدة:
+        {% for k, h, req, help in c.spec.columns %}{% if req %}<span class="req">{{ h }}*</span>{% else %}{{ h }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}
+      </div>
+      <div class="btns">
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'data_file' c.spec.key 'template' %}"><i class="fas fa-download"></i> نزّل الفورم الفاضي</a>
+        <a class="btn btn-sm btn-dark" href="{% url 'data_file' c.spec.key 'export' %}"><i class="fas fa-file-excel"></i> صدّر البيانات الحالية</a>
+      </div>
+      {% if c.can_import %}
+      <form method="post" action="{% url 'data_upload' c.spec.key %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="file" accept=".xlsx" required class="form-control form-control-sm">
+        <button class="btn btn-sm btn-primary"><i class="fas fa-upload"></i> ارفع وراجع</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

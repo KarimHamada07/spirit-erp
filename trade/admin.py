@@ -100,10 +100,13 @@ class CustomerAdmin(admin.ModelAdmin):
     search_fields = ("name", "phone")
 
     def get_readonly_fields(self, request, obj=None):
+        ro = []
         # البائع المرتبط بالعميل: مدير الحسابات بس يقدر يغيّره
-        if request.user.has_perm("trade.change_customer_seller"):
-            return []
-        return ["seller"]
+        if not request.user.has_perm("trade.change_customer_seller"):
+            ro.append("seller")
+        if not request.user.has_perm("trade.import_data"):
+            ro += ["opening_balance", "opening_date"]
+        return ro
 
 
 @admin.register(Payment)
@@ -137,7 +140,15 @@ class OnlineOrderAdmin(admin.ModelAdmin):
         return False
 
 
-admin.site.register(Supplier)
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = ("name", "phone", "address", "opening_balance")
+    search_fields = ("name", "phone")
+
+    def get_readonly_fields(self, request, obj=None):
+        if request.user.has_perm("trade.import_data"):
+            return []
+        return ["opening_balance", "opening_date"]
 admin.site.register(Expense)
 
 

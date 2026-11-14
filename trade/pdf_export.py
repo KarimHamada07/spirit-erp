@@ -1,4 +1,4 @@
-"""تصدير PDF: فاتورة بيع، وكشف حساب عميل. الخط DejaVu Sans (بيدعم العربي)."""
+"""تصدير PDF: فاتورة بيع، وكشف حساب عميل أو مورد. الخط DejaVu Sans (بيدعم العربي)."""
 import io
 import os
 from decimal import Decimal
@@ -138,28 +138,36 @@ def invoice_pdf(invoice, ctx):
     return _build(story, SHOP)
 
 
-def statement_pdf(customer, entries, totals):
-    """كشف حساب عميل. entries = [{date, kind, ref, debit, credit, balance}] مرتبة بالتاريخ.
-    totals = {credit_total, paid_total, balance}"""
-    story = _header(f"كشف حساب: {customer.name}")
-    info = [["الهاتف", customer.phone or "-"], ["تاريخ الكشف", str(totals["as_of"])]]
+def statement_pdf(st):
+    """كشف حساب (عميل أو مورد) من trade.statements"""
+    t = st["totals"]
+    story = _header(st["title"])
+    period = "كل الحركات"
+    if t["d1"] or t["d2"]:
+        period = f"{t['d1'] or 'البداية'} → {t['d2'] or t['as_of']}"
+    info = [["الهاتف", st["phone"] or "-"], ["الفترة", period], ["تاريخ الكشف", str(t["as_of"])]]
     story.append(_table([["البيان", "القيمة"]] + info, [60 * mm, 60 * mm]))
     story.append(Spacer(1, 6 * mm))
-    data = [["التاريخ", "النوع", "المرجع", "فواتير (مدين)", "دفعات (دائن)", "الرصيد"]]
-    for e in entries:
+    data = [["التاريخ", "النوع", "المرجع", st["debit_label"], st["credit_label"], "الرصيد"]]
+    for e in st["entries"]:
         data.append([str(e["date"]), e["kind"], e["ref"],
                      _money(e["debit"]) if e["debit"] else "-",
                      _money(e["credit"]) if e["credit"] else "-",
                      _money(e["balance"])])
-    story.append(_table(data, [28 * mm, 30 * mm, 36 * mm, 28 * mm, 28 * mm, 28 * mm]))
+    if len(data) == 1:
+        data.append(["-", "مفيش حركات في الفترة دي", "", "", "", ""])
+    story.append(_table(data, [27 * mm, 31 * mm, 36 * mm, 27 * mm, 27 * mm, 28 * mm]))
     story.append(Spacer(1, 6 * mm))
     summary = [
-        ["إجمالي الآجل", _money(totals["credit_total"])],
-        ["إجمالي المدفوع", _money(totals["paid_total"])],
-        ["الرصيد المستحق", _money(totals["balance"])],
+        [st["debit_label"], _money(t["debit"])],
+        [st["credit_label"], _money(t["credit"])],
+        [st["balance_label"], _money(t["balance"])],
     ]
-    t = Table([[_p(b), _p(a)] for a, b in summary], colWidths=[40 * mm, 60 * mm], hAlign="RIGHT")
-    t.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 0.5, GREY),
-                           ("BACKGROUND", (0, 2), (-1, 2), colors.HexColor("#f4f4f5"))]))
-    story.append(t)
+    if t["previous"]:
+        summary.insert(0, ["رصيد سابق", _money(t["previous"])])
+    tbl = Table([[_p(b), _p(a)] for a, b in summary], colWidths=[40 * mm, 60 * mm], hAlign="RIGHT")
+    tbl.setStyle(TableStyle([("LINEBELOW", (0, 0), (-1, -1), 0.5, GREY),
+                             ("BACKGROUND", (0, len(summary) - 1), (-1, len(summary) - 1),
+                              colors.HexColor("#f4f4f5"))]))
+    story.append(tbl)
     return _build(story, "SPIRIT | سبيريت")

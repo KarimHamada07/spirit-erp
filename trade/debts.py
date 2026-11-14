@@ -4,6 +4,7 @@
 هو أحدث الفواتير، وعمر المديونية = عمر أقدم فاتورة لسه عليها فلوس.
 """
 from collections import defaultdict
+from types import SimpleNamespace
 from decimal import Decimal
 
 from django.db.models import F, Max, Sum
@@ -62,7 +63,10 @@ def debt_rows(today=None):
     for c in debtors:
         left = c.paid_total
         oldest = None
-        for inv, net in invoices.get(c.pk, []):
+        lines = invoices.get(c.pk, [])
+        if c.opening_balance:  # الرصيد الافتتاحي أقدم من أي فاتورة
+            lines = [(SimpleNamespace(pk=None, date=c.opening_date or today), c.opening_balance)] + lines
+        for inv, net in lines:
             if left >= net:
                 left -= net
                 continue

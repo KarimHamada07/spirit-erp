@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
-from .models import CashBox, Customer, Payment, SaleInvoice, SaleReturn, Seller
+from .models import CashBox, Customer, SaleInvoice, Seller
 from .pdf_export import statement_pdf
 from .treasury import record_customer_payment
 
@@ -163,60 +163,35 @@ def customer_pay(request, pk):
     return redirect("customer_detail", pk=pk)
 
 
+def _period(request):
+    def d(key):
+        try:
+            return date.fromisoformat(request.GET.get(key, ""))
+        except ValueError:
+            return None
+    d1, d2 = d("from"), d("to")
+    if d1 and d2 and d2 < d1:
+        d1, d2 = d2, d1
+    return d1, d2
+
+
+def statement_response(st, fmt, filename):
+    """كشف الحساب كـ PDF أو Excel"""
+    from .exports import xlsx_response
+    from .statements import statement_sheets
+    if fmt == "xlsx":
+        return xlsx_response(statement_sheets(st), filename)
+    response = HttpResponse(statement_pdf(st), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}.pdf"'
+    return response
+
+
 @staff_member_required
-def customer_statement_pdf(request, pk):
-    """كشف حساب العميل PDF: كل الفواتير (آجل ونقدي) وكل الدفعات بالتاريخ مع الرصيد بعد كل حركة"""
+def customer_statement_pdf(request, pk, fmt="pdf"):
+    """كشف حساب العميل (PDF أو Excel): كل الفواتير والمرتجعات والدفعات مع الرصيد بعد كل حركة"""
+    from .statements import customer_statement
     if not request.user.has_perm("trade.view_customer"):
         raise PermissionDenied
     customer = get_object_or_404(Customer, pk=pk)
-
-    events = []  # (التاريخ، الترتيب، الحركة)
-    credit_total = ZERO
-    for inv in (SaleInvoice.objects.filter(customer=customer, is_confirmed=True)
-                .prefetch_related("items", "payments")):
-        total = inv.total
-        if inv.payment_type == "credit":
-            credit_total += total
-            events.append((inv.date, 0, inv.pk, {
-                "kind": "فاتورة آجل", "ref": f"فاتورة #{inv.pk}",
-                "debit": total, "credit": ZERO}))
-        else:
-            # الكاش متسدد وقت البيع: بيظهر في الكشف بس ومش بيأثر على الرصيد
-            events.append((inv.date, 0, inv.pk, {
-                "kind": "فاتورة نقدي", "ref": f"فاتورة #{inv.pk}",
-                "debit": total, "credit": total}))
-
-    for ret in (SaleReturn.objects.filter(invoice__customer=customer, is_confirmed=True,
-                                          refund_mode="account")
-                .select_related("invoice")):
-        amount = ret.total
-        credit_total -= amount
-        events.append((ret.date, 1, ret.pk, {
-            "kind": "مرتجع", "ref": f"مرتجع #{ret.pk} (فاتورة #{ret.invoice_id})",
-            "debit": ZERO, "credit": amount}))
-
-    paid_total = ZERO
-    for p in customer.payments.all():
-        paid_total += p.amount
-        ref = f"دفعة #{p.pk}"
-        if p.invoice_id:
-            ref += f" (فاتورة #{p.invoice_id})"
-        events.append((p.date, 1, p.pk, {
-            "kind": "دفعة", "ref": ref, "debit": ZERO, "credit": p.amount}))
-
-    events.sort(key=lambda e: (e[0], e[1], e[2]))
-    entries, running = [], ZERO
-    for day, _, _, row in events:
-        running += row["debit"] - row["credit"]
-        entries.append({**row, "date": day, "balance": running})
-
-    totals = {
-        "credit_total": credit_total,
-        "paid_total": paid_total,
-        "balance": credit_total - paid_total,
-        "as_of": timezone.localdate().isoformat(),
-    }
-    content = statement_pdf(customer, entries, totals)
-    response = HttpResponse(content, content_type="application/pdf")
-    response["Content-Disposition"] = f'attachment; filename="statement-{customer.pk}.pdf"'
-    return response
+    d1, d2 = _period(request)
+    return statement_response(customer_statement(customer, d1, d2), fmt, f"statement-{customer.pk}")

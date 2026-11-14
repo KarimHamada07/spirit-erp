@@ -35,6 +35,11 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `menu.py` — القايمة الجانبية المقسمة (البيع، العملاء، المخزون...) وشريط الموبايل اللي تحت. أي صفحة جديدة
   تتضاف في `MENU` بصلاحيتها.
 - `pwa_views.py` — manifest و service worker (الصفحات دايماً من السيرفر؛ الكاش للملفات الثابتة بس).
+- `statements.py` — كشوف حساب العملاء والموردين (PDF و Excel، بفترة). الرصيد الافتتاحي
+  `opening_balance` على العميل والمورد داخل في الأرصدة والكشوف وأعمار المديونيات.
+- `data_io.py` + `data_views.py` — استيراد/تصدير Excel (فورم ← رفع ← معاينة ← تأكيد). كل نوع `Spec`؛
+  الاستيراد ذري، وبيكتم رسايل تليجرام (`notify.muted`) ويبعت رسالة ملخص واحدة. محتاج صلاحية
+  `trade.import_data`.
 - أوامر: `backup_db`، `debt_reminders`، `stock_alerts`، `telegram_test`.
 
 ## اتفاقيات

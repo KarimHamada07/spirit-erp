@@ -72,7 +72,7 @@
                 {% if r.customer.seller_id %} · {{ r.customer.seller.name }}{% endif %}</div></td>
             <td class="debt">{{ r.balance|floatformat:2|intcomma }}</td>
             <td><span class="age b{{ r.bucket }}">{{ r.days }} يوم</span>
-              {% if r.oldest %}<div class="text-muted" style="font-size:12px">من فاتورة #{{ r.oldest.pk }}</div>{% endif %}</td>
+              {% if r.oldest %}<div class="text-muted" style="font-size:12px">{% if r.oldest.pk %}من فاتورة #{{ r.oldest.pk }}{% else %}رصيد افتتاحي{% endif %}</div>{% endif %}</td>
             <td>{{ r.last_payment|date:"d/m/Y"|default:"ماحصلش" }}</td>
             <td>
               {% if r.followup %}

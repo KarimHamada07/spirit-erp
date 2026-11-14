@@ -1,0 +1,51 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+
+{% block content_title %}الموردين{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .kpi { border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; background:#000; color:#fff; }
+  .kpi .label { font-size: 13px; opacity: .85; } .kpi .value { font-size: 24px; font-weight: 700; direction:ltr; text-align:right; }
+  .sup { border: 1px solid var(--erp-line,#e2e2e4); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; background: var(--erp-card,#fff); }
+  .sup .top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; }
+  .sup .name { font-weight: 700; font-size: 16px; }
+  .sup .bal { font-weight: 700; font-size: 18px; direction: ltr; unicode-bidi: isolate; }
+  .sup .bal.owe { color: #fe0000; }
+  .sup details { margin-top: 8px; }
+  .sup summary { cursor: pointer; color: var(--erp-muted,#666); font-size: 14px; }
+</style>
+
+<div class="row">
+  <div class="col-lg-4 col-12"><div class="kpi"><div class="label">إجمالي المستحق للموردين</div>
+    <div class="value">{{ payable|floatformat:2|intcomma }}</div></div></div>
+</div>
+
+<form method="get" class="mb-3 d-flex flex-wrap" style="gap:8px">
+  <input type="search" name="q" value="{{ q }}" class="form-control" style="max-width:320px" placeholder="ابحث بالاسم أو الموبايل...">
+  <button class="btn btn-primary">بحث</button>
+  {% if perms.trade.add_supplier %}<a class="btn btn-outline-secondary" href="{% url 'admin:trade_supplier_add' %}">+ مورد جديد</a>{% endif %}
+  {% if can_pay %}<a class="btn btn-outline-secondary" href="{% url 'treasury' %}">سداد لمورد</a>{% endif %}
+  {% if perms.trade.import_data %}<a class="btn btn-outline-secondary" href="{% url 'data_center' %}#suppliers">استيراد من Excel</a>{% endif %}
+</form>
+
+{% for r in rows %}
+<div class="sup">
+  <div class="top">
+    <div><div class="name">{{ r.supplier.name }}</div>
+      <div class="text-muted" style="font-size:13px">{% if r.supplier.phone %}<a href="tel:{{ r.supplier.phone }}">{{ r.supplier.phone }}</a>{% else %}—{% endif %}{% if r.supplier.address %} · {{ r.supplier.address }}{% endif %}</div></div>
+    <div class="text-left"><div class="text-muted" style="font-size:12px">المستحق ليه</div>
+      <div class="bal {% if r.balance > 0 %}owe{% endif %}">{{ r.balance|floatformat:2|intcomma }}</div></div>
+  </div>
+  <details>
+    <summary>كشف الحساب</summary>
+    {% url 'supplier_statement' r.supplier.pk 'pdf' as pdf_url %}{% url 'supplier_statement' r.supplier.pk 'xlsx' as xlsx_url %}
+    {% include "trade/_statement_box.html" with pdf_url=pdf_url xlsx_url=xlsx_url %}
+    {% if perms.trade.change_supplier %}<a href="{% url 'admin:trade_supplier_change' r.supplier.pk %}">تعديل بيانات المورد</a>{% endif %}
+  </details>
+</div>
+{% empty %}
+<p class="text-muted">مفيش موردين{% if q %} بالاسم ده{% endif %}.</p>
+{% endfor %}
+{% endblock %}
