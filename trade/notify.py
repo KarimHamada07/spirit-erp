@@ -211,3 +211,38 @@ def online_status_text(o, old_status):
     if o.status == o.RETURNED:
         lines.append("الكميات رجعت للمخزن")
     return "\n".join(lines)
+
+
+def sale_return_text(ret):
+    lines = [f"↩️ مرتجع بيع #{ret.pk} — فاتورة #{ret.invoice_id}"]
+    for i in ret.items.select_related("sale_item__variant__model"):
+        lines.append(f"• {i.sale_item.variant} × {i.quantity}")
+    lines.append(f"قيمة المرتجع: {fmt(ret.total)}")
+    if ret.reason:
+        lines.append(f"السبب: {ret.reason}")
+    lines.append("الكميات رجعت للمخزن")
+    return "\n".join(lines)
+
+
+def purchase_return_text(ret):
+    lines = [f"↩️ مرتجع توريد #{ret.pk} — {ret.supplier}"]
+    for i in ret.items.select_related("variant__model"):
+        lines.append(f"• {i.variant} × {i.quantity} @ {fmt(i.unit_cost)}")
+    lines.append(f"قيمة المرتجع: {fmt(ret.total)}")
+    if ret.reason:
+        lines.append(f"السبب: {ret.reason}")
+    return "\n".join(lines)
+
+
+def transfer_text(t):
+    line = f"🔄 تحويل {fmt(t.amount)} من {t.from_box} إلى {t.to_box}"
+    if t.note:
+        line += f"\nملاحظة: {t.note}"
+    return line
+
+
+def supplier_payment_text(p):
+    line = f"💳 تسديد مورد {p.supplier} — {fmt(p.amount)} من {p.box}"
+    if p.notes:
+        line += f"\nملاحظة: {p.notes}"
+    return line

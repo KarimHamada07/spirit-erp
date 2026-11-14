@@ -47,7 +47,8 @@
     <div class="card">
       <div class="card-header">
         <input id="search" type="search" class="form-control"
-               placeholder="ابحث باسم الموديل أو الكود أو المقاس أو اللون..." autofocus>
+               placeholder="ابحث باسم الموديل أو الكود أو المقاس أو اللون، أو امسح الباركود..." autofocus>
+        <small id="scan-hint" class="pos-hint d-block mt-1"></small>
       </div>
       <div class="card-body p-0">
         <div id="products" class="list-group list-group-flush"></div>
@@ -150,6 +151,7 @@
   function label(v) { return v.name + " — " + v.size + (v.color ? " — " + v.color : ""); }
   function money(n) { return (Math.round(n * 100) / 100).toFixed(2); }
 
+  var hint = document.getElementById("scan-hint");
   var elProducts = document.getElementById("products");
   var elBody = document.getElementById("cart-body");
   var elEmpty = document.getElementById("empty");
@@ -330,12 +332,20 @@
   document.getElementById("search").addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    var f = this.value.trim().toLowerCase();
-    var first = V.find(function (v) {
+    var raw = this.value.trim();
+    var f = raw.toLowerCase();
+    // باركود الموديل (كود كامل): لو ليه مقاس/لون واحد متاح بيتضاف، ولو أكتر بيفضل يختار
+    var sameModel = V.filter(function (v) { return v.code.toLowerCase() === f && v.qty > 0; });
+    if (raw && sameModel.length > 1) {
+      hint.textContent = "اختار المقاس واللون من القايمة";
+      return;
+    }
+    var first = sameModel[0] || V.find(function (v) {
       return v.qty > 0 && (!f || (label(v) + " " + v.code).toLowerCase().indexOf(f) !== -1);
     });
-    if (!first) return;
+    if (!first) { hint.textContent = "مفيش صنف بالكود ده"; return; }
     add(first.id);
+    hint.textContent = "";
     this.value = "";
     renderProducts();
   });

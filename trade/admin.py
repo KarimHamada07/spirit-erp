@@ -17,11 +17,24 @@ class VariantInline(admin.TabularInline):
     readonly_fields = ("quantity", "avg_cost")
 
 
+def _print_labels(modeladmin, request, queryset):
+    from django.http import HttpResponse
+    from .labels import labels_pdf
+    pdf = labels_pdf(list(queryset.order_by("code")))
+    resp = HttpResponse(pdf, content_type="application/pdf")
+    resp["Content-Disposition"] = 'inline; filename="labels.pdf"'
+    return resp
+
+
+_print_labels.short_description = "طباعة ملصقات الباركود للموديلات المحددة (50×30 مم)"
+
+
 @admin.register(ClothingModel)
 class ClothingModelAdmin(admin.ModelAdmin):
     list_display = ("name", "code", "is_active")
     search_fields = ("name", "code")
     inlines = [VariantInline]
+    actions = [_print_labels]
 
 
 @admin.register(Variant)

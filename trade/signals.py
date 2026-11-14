@@ -3,10 +3,12 @@ from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
-from .models import (Customer, Expense, Payment, PurchaseInvoice, SaleInvoice,
+from .models import (CashTransfer, Customer, Expense, Payment, PurchaseInvoice,
+                     PurchaseReturn, SaleInvoice, SaleReturn, SupplierPayment,
                      Variant)
-from .notify import (LOW_STOCK, log_event, payment_text, purchase_text,
-                     sale_text)
+from .notify import (LOW_STOCK, log_event, payment_text, purchase_return_text,
+                     purchase_text, sale_return_text, sale_text,
+                     supplier_payment_text, transfer_text)
 
 
 def _was_confirmed(model, instance):
@@ -37,11 +39,46 @@ def _purchase_after(sender, instance, **kw):
         log_event(purchase_text(instance))
 
 
+# ---- المرتجعات: بتتسجل لحظة التأكيد زي الفواتير ----
+@receiver(pre_save, sender=SaleReturn)
+def _sale_return_before(sender, instance, **kw):
+    instance._was_confirmed = _was_confirmed(sender, instance)
+
+
+@receiver(post_save, sender=SaleReturn)
+def _sale_return_after(sender, instance, **kw):
+    if instance.is_confirmed and not getattr(instance, "_was_confirmed", False):
+        log_event(sale_return_text(instance))
+
+
+@receiver(pre_save, sender=PurchaseReturn)
+def _purchase_return_before(sender, instance, **kw):
+    instance._was_confirmed = _was_confirmed(sender, instance)
+
+
+@receiver(post_save, sender=PurchaseReturn)
+def _purchase_return_after(sender, instance, **kw):
+    if instance.is_confirmed and not getattr(instance, "_was_confirmed", False):
+        log_event(purchase_return_text(instance))
+
+
 # ---- دفعات وعملاء ومصروفات ----
 @receiver(post_save, sender=Payment)
 def _payment(sender, instance, created, **kw):
     if created:
         log_event(payment_text(instance))
+
+
+@receiver(post_save, sender=CashTransfer)
+def _transfer(sender, instance, created, **kw):
+    if created:
+        log_event(transfer_text(instance))
+
+
+@receiver(post_save, sender=SupplierPayment)
+def _supplier_payment(sender, instance, created, **kw):
+    if created:
+        log_event(supplier_payment_text(instance))
 
 
 @receiver(post_save, sender=Customer)
