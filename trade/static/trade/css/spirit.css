@@ -461,3 +461,25 @@ html[data-bs-theme="dark"] .main-header [data-toggle]:hover i {
 }
 html[data-bs-theme="dark"] .main-header .nav-link:hover,
 html[data-bs-theme="dark"] .main-header .btn:hover { border-radius: 10px; }
+
+/* ===== الوضع الداكن: الشريط العلوي كله (بروفايل - ثيم - ☰ - الترس) أبيض ===== */
+html[data-bs-theme="dark"] .main-header.navbar .nav-link,
+html[data-bs-theme="dark"] .main-header.navbar .nav-link i,
+html[data-bs-theme="dark"] .main-header.navbar .nav-link .fas,
+html[data-bs-theme="dark"] .main-header.navbar .nav-link svg,
+html[data-bs-theme="dark"] .main-header.navbar .dropdown-toggle,
+html[data-bs-theme="dark"] .main-header.navbar .dropdown-toggle i,
+html[data-bs-theme="dark"] .main-header.navbar .btn,
+html[data-bs-theme="dark"] .main-header.navbar .btn i,
+html[data-bs-theme="dark"] .main-header.navbar [data-widget="pushmenu"],
+html[data-bs-theme="dark"] .main-header.navbar [data-widget="pushmenu"] i,
+html[data-bs-theme="dark"] .main-header.navbar [data-widget="fullscreen"],
+html[data-bs-theme="dark"] .main-header.navbar [data-widget="fullscreen"] i,
+html[data-bs-theme="dark"] .main-header.navbar .theme-toggle,
+html[data-bs-theme="dark"] .main-header.navbar .theme-toggle i,
+html[data-bs-theme="dark"] .main-header.navbar .user-menu i {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  opacity: 1 !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
