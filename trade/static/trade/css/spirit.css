@@ -334,3 +334,56 @@ footer, footer.main-footer { display: none !important; }
   box-shadow: 0 6px 14px rgba(0, 0, 0, .35);
 }
 [data-bs-theme="dark"] .btn-dark:hover, [data-bs-theme="dark"] .btn-success:hover { background: #3a3a43 !important; }
+
+/* ================= تنسيق الفورم (تمريرة شاملة) ================= */
+/* كل الحقول بنفس الارتفاع والشكل */
+.form-row input[type="text"], .form-row input[type="number"], .form-row input[type="date"],
+.form-row input[type="email"], .form-row input[type="tel"], .form-row input[type="password"],
+.form-row select, .form-row textarea, .form-row .vDateField, .form-row .vTextField,
+.form-row .vIntegerField, .form-row .vDecimalField {
+  border-radius: 10px !important;
+  border: 1px solid #dcdce2 !important;
+  padding: .5rem .75rem;
+  min-height: 40px;
+  background: #fff;
+  box-sizing: border-box;
+}
+.form-row textarea { min-height: 96px; resize: vertical; width: 100%; max-width: 100%; }
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+  border-color: var(--sp-red) !important;
+  box-shadow: 0 0 0 3px var(--sp-red-soft) !important;
+  outline: 0;
+}
+/* الـ label ثابت العرض ومرتب */
+.form-row > label, .form-row label:first-child {
+  font-weight: 700; color: var(--sp-ink); font-size: .95rem;
+}
+.form-row { padding: 12px 0; border-bottom: 1px solid #f3f3f6; }
+.form-row:last-child { border-bottom: 0; }
+/* أيقونات الإضافة/التعديل بجانب الحقول */
+.related-widget-wrapper a { color: var(--sp-ink-2); }
+.related-widget-wrapper a:hover { color: var(--sp-red); }
+/* الفورم على الموبايل: الـ label فوق الحقل */
+@media (max-width: 767px) {
+  .form-row > .row, .form-row .col-md-2, .form-row .col-md-10 { width: 100%; max-width: 100%; flex: 0 0 100%; }
+  .form-row label { display: block; margin-bottom: 6px; }
+  .submit-row a.deletelink { display: block; margin-top: 8px; }
+  .submit-row input[type="submit"] { width: 100%; margin: 6px 0; }
+}
+/* تطبيق نفس شكل الحقول على كل فورم Jazzmin (form-group) */
+fieldset input[type="text"], fieldset input[type="number"], fieldset input[type="date"],
+fieldset input[type="email"], fieldset input[type="tel"], fieldset input[type="password"],
+fieldset select, fieldset textarea, .form-group input:not([type="checkbox"]):not([type="radio"]),
+.form-group select, .form-group textarea {
+  border-radius: 10px !important;
+  border: 1px solid #dcdce2 !important;
+  min-height: 40px;
+  background: #fff;
+  box-sizing: border-box;
+}
+fieldset textarea, .form-group textarea { min-height: 96px; width: 100%; resize: vertical; padding: .5rem .75rem; }
+fieldset input:focus, fieldset select:focus, fieldset textarea:focus {
+  border-color: var(--sp-red) !important;
+  box-shadow: 0 0 0 3px var(--sp-red-soft) !important;
+  outline: 0;
+}
