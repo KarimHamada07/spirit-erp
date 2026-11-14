@@ -86,6 +86,7 @@ JAZZMIN_SETTINGS = {
     "custom_css": "trade/css/spirit.css",
     "use_google_fonts_cdn": False,  # الخط بييجي من spirit.css
     "show_ui_builder": False,
+    "show_theme_chooser": True,  # زرار لوحة الألوان: فاتح / داكن / تلقائي
     "related_modal_active": True,
 }
 JAZZMIN_UI_TWEAKS = {
