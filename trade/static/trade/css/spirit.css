@@ -405,3 +405,16 @@ fieldset input:focus, fieldset select:focus, fieldset textarea:focus {
 [data-bs-theme="dark"] .navbar-search-block .form-control { background: #121215 !important; color: #f0f0f3 !important; }
 /* أيقونات القايمة الجانبية (تفضل بيضا) */
 [data-bs-theme="dark"] .main-sidebar i { color: inherit; }
+
+/* ===== الداشبورد في الوضع الداكن: المتغيرات اللي بيستخدمها القالب ===== */
+html[data-bs-theme="dark"] {
+  --erp-card: #18181c; --erp-ink: #f0f0f3; --erp-line: #2a2a31;
+  --erp-soft: #26262b; --erp-muted: #a8a8b0;
+}
+html[data-bs-theme="dark"] .content-header h1,
+html[data-bs-theme="dark"] .content-header h2,
+html[data-bs-theme="dark"] .card-title,
+html[data-bs-theme="dark"] .card-header h3 { color: #f5f5f7 !important; }
+html[data-bs-theme="dark"] .card-header { background: #18181c !important; }
+html[data-bs-theme="dark"] .chip { background: #26262b; color: #f0f0f3; }
+html[data-bs-theme="dark"] a.stat .t { color: #a8a8b0; }
