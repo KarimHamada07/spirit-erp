@@ -113,11 +113,12 @@ def custody(request):
         "today": timezone.localdate().isoformat(),
         "deposits": CustodyDeposit.objects.all()[:5],
         "holders": holder_rows(),
-        "holder_choices": CustodyHolder.objects.filter(is_active=True),
-        "free_users": _free_users(),
+        "staff_users": get_user_model().objects.filter(is_active=True, is_staff=True)
+                                           .order_by("first_name", "username"),
+        "outside_names": list(CustodyHolder.objects.filter(user__isnull=True, is_active=True)
+                              .values_list("name", flat=True)),
         "pending_count": (CustodyClearance.objects.filter(status=CustodyClearance.PENDING).count()
                           if request.user.has_perm("trade.approve_custodyclearance") else 0),
-        "can_add_holder": request.user.has_perm("trade.add_custodyholder"),
         "can_add": request.user.has_perm("trade.add_custodysettlement"),
         "can_deposit": request.user.has_perm("trade.add_custodydeposit"),
     }
@@ -129,7 +130,7 @@ def custody(request):
 def custody_settle(request):
     _need(request, "trade.add_custodysettlement")
     amount = _amount(request.POST.get("amount"))
-    holder = CustodyHolder.objects.filter(pk=request.POST.get("holder") or 0, is_active=True).first()
+    holder = resolve_holder(request.POST)
     receiver = holder.name if holder else ""
     method = request.POST.get("method", "cash")
     if method not in dict(CustodySettlement.METHODS):
@@ -139,7 +140,7 @@ def custody_settle(request):
         messages.error(request, "اكتب مبلغ صحيح أكبر من صفر")
         return redirect("custody")
     if holder is None:
-        messages.error(request, "اختار الشخص اللي استلم العهدة (أو ضيفه الأول)")
+        messages.error(request, "اختار الموظف اللي استلم، أو اكتب اسم المستلم")
         return redirect("custody")
 
     try:
@@ -243,10 +244,33 @@ def holder_rows():
     return rows
 
 
-def _free_users():
-    """المستخدمين اللي لسه مش مربوطين بصاحب عهدة"""
-    return (get_user_model().objects.filter(is_active=True, custody_holder__isnull=True)
-            .order_by("username"))
+def _unique_name(name, user=None):
+    """اسم صاحب العهدة لازم يكون مميز: لو موظف اسمه زي حد تاني بنزوّد اسم الحساب"""
+    name = name.strip()[:120]
+    if user is not None and CustodyHolder.objects.filter(name__iexact=name).exclude(user=user).exists():
+        name = f"{name} ({user.get_username()})"[:120]
+    return name
+
+
+def resolve_holder(data):
+    """المستلم من الفورم: موظف (حساب) أو اسم مكتوب من بره. بيعمل صاحب العهدة لو أول مرة."""
+    kind = data.get("receiver_kind", "staff")
+    if kind == "staff":
+        user = get_user_model().objects.filter(pk=data.get("user") or 0, is_active=True).first()
+        if user is None:
+            return None
+        holder = CustodyHolder.objects.filter(user=user).first()
+        if holder is None:
+            label = user.get_full_name() or user.get_username()
+            holder = CustodyHolder.objects.create(name=_unique_name(label, user), user=user)
+        return holder
+    name = (data.get("received_by") or "").strip()[:120]
+    if not name:
+        return None
+    holder = CustodyHolder.objects.filter(name__iexact=name).first()
+    if holder is None:
+        holder = CustodyHolder.objects.create(name=name)
+    return holder
 
 
 def _can_see_holder(user, holder):
@@ -266,29 +290,6 @@ def _read_image(upload):
     if kind is None:
         raise ValueError("الملف لازم يكون صورة (PNG أو JPG أو WEBP)")
     return data, kind
-
-
-@staff_member_required
-@require_POST
-def holder_add(request):
-    _need(request, "trade.add_custodyholder")
-    name = request.POST.get("name", "").strip()[:120]
-    if not name:
-        messages.error(request, "اكتب الاسم")
-        return redirect("custody")
-    if CustodyHolder.objects.filter(name__iexact=name).exists():
-        messages.error(request, f"'{name}' موجود قبل كده")
-        return redirect("custody")
-    user = None
-    if request.POST.get("user"):
-        user = _free_users().filter(pk=request.POST["user"]).first()
-        if user is None:
-            messages.error(request, "الحساب ده مربوط بشخص تاني")
-            return redirect("custody")
-    CustodyHolder.objects.create(name=name, user=user, phone=request.POST.get("phone", "").strip()[:30])
-    linked = f" (مربوط بحساب {user.get_username()})" if user else " (من بره النظام)"
-    messages.success(request, f"اتضاف {name}{linked}")
-    return redirect("custody")
 
 
 @staff_member_required

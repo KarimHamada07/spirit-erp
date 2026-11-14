@@ -22,6 +22,8 @@
   .formcard .form-control { height: 44px; font-size: 16px; }
   #preview { max-width: 100%; max-height: 220px; border-radius: 8px; margin-top: 8px; display: none; }
   .thumb { height: 42px; width: 42px; object-fit: cover; border-radius: 6px; border: 1px solid #ddd; }
+  .rk { display: flex; gap: 16px; margin-bottom: 6px; }
+  .rk label { margin: 0; font-weight: 600; cursor: pointer; }
   .noproof { background: var(--erp-card,#fff); color: #fe0000; border: 1px solid #fe0000; border-radius: 10px; padding: 1px 8px; font-size: 12px; }
   @media (max-width: 767px) { .kpi .value { font-size: 22px; } .kpi.main .value { font-size: 28px; } }
 </style>
@@ -57,12 +59,18 @@
       <div class="col-md-4 mb-2"><label class="mb-1">المبلغ</label>
         <input name="amount" id="amount" type="number" step="0.01" min="0.01" class="form-control" required
                value="{% if s.balance > 0 %}{{ s.balance|stringformat:'.2f' }}{% endif %}"></div>
-      <div class="col-md-4 mb-2"><label class="mb-1">المستلم (هتتسجل على عهدته)</label>
-        <select name="holder" id="receiver" class="form-control" required>
-          <option value="">— اختار الشخص —</option>
-          {% for h in holder_choices %}<option value="{{ h.pk }}">{{ h.name }}{% if not h.user_id %} (من بره){% endif %}</option>{% endfor %}
+      <div class="col-md-4 mb-2"><label class="mb-1">المستلم</label>
+        <div class="rk">
+          <label><input type="radio" name="receiver_kind" value="staff" checked> موظف</label>
+          <label><input type="radio" name="receiver_kind" value="outside"> من بره</label>
+        </div>
+        <select name="user" id="rk-staff" class="form-control">
+          <option value="">— اختار الموظف —</option>
+          {% for u in staff_users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }}</option>{% endfor %}
         </select>
-        {% if can_add_holder %}<small><a href="#add-holder" onclick="document.getElementById('add-holder').open=true">+ شخص جديد</a></small>{% endif %}</div>
+        <input name="received_by" id="rk-outside" list="outside-names" class="form-control" maxlength="120"
+               placeholder="اكتب اسم المستلم" autocomplete="off" style="display:none">
+        <datalist id="outside-names">{% for n in outside_names %}<option value="{{ n }}">{% endfor %}</datalist></div>
       <div class="col-md-4 mb-2"><label class="mb-1">طريقة التسليم</label>
         <select name="method" class="form-control">{% for k, v in methods %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
     </div>
@@ -97,24 +105,6 @@
 </details>
 {% endif %}
 
-{% if can_add_holder %}
-<details class="box deposit" id="add-holder">
-  <summary>+ شخص يستلم عهدة</summary>
-  <form method="post" action="{% url 'custody_holder_add' %}" class="formcard">
-    {% csrf_token %}
-    <p class="text-muted mb-2">اربطه بحسابه في النظام عشان يقدر يفتح "عهدتي" ويطلب تصفية بنفسه، أو سيبه من غير حساب (سواق، مندوب...).</p>
-    <div class="row">
-      <div class="col-md-4 mb-2"><input name="name" class="form-control" placeholder="الاسم" required maxlength="120"></div>
-      <div class="col-md-3 mb-2"><input name="phone" class="form-control" placeholder="الموبايل (اختياري)" maxlength="30"></div>
-      <div class="col-md-3 mb-2"><select name="user" class="form-control">
-        <option value="">— من غير حساب (من بره) —</option>
-        {% for u in free_users %}<option value="{{ u.pk }}">{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>{% endfor %}
-      </select></div>
-      <div class="col-md-2 mb-2"><button class="btn btn-dark btn-block" style="height:44px">إضافة</button></div>
-    </div>
-  </form>
-</details>
-{% endif %}
 
 {% if pending_count %}
 <div class="alert alert-warning d-flex justify-content-between align-items-center flex-wrap" style="gap:8px">
@@ -169,6 +159,17 @@
 
 <script>
 (function () {
+  // موظف ↔ من بره
+  document.querySelectorAll("[name=receiver_kind]").forEach(function (r) {
+    r.addEventListener("change", function () {
+      var outside = r.value === "outside" && r.checked;
+      document.getElementById("rk-staff").style.display = outside ? "none" : "";
+      document.getElementById("rk-outside").style.display = outside ? "" : "none";
+      (outside ? document.getElementById("rk-outside") : document.getElementById("rk-staff")).focus();
+    });
+  });
+})();
+(function () {
   var inp = document.getElementById("shot");
   if (!inp) return;
   var prev = document.getElementById("preview");
@@ -196,9 +197,11 @@
     img.src = prev.src;
   });
   document.getElementById("settle-form").addEventListener("submit", function (e) {
-    var sel = document.getElementById("receiver");
-    var msg = "تأكيد تسليم " + document.getElementById("amount").value + " على عهدة: " +
-              (sel.selectedOptions[0] ? sel.selectedOptions[0].text : "") + "؟";
+    var outside = document.querySelector("[name=receiver_kind]:checked").value === "outside";
+    var who = outside ? document.getElementById("rk-outside").value.trim()
+                      : (document.getElementById("rk-staff").selectedOptions[0] || {}).text;
+    if (!who || who.indexOf("—") === 0) { alert(outside ? "اكتب اسم المستلم" : "اختار الموظف"); e.preventDefault(); return; }
+    var msg = "تأكيد تسليم " + document.getElementById("amount").value + " على عهدة: " + who + "؟";
     if (!confirm(msg)) e.preventDefault();
   });
 })();

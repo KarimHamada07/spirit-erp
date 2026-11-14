@@ -29,20 +29,31 @@ class CustodyPerPersonTests(TestCase):
         CustodyDeposit.objects.create(amount=D("10000"))
 
     def hand(self, holder, amount):
-        r = self.acc_c.post(reverse("custody_settle"), {"amount": amount, "holder": holder.pk,
-                                                        "method": "cash"})
+        data = {"amount": amount, "method": "cash"}
+        if holder.user_id:
+            data.update(receiver_kind="staff", user=holder.user_id)
+        else:
+            data.update(receiver_kind="outside", received_by=holder.name)
+        r = self.acc_c.post(reverse("custody_settle"), data)
         self.assertEqual(r.status_code, 302)
 
     def test_full_flow(self):
-        # المحاسب يضيف شخص بحساب وشخص من بره
-        self.acc_c.post(reverse("custody_holder_add"), {"name": "سيد", "user": self.driver_user.pk})
-        self.acc_c.post(reverse("custody_holder_add"), {"name": "عم حسن السواق"})
+        # التسليم: موظف بيتختار بحسابه، واللي من بره بيتكتب اسمه. صاحب العهدة بيتعمل لوحده
+        self.driver_user.first_name = "سيد"
+        self.driver_user.save()
+        self.acc_c.post(reverse("custody_settle"), {"amount": "1000", "method": "cash",
+                                                    "receiver_kind": "staff", "user": self.driver_user.pk})
+        self.acc_c.post(reverse("custody_settle"), {"amount": "50", "method": "cash",
+                                                    "receiver_kind": "outside", "received_by": "عم حسن السواق"})
+        self.acc_c.post(reverse("custody_settle"), {"amount": "50", "method": "cash",
+                                                    "receiver_kind": "outside", "received_by": "عم حسن السواق "})
         sayed = CustodyHolder.objects.get(name="سيد")
         hassan = CustodyHolder.objects.get(name="عم حسن السواق")
         self.assertEqual(sayed.user, self.driver_user)
         self.assertIsNone(hassan.user)
-
-        self.hand(sayed, "1000")
+        self.assertEqual(CustodyHolder.objects.count(), 2)  # نفس الاسم مش بيتكرر
+        self.assertEqual(hassan.totals()["balance"], D("100"))
+        CustodySettlement.objects.filter(holder=hassan).delete()
         self.assertEqual(CustodySettlement.objects.get().holder, sayed)
         self.assertEqual(sayed.totals()["balance"], D("1000"))
         self.assertEqual(custody_summary()["balance"], D("9000"))
@@ -101,7 +112,7 @@ class CustodyPerPersonTests(TestCase):
 
     def test_handout_requires_holder(self):
         r = self.acc_c.post(reverse("custody_settle"), {"amount": "50", "method": "cash"}, follow=True)
-        self.assertContains(r, "اختار الشخص")
+        self.assertContains(r, "اختار الموظف اللي استلم")
         self.assertFalse(CustodySettlement.objects.exists())
 
     def test_menu_shows_my_custody_only_for_holders(self):
