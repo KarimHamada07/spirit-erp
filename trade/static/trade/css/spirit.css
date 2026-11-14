@@ -387,3 +387,21 @@ fieldset input:focus, fieldset select:focus, fieldset textarea:focus {
   box-shadow: 0 0 0 3px var(--sp-red-soft) !important;
   outline: 0;
 }
+
+/* أيقونات الشريط اللي فوق: فاتحة في الوضع الداكن (كانت بتطلع سودا على سودا) */
+[data-bs-theme="dark"] .main-header .nav-link,
+[data-bs-theme="dark"] .main-header .nav-link i,
+[data-bs-theme="dark"] .main-header .btn,
+[data-bs-theme="dark"] .main-header .btn i,
+[data-bs-theme="dark"] .main-header .fas,
+[data-bs-theme="dark"] .navbar .nav-link i,
+[data-bs-theme="dark"] .navbar .fa-palette,
+[data-bs-theme="dark"] .navbar .fa-moon,
+[data-bs-theme="dark"] .navbar .fa-user {
+  color: #ececf0 !important;
+}
+[data-bs-theme="dark"] .main-header .btn { background: transparent !important; border: 0; box-shadow: none; }
+[data-bs-theme="dark"] .main-header .btn:hover { background: #26262b !important; }
+[data-bs-theme="dark"] .navbar-search-block .form-control { background: #121215 !important; color: #f0f0f3 !important; }
+/* أيقونات القايمة الجانبية (تفضل بيضا) */
+[data-bs-theme="dark"] .main-sidebar i { color: inherit; }
