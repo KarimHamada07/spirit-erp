@@ -225,3 +225,70 @@ body.login-page {
 
 /* ---- الشعار في الشريط الجانبي ---- */
 .brand-image { max-height: 40px; width: auto; }
+
+/* ================= تحسينات الشكل العام (v2) ================= */
+
+/* الأرقام: عرض ثابت الأعمدة عشان المبالغ تتحاذي تحت بعض */
+.table td, .info-box-number, .small-box .inner h3, .card .card-title + *, .money {
+  font-variant-numeric: tabular-nums;
+}
+.table td.text-right, .table td.text-end, .table td[class*="money"] { font-weight: 600; }
+
+/* صفوف الجداول: مسافة أوضح + hover أنعم */
+.table td, .table th { padding: .7rem .8rem; }
+.table tbody tr { transition: background .12s ease; }
+
+/* زرار "إضافة" في لوحة الإدارة والأزرار اللي فوق الجدول */
+.object-tools a, .object-tools a:link, .object-tools a:visited {
+  background: var(--sp-red) !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+  padding: 7px 16px !important;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(254, 0, 0, .22);
+  border: 0;
+}
+.object-tools a:hover { background: #d90000 !important; }
+
+/* شريط البحث والفلاتر في قوائم الإدارة */
+#changelist #toolbar, #changelist .actions {
+  background: #fff;
+  border-radius: var(--sp-radius);
+  box-shadow: var(--sp-shadow);
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+#changelist .actions select { border-radius: 10px; }
+#changelist-filter {
+  border-radius: var(--sp-radius);
+  overflow: hidden;
+  box-shadow: var(--sp-shadow);
+}
+#changelist-filter h2 { background: var(--sp-ink); color: #fff; }
+#changelist-filter li a { color: var(--sp-ink-2); }
+#changelist-filter li.selected a { color: var(--sp-red); font-weight: 800; }
+
+/* حركة دخول خفيفة للكروت */
+@keyframes spFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.card, .small-box, .info-box { animation: spFade .35s ease both; }
+.card:hover, .small-box:hover { box-shadow: 0 2px 4px rgba(16,16,20,.05), 0 14px 32px rgba(16,16,20,.09) !important; }
+.small-box, .info-box { transition: box-shadow .2s ease, transform .2s ease; }
+.small-box:hover { transform: translateY(-2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .small-box, .info-box, .small-box:hover { animation: none !important; transition: none !important; transform: none !important; }
+}
+
+/* ابعاد أحسن للمحتوى على الموبايل */
+@media (max-width: 575px) {
+  .content-wrapper > .content { padding: 10px; }
+  .object-tools { float: none !important; margin-bottom: 10px; }
+}
+
+/* عناوين أعمدة الجداول بلون هادي (الأحمر للفلترة النشطة بس) + إخفاء فوتر Jazzmin */
+#result_list thead th a, #result_list thead th a:link, #result_list thead th a:visited { color: var(--sp-ink-2) !important; font-weight: 700; }
+#result_list thead th.sorted a { color: var(--sp-red) !important; }
+footer, footer.main-footer { display: none !important; }
