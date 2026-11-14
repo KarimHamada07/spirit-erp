@@ -19,6 +19,7 @@ from .models import (ClothingModel, Customer, Expense, MaterialPurchaseItem, Onl
 ZERO = Decimal("0")
 MAX_ROWS = 5000
 UNITS = dict((label, key) for key, label in RawMaterial.UNITS)
+CATEGORIES = dict((label, key) for key, label in ClothingModel.CATEGORIES)
 
 
 class RowError(Exception):
@@ -253,6 +254,7 @@ class ProductsSpec(Spec):
     columns = [
         ("code", "كود الموديل", True, "كل المقاسات بتاعة الموديل ليها نفس الكود"),
         ("model_name", "اسم الموديل", True, ""),
+        ("category", "التصنيف", False, "جاكيت / تريكو / بنطلون / سويت شيرت / تيشيرت / بدلة / شورت / قميص"),
         ("size", "المقاس", True, "S / M / L / XL أو رقم"),
         ("color", "اللون", False, ""),
         ("sale_price", "سعر البيع", True, ""),
@@ -262,14 +264,24 @@ class ProductsSpec(Spec):
     ]
     info_columns = ["الكمية الحالية (للعلم)", "متوسط التكلفة (للعلم)"]
 
+    def get_choices(self):
+        return {"category": list(CATEGORIES)}
+
     def export_rows(self):
         for v in Variant.objects.select_related("model").order_by("model__code", "size", "color"):
-            yield [v.model.code, v.model.name, v.size, v.color, v.sale_price,
+            yield [v.model.code, v.model.name, v.model.get_category_display(), v.size, v.color,
+                   v.sale_price,
                    v.model.low_stock_level, "", "", v.quantity, v.avg_cost]
 
     def check(self, raw, cache):
         code = _req(raw.get("code"), "كود الموديل")[:30]
         model_name = _req(raw.get("model_name"), "اسم الموديل")[:100]
+        cat_label = _text(raw.get("category"))
+        category = None
+        if cat_label:
+            category = CATEGORIES.get(cat_label)
+            if category is None:
+                raise RowError(f"التصنيف '{cat_label}' مش معروف. اختار من: {' / '.join(CATEGORIES)}")
         size = _req(raw.get("size"), "المقاس")[:20]
         color = _text(raw.get("color"))[:30]
         price = _dec(raw.get("sale_price"), "سعر البيع", required=True)
@@ -295,7 +307,7 @@ class ProductsSpec(Spec):
             note = " (الكمية الافتتاحية اتجاهلت: الصنف ليه حركة قبل كده)"
             qty = None
         label = f"{model_name} — {size}{' — ' + color if color else ''}{note}"
-        clean = {"code": code, "model_name": model_name, "size": size, "color": color,
+        clean = {"code": code, "model_name": model_name, "category": category, "size": size, "color": color,
                  "sale_price": price, "low": low, "qty": qty, "cost": cost,
                  "variant": v.pk if v else None}
         return ("update" if v else "new"), label, clean
@@ -305,6 +317,8 @@ class ProductsSpec(Spec):
         if model is None:
             model = ClothingModel(code=c["code"])
         model.name = c["model_name"]
+        if c["category"]:
+            model.category = c["category"]
         if c["low"] is not None:
             model.low_stock_level = c["low"]
         model.save()

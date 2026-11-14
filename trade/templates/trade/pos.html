@@ -32,6 +32,10 @@
   .pos-hint { font-size: 12px; color: #8a8a93; }
   .total-box { font-size: 30px; font-weight: 700; color: #000000; }
   #mobilebar { display: none; }
+  .disc-row { display: flex; gap: 6px; }
+  .disc-type { display: flex; border: 1px solid var(--erp-line,#ddd); border-radius: 8px; overflow: hidden; flex: 0 0 auto; }
+  .disc-type button { border: 0; background: var(--erp-card,#fff); color: var(--erp-ink,#111); padding: 0 14px; font-weight: 700; min-width: 48px; }
+  .disc-type button.on { background: #000; color: #fff; }
 
   @media (max-width: 991px) {
     #products { max-height: 45vh; }
@@ -54,7 +58,7 @@
     #mobilebar b { font-size: 20px; }
     #mobilebar button { border: 0; border-radius: 8px; padding: 8px 16px;
       background: #fe0000; color: #fff; font-weight: 700; }
-    .content-wrapper { padding-bottom: 80px; }
+    .app-main { padding-bottom: 90px; }
   }
 </style>
 
@@ -114,8 +118,14 @@
             </select>
           </div>
           <div class="col-md-6 mb-2">
-            <label class="mb-1">خصم</label>
-            <input id="discount" type="number" min="0" step="0.01" value="0" class="form-control">
+            <label class="mb-1">خصم <small id="disc-amount" class="text-muted"></small></label>
+            <div class="disc-row">
+              <input id="discount" type="number" min="0" step="0.01" value="0" class="form-control">
+              <div class="disc-type" role="group" aria-label="نوع الخصم">
+                <button type="button" data-dt="amount" class="on">ج.م</button>
+                <button type="button" data-dt="percent">%</button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="row">
@@ -191,10 +201,26 @@
   var elPayments = document.getElementById("payments");
   var payRows = [];
 
+  // الخصم: مبلغ أو نسبة من مجموع البنود
+  var discType = "amount";
+  function discountAmount(sum) {
+    var v = parseFloat(elDiscount.value) || 0;
+    if (discType === "percent") return Math.round(sum * Math.min(v, 100)) / 100;
+    return v;
+  }
+  document.querySelectorAll(".disc-type button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      discType = b.getAttribute("data-dt");
+      document.querySelectorAll(".disc-type button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      elDiscount.max = discType === "percent" ? "100" : "";
+      updateTotals();
+    });
+  });
+
   function cartTotal() {
     var sum = 0;
     Object.keys(cart).forEach(function (id) { sum += cart[id].qty * cart[id].price; });
-    return sum - (parseFloat(elDiscount.value) || 0);
+    return sum - discountAmount(sum);
   }
 
   function boxOptions(selected) {
@@ -304,7 +330,9 @@
       var cell = document.getElementById("line-" + id);
       if (cell) cell.textContent = money(c.qty * c.price);
     });
-    var d = parseFloat(elDiscount.value) || 0;
+    var d = discountAmount(sum);
+    document.getElementById("disc-amount").textContent =
+      (discType === "percent" && d) ? "(= " + money(d) + ")" : "";
     elTotal.textContent = money(sum - d);
     elCheckout.disabled = Object.keys(cart).length === 0;
     if (typeof payRows !== "undefined" && payRows.length) { autoFillFirst(); }
@@ -504,6 +532,7 @@
       body: JSON.stringify({
         items: items,
         discount: parseFloat(elDiscount.value) || 0,
+        discount_type: discType,
         customer: document.getElementById("customer").value || null,
         seller: document.getElementById("seller").value,
         channel: document.getElementById("channel").value,

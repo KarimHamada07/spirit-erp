@@ -48,12 +48,25 @@ def inventory(request):
                          Decimal("0"), output_field=DEC),
                  )
                  .order_by("name"))
-    items = list(models_qs)
+    cat = request.GET.get("cat", "")
+    all_items = list(models_qs)
+    counts = {}
+    for m in all_items:
+        counts[m.category] = counts.get(m.category, 0) + m.total_qty
+    categories = [{"key": k, "label": label, "qty": counts.get(k, 0)}
+                  for k, label in ClothingModel.CATEGORIES if k in counts]
+    if "" in counts and categories:
+        categories.append({"key": "none", "label": "من غير تصنيف", "qty": counts[""]})
+    items = all_items
+    if cat:
+        items = [m for m in all_items if m.category == ("" if cat == "none" else cat)]
 
     context = {
         **admin.site.each_context(request),
         "title": "المخزون",
         "items": items,
+        "categories": categories,
+        "cat": cat,
         "grand_qty": sum(m.total_qty for m in items),
         "grand_value": sum((m.stock_value for m in items), Decimal("0")),
         "models_count": len(items),

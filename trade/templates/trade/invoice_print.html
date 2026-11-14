@@ -88,7 +88,7 @@
 
     <div class="sum">
       <div><span>المجموع</span><span>{{ gross|floatformat:2 }}</span></div>
-      <div><span>الخصم</span><span>- {{ invoice.discount|floatformat:2 }}</span></div>
+      {% if invoice.discount %}<div><span>الخصم{% if invoice.discount_percent %} ({{ invoice.discount_percent|floatformat:"-2" }}%){% endif %}</span><span>- {{ invoice.discount|floatformat:2 }}</span></div>{% endif %}
       <div class="grand"><span>الإجمالي</span><span>{{ total|floatformat:2 }}</span></div>
       {% for p in payments %}
       <div><span>دفع: {{ p.box }}</span><span>{{ p.amount|floatformat:2 }}</span></div>

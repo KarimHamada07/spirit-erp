@@ -1,5 +1,5 @@
 import json
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
@@ -104,6 +104,12 @@ def pos_checkout(request):
         discount = Decimal(str(payload.get("discount") or 0))
         if discount < 0:
             raise ValidationError("الخصم غير صحيح")
+        percent = None
+        if payload.get("discount_type") == "percent":
+            percent = discount
+            if percent > 100:
+                raise ValidationError("نسبة الخصم لازم تكون من 0 لـ 100")
+            discount = Decimal("0")  # بيتحسب من النسبة بعد ما البنود تتضاف
         credit = bool(payload.get("credit"))
         channel = payload.get("channel") or "retail"
         if channel not in dict(SaleInvoice.CHANNELS):
@@ -130,6 +136,7 @@ def pos_checkout(request):
                 customer=customer,
                 date=timezone.localdate(),
                 discount=discount,
+                discount_percent=percent or None,
                 payment_type="credit" if credit else "cash",
                 channel=channel,
                 seller=seller,
@@ -150,6 +157,8 @@ def pos_checkout(request):
                 SaleItem.objects.create(invoice=invoice, variant=variant,
                                         quantity=qty, unit_price=price)
                 gross += qty * price
+            if percent:
+                discount = (gross * percent / 100).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             if discount > gross:
                 raise ValidationError("الخصم أكبر من إجمالي الفاتورة")
             invoice.confirm()  # يخصم المخزون ويثبت التكلفة

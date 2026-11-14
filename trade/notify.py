@@ -184,7 +184,8 @@ def sale_text(inv):
         lines.append(f"• {i.variant} × {i.quantity} @ {fmt(i.unit_price)}")
     total = f"الإجمالي: {fmt(inv.total)}"
     if inv.discount:
-        total += f" (خصم {fmt(inv.discount)})"
+        pct = f" = {inv.discount_percent.normalize():f}%" if inv.discount_percent else ""
+        total += f" (خصم {fmt(inv.discount)}{pct})"
     lines.append(total)
     if SHOW_PROFIT:
         lines.append(f"الربح: {fmt(inv.profit)}")
