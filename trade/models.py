@@ -68,6 +68,10 @@ class Supplier(models.Model):
     name = models.CharField("اسم المصنع/المورد", max_length=150)
     phone = models.CharField("الهاتف", max_length=30, blank=True)
     address = models.CharField("العنوان", max_length=250, blank=True)
+    opening_balance = models.DecimalField(
+        "رصيد افتتاحي (لينا عليه)", max_digits=14, decimal_places=2, default=0,
+        help_text="المستحق للمورد قبل ما نبدأ النظام")
+    opening_date = models.DateField("تاريخ الرصيد الافتتاحي", null=True, blank=True)
 
     class Meta:
         verbose_name = "مصنع/مورد"
@@ -78,8 +82,8 @@ class Supplier(models.Model):
 
     @property
     def balance(self):
-        """المستحق للمورد = فواتير التوريد + مشتريات الخامات المؤكدة - مرتجعات مؤكدة - مدفوعات"""
-        bought = sum((inv.total for inv in self.purchaseinvoice_set.filter(is_confirmed=True)), ZERO)
+        """المستحق للمورد = افتتاحي + فواتير التوريد + مشتريات الخامات المؤكدة - مرتجعات مؤكدة - مدفوعات"""
+        bought = self.opening_balance + sum((inv.total for inv in self.purchaseinvoice_set.filter(is_confirmed=True)), ZERO)
         bought += sum((p.total for p in self.material_purchases.filter(is_confirmed=True)), ZERO)
         returned = sum((r.total for r in self.purchase_returns.filter(is_confirmed=True)), ZERO)
         paid = sum((p.amount for p in self.supplier_payments.all()), ZERO)
@@ -125,11 +129,11 @@ class CustomerQuerySet(models.QuerySet):
                                         Value(ZERO), output_field=DEC))
                 .annotate(
                     credit_total=ExpressionWrapper(
-                        F("credit_gross") - F("credit_discount") - F("returned_total"),
-                        output_field=DEC),
+                        F("opening_balance") + F("credit_gross") - F("credit_discount")
+                        - F("returned_total"), output_field=DEC),
                     balance=ExpressionWrapper(
-                        F("credit_gross") - F("credit_discount") - F("returned_total")
-                        - F("paid_total"), output_field=DEC)))
+                        F("opening_balance") + F("credit_gross") - F("credit_discount")
+                        - F("returned_total") - F("paid_total"), output_field=DEC)))
 
 
 class Customer(models.Model):
@@ -137,13 +141,18 @@ class Customer(models.Model):
     phone = models.CharField("الهاتف", max_length=30, blank=True)
     seller = models.ForeignKey("Seller", on_delete=models.PROTECT, null=True, blank=True,
                                related_name="customers", verbose_name="البائع المرتبط")
+    opening_balance = models.DecimalField(
+        "رصيد افتتاحي (عليه)", max_digits=14, decimal_places=2, default=0,
+        help_text="المديونية اللي كانت على العميل قبل ما نبدأ النظام")
+    opening_date = models.DateField("تاريخ الرصيد الافتتاحي", null=True, blank=True)
 
     objects = CustomerQuerySet.as_manager()
 
     class Meta:
         verbose_name = "عميل"
         verbose_name_plural = "العملاء"
-        permissions = [("change_customer_seller", "تغيير بائع العميل (مدير الحسابات)")]
+        permissions = [("change_customer_seller", "تغيير بائع العميل (مدير الحسابات)"),
+                       ("import_data", "استيراد البيانات والأرصدة الافتتاحية من Excel")]
 
     def __str__(self):
         return self.name

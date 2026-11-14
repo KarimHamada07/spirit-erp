@@ -1,0 +1,64 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}معاينة: {{ spec.title }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chips a { padding: 8px 14px; border-radius: 20px; border: 1px solid var(--erp-line,#ddd); text-decoration: none;
+             color: var(--erp-ink,#111); background: var(--erp-card,#fff); font-weight: 600; }
+  .chips a.on { border-color: #fe0000; box-shadow: inset 0 0 0 1px #fe0000; }
+  .chips a.err { color: #fe0000; }
+  .tag { display: inline-block; padding: 1px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+  .tag.new { background: #000; color: #fff; } .tag.update { background: var(--erp-soft,#eee); color: var(--erp-ink,#111); }
+  .tag.skip { background: transparent; border: 1px solid var(--erp-line,#ccc); color: var(--erp-muted,#777); }
+  .tag.error { background: #fe0000; color: #fff; }
+  tr.row-error td { background: rgba(254,0,0,.06); }
+  .bar { position: sticky; bottom: 0; background: var(--erp-card,#fff); border-top: 1px solid var(--erp-line,#ddd); padding: 12px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  @media (max-width: 991.98px) { .bar { bottom: 64px; } }
+</style>
+
+<p>الملف: <b>{{ filename }}</b>. لسه <b>مفيش حاجة اتحفظت</b> — راجع وبعدين دوس تأكيد.</p>
+
+<div class="chips">
+  <a href="?show=all" class="{% if show == 'all' %}on{% endif %}">الكل</a>
+  <a href="?show=new" class="{% if show == 'new' %}on{% endif %}">جديد: {{ counts.new }}</a>
+  <a href="?show=update" class="{% if show == 'update' %}on{% endif %}">تحديث: {{ counts.update }}</a>
+  {% if counts.skip %}<a href="?show=skip" class="{% if show == 'skip' %}on{% endif %}">موجود قبل كده: {{ counts.skip }}</a>{% endif %}
+  <a href="?show=error" class="err {% if show == 'error' %}on{% endif %}">غلط: {{ counts.error }}</a>
+</div>
+
+{% if counts.error %}
+<div class="alert alert-danger">فيه {{ counts.error }} صف غلط. صلّحهم في الملف (رقم الصف زي ما هو في Excel) وارفعه تاني. الاستيراد مش هيكمل والغلط موجود.</div>
+{% endif %}
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <thead><tr><th>صف</th><th>الحالة</th><th>البيان</th><th>المشكلة</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr class="{% if r.action == 'error' %}row-error{% endif %}">
+        <td>{{ r.row }}</td>
+        <td><span class="tag {{ r.action }}">{% if r.action == 'new' %}جديد{% elif r.action == 'update' %}تحديث{% elif r.action == 'skip' %}موجود{% else %}غلط{% endif %}</span></td>
+        <td>{{ r.label }}</td>
+        <td class="{% if r.error %}text-danger{% endif %}">{{ r.error|default:"" }}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-muted p-3">مفيش صفوف هنا.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if hidden %}<p class="text-muted p-2">و {{ hidden }} صف كمان مش معروضين.</p>{% endif %}
+</div></div></div>
+
+<div class="bar">
+  {% if not counts.error %}
+  <form method="post" action="{% url 'data_confirm' token %}"
+        data-confirm="هيتضاف {{ counts.new }} ويتحدث {{ counts.update }}. متأكد؟" data-confirm-title="تأكيد الاستيراد">
+    {% csrf_token %}<button class="btn btn-primary btn-lg"><i class="fas fa-check"></i> تأكيد الاستيراد</button>
+  </form>
+  {% endif %}
+  <a class="btn btn-outline-secondary" href="{% url 'data_center' %}#{{ spec.key }}">رجوع / رفع ملف تاني</a>
+</div>
+{% endblock %}

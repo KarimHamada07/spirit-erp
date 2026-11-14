@@ -21,7 +21,9 @@ from trade.pos_views import pos, pos_checkout, pos_customer_prices, sale_pdf, sa
 from trade.stock_views import inventory, inventory_detail, purchase_confirm
 from trade.treasury_views import (commissions_view, daily_close_view,
                                   treasury, treasury_action)
+from trade.data_views import data_center, data_confirm, data_file, data_preview, data_upload
 from trade.debt_views import debt_followup_add, debts
+from trade.supplier_views import supplier_statement_view, suppliers
 from trade.views import dashboard
 
 urlpatterns = [
@@ -55,6 +57,11 @@ urlpatterns = [
     path("reports/print/", report_print, name="report_print"),
     path("reports/profit/", profit_report, name="profit_report"),
     path("analytics/", analytics, name="analytics"),
+    path("data/", data_center, name="data_center"),
+    path("data/<str:key>/<str:kind>.xlsx", data_file, name="data_file"),
+    path("data/<str:key>/upload/", data_upload, name="data_upload"),
+    path("data/preview/<str:token>/", data_preview, name="data_preview"),
+    path("data/confirm/<str:token>/", data_confirm, name="data_confirm"),
     path("audit/", audit, name="audit"),
     path("customers/<int:pk>/delete/", customer_delete, name="customer_delete"),
     path("inventory/<int:pk>/delete/", model_delete, name="model_delete"),
@@ -68,6 +75,9 @@ urlpatterns = [
     path("customers/<int:pk>/pay/", customer_pay, name="customer_pay"),
     path("customers/<int:pk>/seller/", customer_set_seller, name="customer_set_seller"),
     path("customers/<int:pk>/statement/pdf/", customer_statement_pdf, name="customer_statement_pdf"),
+    path("customers/<int:pk>/statement/<str:fmt>/", customer_statement_pdf, name="customer_statement"),
+    path("suppliers/", suppliers, name="suppliers"),
+    path("suppliers/<int:pk>/statement/<str:fmt>/", supplier_statement_view, name="supplier_statement"),
     path("treasury/", treasury, name="treasury"),
     path("treasury/action/", treasury_action, name="treasury_action"),
     path("treasury/daily/", daily_close_view, name="daily_close"),

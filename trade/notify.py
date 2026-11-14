@@ -29,6 +29,7 @@ CONFIG_FILE = os.path.expanduser("~/.telegram_bot")
 
 _current_user = ContextVar("trade_current_user", default=None)
 _current_ip = ContextVar("trade_current_ip", default="")
+_muted = ContextVar("trade_notify_muted", default=False)
 _blocked_until = 0.0
 
 
@@ -138,8 +139,20 @@ def chat_for(audience, cfg=None):
     return cfg["CHAT_ID"]
 
 
+class muted:
+    """جوه الـ with ده log_event مش بيسجل حاجة (للاستيراد بالجملة: رسالة واحدة بدل ألف)"""
+
+    def __enter__(self):
+        self._token = _muted.set(True)
+
+    def __exit__(self, *exc):
+        _muted.reset(self._token)
+
+
 def log_event(text, user=None, audience=""):
     """يسجل حدث. عمره ما يكسر العملية الأصلية. audience="accountant" = تذكير للمحاسب."""
+    if _muted.get():
+        return
     try:
         from .models import ActivityLog
         user = user or _current_user.get()

@@ -28,7 +28,7 @@ MENU = [
         ("المقاسات والألوان", "admin:trade.variant", "fas fa-palette", "trade.view_variant"),
         ("فواتير التوريد", "admin:trade.purchaseinvoice", "fas fa-dolly", "trade.view_purchaseinvoice"),
         ("مرتجعات الموردين", "admin:trade.purchasereturn", "fas fa-truck-arrow-right", "trade.view_purchasereturn"),
-        ("المصانع والموردين", "admin:trade.supplier", "fas fa-industry", "trade.view_supplier"),
+        ("المصانع والموردين", "suppliers", "fas fa-industry", "trade.view_supplier"),
     ]),
     ("الإنتاج", [
         ("أوامر التشغيل", "admin:trade.productionorder", "fas fa-gears", "trade.view_productionorder"),
@@ -56,6 +56,7 @@ MENU = [
         ("الخزن", "admin:trade.cashbox", "fas fa-wallet", "trade.view_cashbox"),
         ("المستخدمين", "admin:auth.user", "fas fa-user-shield", "auth.view_user"),
         ("الأدوار والصلاحيات", "admin:auth.group", "fas fa-users-gear", "auth.view_group"),
+        ("استيراد وتصدير Excel", "data_center", "fas fa-file-import", "trade.import_data"),
         ("سجل المراجعة", "audit", "fas fa-clock-rotate-left", "trade.view_auditlog"),
         ("سجل النشاط وتليجرام", "activity", "fas fa-bell", "superuser"),
     ]),
