@@ -12,7 +12,7 @@ from django.dispatch import receiver
 from .models import (AuditLog, ClothingModel, CustodyDeposit, CustodySettlement,
                      Customer, Expense, OnlineOrder, Payment, PurchaseInvoice,
                      SaleInvoice, Supplier, Variant)
-from .notify import client_ip, current_actor
+from .notify import client_ip, current_actor, log_event
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -71,6 +71,33 @@ def write(action, *, model="", object_id="", object_repr="", changes=None,
         logger.exception("audit write failed")
 
 
+# حاجات ليها رسالة تليجرام مخصصة في مكانها (البيع، الدفع، المصروف...): مش هنكررها هنا
+NOTIFY_CREATE_SKIP = {"SaleInvoice", "PurchaseInvoice", "Payment", "Expense", "Customer",
+                      "OnlineOrder", "CustodyDeposit", "CustodySettlement"}
+NOTIFY_UPDATE_SKIP = {"SaleInvoice", "PurchaseInvoice", "OnlineOrder"}  # المسودات بتتعدل كتير
+
+
+def _notify(action, sender, instance=None, label="", repr_="", changes=None):
+    """رسالة تليجرام للإضافة والتعديل والحذف لكل الحاجات المتتبعة"""
+    try:
+        user, _ip = current_actor()
+        who = user.get_username() if user is not None and getattr(user, "is_authenticated", False) else "نظام"
+        if action == "create" and sender.__name__ in NOTIFY_CREATE_SKIP:
+            return
+        if action == "update" and sender.__name__ in NOTIFY_UPDATE_SKIP:
+            return
+        head = {"create": "🆕 إضافة", "update": "✏️ تعديل", "delete": "🗑 حذف"}[action]
+        lines = [f"{head} {label}: {repr_}", f"بواسطة: {who}"]
+        for k, v in list((changes or {}).items())[:6]:
+            if isinstance(v, (list, tuple)) and len(v) == 2:
+                lines.append(f"• {k}: {v[0] or '—'} ← {v[1] or '—'}")
+            else:
+                lines.append(f"• {k}: {v}")
+        log_event("\n".join(lines), user=user)
+    except Exception:
+        logger.exception("audit telegram failed")
+
+
 def _connect():
     for model in TRACKED:
         uid = f"audit-{model._meta.label_lower}"
@@ -99,6 +126,7 @@ def _after_save(sender, instance, created, raw=False, **kw):
         snap = {k: v for k, v in snapshot(instance).items() if v != ""}
         write("create", model=label, object_id=instance.pk, object_repr=_repr(instance),
               changes=dict(list(snap.items())[:14]))
+        _notify("create", sender, instance, label, _repr(instance), snap)
         return
     old = getattr(instance, "_audit_old", None)
     if old is None:
@@ -108,6 +136,7 @@ def _after_save(sender, instance, created, raw=False, **kw):
     if diff:
         write("update", model=label, object_id=instance.pk,
               object_repr=_repr(instance), changes=diff)
+        _notify("update", sender, instance, label, _repr(instance), diff)
 
 
 def _before_delete(sender, instance, **kw):
@@ -119,6 +148,8 @@ def _after_delete(sender, instance, **kw):
     write("delete", model=str(sender._meta.verbose_name), object_id=instance.pk,
           object_repr=getattr(instance, "_audit_repr", f"#{instance.pk}"),
           changes=dict(list(getattr(instance, "_audit_snap", {}).items())[:14]))
+    _notify("delete", sender, instance, str(sender._meta.verbose_name),
+            getattr(instance, "_audit_repr", f"#{instance.pk}"))
 
 
 @receiver(user_logged_in)
@@ -132,6 +163,7 @@ def _logged_out(sender, request, user, **kw):
     if user is not None:
         write("logout", model="مستخدم", object_id=user.pk, object_repr=user.get_username(),
               user=user, ip=client_ip(request) if request else "")
+        log_event(f"🚪 تسجيل خروج: {user.get_username()}", user=user)
 
 
 @receiver(user_login_failed)

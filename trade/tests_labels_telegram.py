@@ -23,3 +23,14 @@ class TelegramNewEventsTest(TestCase):
         CashTransfer.objects.create(from_box=boxes[0], to_box=boxes[1], amount=D("50"))
         self.assertEqual(ActivityLog.objects.count(), before + 1)
         self.assertIn("تحويل", ActivityLog.objects.first().text)
+
+
+class GenericTelegramTest(TestCase):
+    def test_new_product_and_delete_are_logged(self):
+        from trade.models import Supplier
+        before = ActivityLog.objects.count()
+        s = Supplier.objects.create(name="مورد تجريبي")
+        self.assertGreaterEqual(ActivityLog.objects.count(), before + 1)
+        self.assertIn("إضافة", ActivityLog.objects.first().text)
+        s.delete()
+        self.assertIn("حذف", ActivityLog.objects.first().text)
