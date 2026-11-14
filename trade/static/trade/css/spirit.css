@@ -483,3 +483,22 @@ html[data-bs-theme="dark"] .main-header.navbar .user-menu i {
   opacity: 1 !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+/* ===== الداشبورد في الوضع الداكن: أيقونات الكروت واضحة + عنوان الصفحة أبيض ===== */
+html[data-bs-theme="dark"] .kpi i {
+  color: #ffffff !important;
+  opacity: .85 !important;
+}
+html[data-bs-theme="dark"] .kpi.bg-k3 i,
+html[data-bs-theme="dark"] .kpi.bg-k4 i,
+html[data-bs-theme="dark"] .kpi.bg-k6 i,
+html[data-bs-theme="dark"] .kpi.bg-k7 i,
+html[data-bs-theme="dark"] .kpi.bg-k8 i {
+  color: #f0f0f3 !important;
+}
+html[data-bs-theme="dark"] .content-header h1,
+html[data-bs-theme="dark"] .content-wrapper h1,
+html[data-bs-theme="dark"] .content-header .content-title {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
