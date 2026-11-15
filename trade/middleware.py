@@ -1,3 +1,6 @@
+import os
+import re
+
 from .notify import _current_ip, _current_user, client_ip
 
 # بيتحط في <head>: تعريف التطبيق (PWA) عشان يتثبت على الموبايل كأنه أبلكيشن
@@ -369,6 +372,32 @@ if ("serviceWorker" in navigator) {
 """
 
 
+_APP_CONTENT = re.compile(rb'<div class="app-content">\s*<div class="container-fluid">')
+
+
+def _asset(path):
+    """رابط ملف ثابت + رقم إصدار من تاريخ تعديله (عشان الموبايلات تاخد النسخة الجديدة على طول)"""
+    from django.contrib.staticfiles import finders
+    from django.templatetags.static import static
+    found = finders.find(path)
+    ver = int(os.path.getmtime(found)) if found else 0
+    return f"{static(path)}?v={ver}"
+
+
+def _enhance(content, request):
+    """شرح الصفحة + ملفات الشكل والحركة والتلميحات"""
+    from .help_texts import help_box_html
+    box = help_box_html(request).encode("utf-8")
+    if box:
+        m = _APP_CONTENT.search(content)
+        if m:
+            content = content[:m.end()] + box + content[m.end():]
+    css = f'<link rel="stylesheet" href="{_asset("trade/css/ui.css")}">'.encode()
+    js = f'<script src="{_asset("trade/js/ui.js")}" defer></script>'.encode()
+    content = content.replace(b"</head>", css + b"</head>", 1)
+    return content.replace(b"</body>", js + b"</body>", 1)
+
+
 def _swap_menu(content, request):
     """يحط القايمة المقسمة مكان قايمة Jazzmin، ويزود شريط الموبايل اللي تحت"""
     user = getattr(request, "user", None)
@@ -409,7 +438,7 @@ class MobileSidebarMiddleware:
         ):
             content = response.content.replace(b"</body>", self.snippet + b"</body>", 1)
             content = content.replace(b"</head>", self.head + b"</head>", 1)
-            response.content = _swap_menu(content, request)
+            response.content = _enhance(_swap_menu(content, request), request)
             if response.has_header("Content-Length"):
                 response["Content-Length"] = str(len(response.content))
         return response

@@ -176,3 +176,32 @@ class ArabicEverywhereTests(TestCase):
         self.assertEqual(r.status_code, 403)
         self.assertContains(r, "مش مسموحلك", status_code=403)
         self.assertContains(c.get("/no-such-page/"), "الصفحة مش موجودة", status_code=404)
+
+
+class UiHelpTests(TestCase):
+    def test_help_box_tooltips_and_assets(self):
+        boss = User.objects.create_superuser("boss", "", "pw")
+        c = Client()
+        c.force_login(boss)
+        page = c.get(reverse("customers")).content.decode()
+        self.assertIn('class="erp-help"', page)
+        self.assertIn("الصفحة دي بتعمل إيه؟", page)
+        self.assertIn("trade/js/ui.js?v=", page)
+        self.assertIn("trade/css/ui.css?v=", page)
+        self.assertIn('data-tip="العملاء المتأخرين في الدفع ومواعيد متابعتهم"', page)
+        # صفحات لوحة الإدارة: شرح الجدول في القايمة، ونصيحة في الإضافة
+        page = c.get(reverse("admin:trade_clothingmodel_changelist")).content.decode()
+        self.assertIn("الموديلات (المنتجات)", page)
+        page = c.get(reverse("admin:trade_clothingmodel_add")).content.decode()
+        self.assertIn("حد التنبيه", page.split('class="erp-help"')[1][:600])
+
+    def test_every_menu_item_has_help_or_tip(self):
+        from trade.help_texts import MENU_TIPS, PAGE_HELP, MODEL_HELP
+        from trade.menu import MENU
+        for _title, items in MENU:
+            for name, target, _icon, _perm in items:
+                self.assertIn(name, MENU_TIPS, name)
+                if target.startswith("admin:"):
+                    self.assertIn(target[6:], MODEL_HELP, target)
+                elif target != "my_custody":   # بتحوّل لصفحة عهدة الشخص (ليها شرح)
+                    self.assertIn(target, PAGE_HELP, target)
