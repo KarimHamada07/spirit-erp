@@ -1,0 +1,50 @@
+# ترجمة نصوص JavaScript بتاعة لوحة الإدارة اللي مش مترجمة في Django. بعد التعديل: python manage.py compile_ar
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ar\n"
+
+msgid "(click to clear)"
+msgstr "(اضغط للمسح)"
+
+msgid "Choose %s by selecting them and then select the \"Choose\" arrow button."
+msgstr "علّم على %s اللي عايزها ودوس زرار السهم \"اختيار\"."
+
+msgid "Remove %s by selecting them and then select the \"Remove\" arrow button."
+msgstr "علّم على %s اللي عايز تشيلها ودوس زرار السهم \"إزالة\"."
+
+msgid "Choose all %s"
+msgstr "اختار كل %s"
+
+msgid "Choose selected %s"
+msgstr "اختار %s المعلّمة"
+
+msgid "Remove all %s"
+msgstr "شيل كل %s"
+
+msgid "Remove selected %s"
+msgstr "شيل %s المعلّمة"
+
+msgid "Type into this box to filter down the list of selected %s."
+msgstr "اكتب هنا عشان تدوّر في %s المختارة."
+
+msgid "Saturday"
+msgstr "السبت"
+
+msgid "Sunday"
+msgstr "الأحد"
+
+msgid "Monday"
+msgstr "الاثنين"
+
+msgid "Tuesday"
+msgstr "الثلاثاء"
+
+msgid "Wednesday"
+msgstr "الأربعاء"
+
+msgid "Thursday"
+msgstr "الخميس"
+
+msgid "Friday"
+msgstr "الجمعة"

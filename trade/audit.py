@@ -32,6 +32,8 @@ def _value(field, instance):
         return ""
     if isinstance(field, models.BooleanField):   # بدل True/False
         return "أيوه" if v else "لأ"
+    if field.choices:   # cash ← نقدي
+        return str(dict(field.flatchoices).get(v, v))[:200]
     if isinstance(field, models.DecimalField):   # 250 و 250.00 نفس القيمة: نوحّد الشكل عشان ما يظهرش "تغيير" وهمي
         try:
             return f"{Decimal(v):.{field.decimal_places}f}"

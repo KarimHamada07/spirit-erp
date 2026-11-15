@@ -154,3 +154,25 @@ class AuditWordingTests(TestCase):
         text = "\n".join(ActivityLog.objects.values_list("text", flat=True))
         self.assertIn("يقدر يدخل السيستم: من «لأ» إلى «أيوه»", text)
         self.assertNotIn("False", text)
+
+
+class ArabicEverywhereTests(TestCase):
+    def test_admin_is_arabic_even_for_english_phone(self):
+        boss = User.objects.create_superuser("boss", "", "pw")
+        c = Client(HTTP_ACCEPT_LANGUAGE="en-US,en;q=0.9")
+        c.force_login(boss)
+        page = c.get(reverse("admin:auth_user_change", args=[boss.pk])).content.decode()
+        for english in ("Save and continue editing", "Log out", "Staff status", "See Profile", ">General<"):
+            self.assertNotIn(english, page)
+        self.assertIn("احفظ", page)
+        js = c.get("/admin/jsi18n/").content.decode()
+        self.assertIn('"Choose all %s": "' + "اختار كل".encode("unicode_escape").decode()[:12], js)
+
+    def test_error_pages_are_arabic(self):
+        u = User.objects.create_user("x", password="pw", is_staff=True)
+        c = Client()
+        c.force_login(u)
+        r = c.get(reverse("attendance_report"))
+        self.assertEqual(r.status_code, 403)
+        self.assertContains(r, "مش مسموحلك", status_code=403)
+        self.assertContains(c.get("/no-such-page/"), "الصفحة مش موجودة", status_code=404)

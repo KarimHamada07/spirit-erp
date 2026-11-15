@@ -130,6 +130,14 @@ input[type=checkbox],input[type=radio]{accent-color:var(--erp-red)}
 #erp-confirm button{padding:10px 20px;border-radius:8px;border:1px solid var(--erp-ink);background:var(--erp-card);color:var(--erp-ink);font-size:15px;cursor:pointer}
 #erp-confirm button.yes{background:var(--erp-red);border-color:var(--erp-red);color:#fff;font-weight:700}
 
+/* ===== زرار اختيار الملف بالعربي ===== */
+.erp-file{position:relative;display:flex;align-items:center;gap:10px;min-height:44px;margin:0;padding:6px;cursor:pointer;
+  border:1px solid var(--erp-line);border-radius:8px;background:var(--erp-card);color:var(--erp-ink);max-width:100%}
+.erp-file input[type=file]{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.erp-file-btn{background:var(--erp-black);color:#fff;border-radius:6px;padding:6px 14px;font-weight:700;white-space:nowrap}
+[data-bs-theme=dark] .erp-file-btn{background:#3a3a3d}
+.erp-file-name{color:var(--erp-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+
 /* ===== القايمة المقسمة ===== */
 #jazzy-sidebar .erp-nav-header{color:#8d8d95!important;font-size:12px;font-weight:700;letter-spacing:0;
   padding:14px 16px 4px!important;text-transform:none}
@@ -198,6 +206,50 @@ if ("serviceWorker" in navigator) {
     body.appendChild(bd);
   }
   window.addEventListener("load", function () { if (mobile()) closeSb(); });
+  /* AdminLTE بيضيف كلام إنجليزي لقارئات الشاشة: نعرّبه */
+  function arabize() {
+    document.querySelectorAll('.skip-link[href="#main"]').forEach(function (e) { e.textContent = "انتقل للمحتوى"; });
+    document.querySelectorAll('.skip-link[href="#navigation"]').forEach(function (e) { e.textContent = "انتقل للقايمة"; });
+    document.querySelectorAll(".required-indicator").forEach(function (e) { e.textContent = " (مطلوب)"; });
+    arFiles();
+  }
+  /* زرار اختيار الملف بتاع المتصفح بيطلع بلغة الموبايل (Choose File): نحط مكانه زرار عربي */
+  function arFiles() {
+    document.querySelectorAll('input[type=file]:not([data-ar])').forEach(function (inp) {
+      inp.setAttribute("data-ar", "1");
+      var w = document.createElement("label"); w.className = "erp-file";
+      inp.parentNode.insertBefore(w, inp); w.appendChild(inp);
+      var b = document.createElement("span"); b.className = "erp-file-btn";
+      b.textContent = inp.multiple ? "اختار ملفات" : "اختار ملف";
+      var n = document.createElement("span"); n.className = "erp-file-name"; n.textContent = "مفيش ملف";
+      w.appendChild(b); w.appendChild(n);
+      inp.addEventListener("change", function () {
+        n.textContent = inp.files && inp.files.length
+          ? Array.prototype.map.call(inp.files, function (f) { return f.name; }).join("، ") : "مفيش ملف";
+      });
+    });
+  }
+  arFiles();
+  window.addEventListener("load", arabize);
+  setTimeout(arabize, 1500);
+  /* رسايل التحقق بتاعة المتصفح (زي "Please fill out this field") بتطلع بلغة الموبايل: نخليها عربي */
+  document.addEventListener("invalid", function (e) {
+    var t = e.target, v = t.validity;
+    if (!t.setCustomValidity || !v) return;
+    var msg = v.valueMissing ? (t.tagName === "SELECT" ? "اختار من القايمة" :
+                                t.type === "file" ? "اختار ملف" : "الخانة دي مطلوبة")
+            : v.typeMismatch ? (t.type === "email" ? "اكتب إيميل صحيح" : "القيمة مش مظبوطة")
+            : v.badInput ? "اكتب رقم صحيح"
+            : v.rangeUnderflow ? "الرقم أقل من المسموح (" + t.min + ")"
+            : v.rangeOverflow ? "الرقم أكبر من المسموح (" + t.max + ")"
+            : v.stepMismatch ? "الرقم مش مظبوط"
+            : v.tooLong ? "الكلام أطول من المسموح"
+            : v.patternMismatch ? "الشكل مش مظبوط" : "";
+    if (msg && t.validationMessage !== msg) t.setCustomValidity(msg);
+  }, true);
+  function clearMsg(e) { if (e.target && e.target.setCustomValidity) e.target.setCustomValidity(""); }
+  document.addEventListener("input", clearMsg, true);
+  document.addEventListener("change", clearMsg, true);
   document.addEventListener("click", function (e) {
     if (e.target.closest("#erp-bottom-menu")) { body.classList.add("sidebar-open"); }
   });

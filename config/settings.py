@@ -75,6 +75,9 @@ TEMPLATES = [{
 }]
 DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 LANGUAGE_CODE = "ar"
+# عربي بس، مهما كانت لغة الموبايل أو المتصفح (من غير كده اللي موبايله إنجليزي بيشوف لوحة الإدارة إنجليزي)
+LANGUAGES = [("ar", "العربية")]
+LOCALE_PATHS = [BASE_DIR / "locale"]  # ترجمات إضافية (Jazzmin وحاجات Django اللي مش مترجمة)
 TIME_ZONE = "Africa/Cairo"
 USE_I18N = True
 USE_TZ = True
