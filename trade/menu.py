@@ -7,6 +7,8 @@
 from django.urls import NoReverseMatch, reverse
 from django.utils.html import escape
 
+from .help_texts import MENU_TIPS
+
 MENU = [
     ("", [
         ("لوحة التحكم", "dashboard", "fas fa-house", "trade.view_saleinvoice"),
@@ -130,7 +132,9 @@ def render_sidebar(request):
         for name, url, icon in items:
             on = " active" if url == active else ""
             cur = ' aria-current="page"' if on else ""
-            html.append(f'<li class="nav-item"><a href="{escape(url)}" class="nav-link{on}"{cur}>'
+            tip = MENU_TIPS.get(name, "")
+            html.append(f'<li class="nav-item"><a href="{escape(url)}" class="nav-link{on}"{cur}'
+                        f' data-tip="{escape(tip)}" data-tip-side="left">'
                         f'<i class="nav-icon {icon}" aria-hidden="true"></i> <p>{escape(name)}</p></a></li>')
     html.append("</ul>")
     return "".join(html)
@@ -144,8 +148,9 @@ def render_bottom_bar(request):
     html = ['<nav id="erp-bottom" aria-label="تنقل سريع">']
     for name, url, icon in items:
         on = ' class="on" aria-current="page"' if url == active else ""
-        html.append(f'<a href="{escape(url)}"{on}><i class="{icon}" aria-hidden="true"></i>'
+        html.append(f'<a href="{escape(url)}"{on} data-tip="{escape(MENU_TIPS.get(name, name))}">'
+                    f'<i class="{icon}" aria-hidden="true"></i>'
                     f'<span>{escape(name)}</span></a>')
-    html.append('<button type="button" id="erp-bottom-menu" aria-label="القايمة">'
+    html.append('<button type="button" id="erp-bottom-menu" aria-label="القايمة" data-tip="كل صفحات السيستم">'
                 '<i class="fas fa-bars" aria-hidden="true"></i><span>القايمة</span></button></nav>')
     return "".join(html)

@@ -3,7 +3,7 @@ from django.http import HttpResponse, JsonResponse
 from django.templatetags.static import static
 from django.views.decorators.cache import cache_control
 
-SW_VERSION = "spirit-v1"
+SW_VERSION = "spirit-v2"  # غيّره مع أي تغيير كبير في الشكل عشان الموبايلات تاخد الجديد
 
 SERVICE_WORKER = r"""
 const CACHE = "%(version)s";
