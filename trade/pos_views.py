@@ -160,7 +160,8 @@ def pos_checkout(request):
                         f"سعر {variant.model.name} للعميل ده لازم يكون {last:.2f} "
                         "زي الفاتورة السابقة، والتعديل من مدير الحسابات")
                 listed = variant.price_for(channel)
-                if last is None and price != listed and not can_edit_price:
+                # أول مرة العميل ياخد الصنف: البياع يحدد السعر وبعدها يتثبت. من غير عميل: سعر القايمة
+                if last is None and customer is None and price != listed and not can_edit_price:
                     kind = "الجملة" if channel == "wholesale" else "القطاعي"
                     raise ValidationError(
                         f"سعر {variant} ({kind}) هو {listed:.2f}، وتعديل السعر لمدير الحسابات بس")

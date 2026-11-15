@@ -225,7 +225,10 @@
 
   function channel() { return document.getElementById("channel").value; }
   function chanPrice(v) { return channel() === "wholesale" && v.wprice ? v.wprice : v.price; }
-  function lockedPrice(c) { return c.locked ? !canChangePrice : !canEditPrice; }
+  // سعر العميل السابق: مقفول إلا لمدير الحسابات. صنف أول مرة لعميل متحدد: البياع يكتب سعره بنفسه
+  // (وبعدها بيتقفل). من غير عميل: سعر القايمة إلا لمدير الحسابات
+  function hasCustomer() { return !!document.getElementById("customer").value; }
+  function lockedPrice(c) { return c.locked ? !canChangePrice : (hasCustomer() ? false : !canEditPrice); }
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -354,7 +357,8 @@
     ids.forEach(function (id) {
       var c = cart[id];
       html += '<tr data-id="' + id + '"><td>' + esc(c.label) +
-        (c.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>' : "") + "</td>" +
+        (c.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>'
+                  : (hasCustomer() ? ' <span class="badge badge-info" data-tip="أول مرة العميل ده ياخد الصنف: اكتب السعر المتفق عليه، وهيتثبت له في الفواتير الجاية">أول مرة</span>' : "")) + "</td>" +
         '<td><div class="qty-ctl"><button type="button" data-step="-1" aria-label="أقل">−</button>' +
         '<input type="number" min="1" max="' + c.max + '" value="' + c.qty + '" class="form-control" data-f="qty">' +
         '<button type="button" data-step="1" aria-label="أكتر">+</button></div></td>' +

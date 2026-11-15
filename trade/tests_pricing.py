@@ -56,11 +56,25 @@ class RepeatCustomerPrices(TestCase):
         self.assertEqual(self.checkout(self.acct, 150).status_code, 200)
         self.assertEqual(customer_last_prices(self.customer)[self.v.pk], D("150"))
 
-    def test_only_accounts_manager_changes_list_price(self):
-        r = self.checkout(self.sales, 180)   # السعر 200: البياع ميقدرش يغيّره
+    def test_only_accounts_manager_changes_list_price_without_customer(self):
+        r = self.checkout(self.sales, 180, customer=False)   # السعر 200: البياع ميقدرش يغيّره
         self.assertEqual(r.status_code, 400)
         self.assertIn("لمدير الحسابات", r.json()["error"])
-        self.assertEqual(self.checkout(self.sales, 200).status_code, 200)
+        self.assertEqual(self.checkout(self.sales, 200, customer=False).status_code, 200)
+
+    def test_salesperson_sets_first_price_then_it_locks(self):
+        # تاجر أول مرة ياخد الصنف: البياع يكتب السعر المتفق عليه
+        self.assertEqual(self.checkout(self.sales, 135, channel="wholesale").status_code, 200)
+        self.assertEqual(customer_last_prices(self.customer)[self.v.pk], D("135"))
+        # بعد كده بيتقفل على نفس السعر
+        self.assertEqual(self.checkout(self.sales, 130, channel="wholesale").status_code, 400)
+        self.assertEqual(self.checkout(self.sales, 135, channel="wholesale").status_code, 200)
+        # مدير الحسابات يعدّله، والجديد هو اللي يتثبت والقديم زي ما هو
+        self.assertEqual(self.checkout(self.acct, 125, channel="wholesale").status_code, 200)
+        self.assertEqual(customer_last_prices(self.customer)[self.v.pk], D("125"))
+        from trade.models import SaleItem
+        self.assertEqual(sorted(SaleItem.objects.values_list("unit_price", flat=True)),
+                         [D("125"), D("135"), D("135")])
 
     def test_wholesale_price_by_channel(self):
         self.v.wholesale_price = D("150")
