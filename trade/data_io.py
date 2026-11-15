@@ -197,7 +197,7 @@ class CustomersSpec(Spec):
 
 
 class SuppliersSpec(Spec):
-    key, title, icon = "suppliers", "الموردين والمصانع", "fas fa-industry"
+    key, title, icon = "suppliers", "الموردين", "fas fa-industry"
     perm_view, perm_add = "trade.view_supplier", "trade.add_supplier"
     columns = [
         ("name", "اسم المورد", True, "بيتعرف بيه المورد"),

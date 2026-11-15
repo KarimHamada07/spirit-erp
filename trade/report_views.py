@@ -148,7 +148,7 @@ def _sheets(data, kind):
         sheets.append(("بنود فواتير البيع", ["رقم الفاتورة", "التاريخ", "الصنف", "الكمية", "السعر", "الإجمالي"],
                        [[x["no"], x["date"], str(i.variant), i.quantity, i.unit_price, i.quantity * i.unit_price]
                         for x in data["sales"] for i in x["items"]]))
-        sheets.append(("فواتير التوريد", ["رقم", "التاريخ", "المصنع", "القطع", "الإجمالي"],
+        sheets.append(("فواتير التوريد", ["رقم", "التاريخ", "المورد", "القطع", "الإجمالي"],
                        [[x["no"], x["date"], x["supplier"], x["pieces"], x["total"]] for x in data["purchases"]]))
     return sheets
 

@@ -32,7 +32,7 @@ MENU = [
         ("المقاسات والألوان", "admin:trade.variant", "fas fa-palette", "trade.view_variant"),
         ("فواتير التوريد", "admin:trade.purchaseinvoice", "fas fa-dolly", "trade.view_purchaseinvoice"),
         ("مرتجعات الموردين", "admin:trade.purchasereturn", "fas fa-truck-arrow-right", "trade.view_purchasereturn"),
-        ("المصانع والموردين", "suppliers", "fas fa-industry", "trade.view_supplier"),
+        ("الموردين", "suppliers", "fas fa-industry", "trade.view_supplier"),
     ]),
     ("الإنتاج", [
         ("أوامر التشغيل", "admin:trade.productionorder", "fas fa-gears", "trade.view_productionorder"),

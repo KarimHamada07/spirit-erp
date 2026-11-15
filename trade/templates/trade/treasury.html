@@ -50,7 +50,7 @@
         </form>
       </div></div>
 
-    <div class="card card-outline card-secondary"><div class="card-header"><b>سداد مورد / مصنع</b></div>
+    <div class="card card-outline card-secondary"><div class="card-header"><b>سداد مورد</b></div>
       <div class="card-body">
         <form method="post" action="{% url 'treasury_action' %}" class="row">{% csrf_token %}
           <input type="hidden" name="action" value="supplier_pay">
