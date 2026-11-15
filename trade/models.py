@@ -70,7 +70,7 @@ class Variant(models.Model):
 
 
 class Supplier(models.Model):
-    name = models.CharField("اسم المصنع/المورد", max_length=150)
+    name = models.CharField("اسم المورد", max_length=150)
     phone = models.CharField("الهاتف", max_length=30, blank=True)
     address = models.CharField("العنوان", max_length=250, blank=True)
     opening_balance = models.DecimalField(
@@ -79,8 +79,8 @@ class Supplier(models.Model):
     opening_date = models.DateField("تاريخ الرصيد الافتتاحي", null=True, blank=True)
 
     class Meta:
-        verbose_name = "مصنع/مورد"
-        verbose_name_plural = "المصانع والموردين"
+        verbose_name = "مورد"
+        verbose_name_plural = "الموردين"
 
     def __str__(self):
         return self.name
@@ -164,8 +164,8 @@ class Customer(models.Model):
 
 
 class PurchaseInvoice(models.Model):
-    """فاتورة توريد من المصنع"""
-    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, verbose_name="المصنع")
+    """فاتورة توريد من المورد"""
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, verbose_name="المورد")
     date = models.DateField("التاريخ")
     notes = models.TextField("ملاحظات", blank=True)
     is_confirmed = models.BooleanField("مؤكدة", default=False, editable=False)
@@ -773,7 +773,7 @@ class CashTransfer(models.Model):
 
 
 class SupplierPayment(models.Model):
-    """سداد لمورد/مصنع من خزنة"""
+    """سداد لمورد من خزنة"""
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT,
                                  related_name="supplier_payments", verbose_name="المورد")
     box = models.ForeignKey(CashBox, on_delete=models.PROTECT, related_name="supplier_payments",
@@ -795,7 +795,7 @@ class SupplierPayment(models.Model):
 
 # ================= المرتجعات =================
 class PurchaseReturn(models.Model):
-    """مرتجع مورد: بضاعة بترجع للمصنع، بتتخصم من حسابه ومن المخزون"""
+    """مرتجع مورد: بضاعة بترجع للمورد، بتتخصم من حسابه ومن المخزون"""
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT,
                                  related_name="purchase_returns", verbose_name="المورد")
     date = models.DateField("التاريخ", default=timezone.localdate)
