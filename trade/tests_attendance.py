@@ -205,3 +205,18 @@ class UiHelpTests(TestCase):
                     self.assertIn(target[6:], MODEL_HELP, target)
                 elif target != "my_custody":   # بتحوّل لصفحة عهدة الشخص (ليها شرح)
                     self.assertIn(target, PAGE_HELP, target)
+
+
+class PermissionLabelsTests(TestCase):
+    def test_permissions_are_arabic_and_technical_hidden(self):
+        boss = User.objects.create_superuser("boss", "", "pw")
+        c = Client()
+        c.force_login(boss)
+        page = c.get(reverse("admin:auth_group_change", args=[Group.objects.get(name="محاسب").pk])).content.decode()
+        self.assertIn("عميل — إضافة", page)
+        self.assertNotIn("Can add", page)
+        self.assertNotIn("log entry", page)
+        self.assertNotIn("content type", page.lower())
+        page = c.get(reverse("admin:auth_user_change", args=[boss.pk])).content.decode()
+        self.assertIn("يقدر يدخل السيستم", page)
+        self.assertNotIn("Can add", page)

@@ -553,3 +553,59 @@ class AttendanceAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return request.user.is_superuser
+
+
+# ================= المستخدمين والأدوار: الصلاحيات بأسماء عربي مفهومة =================
+from django import forms  # noqa: E402
+from django.contrib.auth.admin import GroupAdmin, UserAdmin  # noqa: E402
+from django.contrib.auth.models import Group, Permission, User  # noqa: E402
+
+PERM_ACTIONS = {"add": "إضافة", "change": "تعديل", "delete": "حذف", "view": "عرض"}
+# صلاحيات فنية مالهاش لازمة للمستخدم العادي
+HIDDEN_PERM_APPS = ("admin", "contenttypes", "sessions")
+
+
+def permission_label(perm):
+    """'عميل — إضافة' بدل 'trade | عميل | Can add عميل'"""
+    model = perm.content_type.model_class()
+    name = str(model._meta.verbose_name) if model else perm.content_type.model
+    action, _, rest = perm.codename.partition("_")
+    if action in PERM_ACTIONS and model and rest == model._meta.model_name:
+        return f"{name} — {PERM_ACTIONS[action]}"
+    return f"{name} — {perm.name}"   # صلاحيات خاصة (اسمها عربي أصلاً)
+
+
+class PermissionField(forms.ModelMultipleChoiceField):
+    def label_from_instance(self, obj):
+        return permission_label(obj)
+
+
+def _permissions_field(db_field, request, admin_obj, **kwargs):
+    kwargs["queryset"] = (Permission.objects.exclude(content_type__app_label__in=HIDDEN_PERM_APPS)
+                          .exclude(content_type__app_label="auth", content_type__model="permission")
+                          .select_related("content_type")
+                          .order_by("content_type__app_label", "content_type__model", "codename"))
+    kwargs["form_class"] = PermissionField
+    kwargs.setdefault("widget", admin.widgets.FilteredSelectMultiple(db_field.verbose_name, False))
+    kwargs["required"] = False
+    return db_field.formfield(**kwargs)
+
+
+admin.site.unregister(User)
+admin.site.unregister(Group)
+
+
+@admin.register(User)
+class SpiritUserAdmin(UserAdmin):
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "user_permissions":
+            return _permissions_field(db_field, request, self, **kwargs)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
+@admin.register(Group)
+class SpiritGroupAdmin(GroupAdmin):
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "permissions":
+            return _permissions_field(db_field, request, self, **kwargs)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
