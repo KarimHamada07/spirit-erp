@@ -6,9 +6,22 @@
 {% block content %}
 <style>
   #products { max-height: 62vh; overflow-y: auto; }
-  #products .list-group-item { cursor: pointer; border-left: 0; border-right: 0; transition: background .12s ease; }
-  #products .list-group-item:hover { background: rgba(254,0,0,.06); }
-  #products .list-group-item.oos { opacity: .45; cursor: not-allowed; background: transparent; }
+  #products { padding: 10px; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); align-content: start; }
+  .pm { border: 1px solid var(--erp-line,#e5e5e5); border-radius: 12px; padding: 10px 12px; background: var(--erp-card,#fff);
+    transition: box-shadow .15s ease, border-color .15s ease; }
+  .pm:hover { border-color: rgba(254,0,0,.45); box-shadow: 0 4px 14px rgba(0,0,0,.06); }
+  .pm.one { cursor: pointer; }
+  .pm-head { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+  .pm-price { white-space: nowrap; color: #fe0000; }
+  .pm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pm-chips .chip { border: 1px solid var(--erp-line,#ddd); background: var(--erp-soft,#f6f6f6); color: var(--erp-ink,#111);
+    border-radius: 999px; padding: 5px 11px; font-weight: 700; font-size: 13px; line-height: 1.2; }
+  .pm-chips .chip small { color: var(--erp-muted,#777); font-weight: 600; margin-right: 3px; }
+  .pm-chips .chip:hover, .pm-chips .chip:focus { background: #fe0000; border-color: #fe0000; color: #fff; outline: none; }
+  .pm-chips .chip:hover small, .pm-chips .chip:focus small { color: #fff; }
+  .pm-chips .chip.low small { color: #c77700; }
+  .kbd-hint { font-size: 11px; color: var(--erp-muted,#8a8a93); }
+  .kbd-hint kbd { background: var(--erp-soft,#eee); color: var(--erp-ink,#111); border: 1px solid var(--erp-line,#ddd); border-radius: 4px; padding: 0 4px; font-size: 11px; }
   .qty-ctl { display: flex; align-items: center; gap: 4px; }
   .qty-ctl button { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--erp-line,#ddd);
     background: var(--erp-card,#fff); color: var(--erp-ink,#111); font-weight: 700; line-height: 1; padding: 0; }
@@ -24,8 +37,8 @@
     background: #000; color: #fff; padding: 8px 16px; border-radius: 20px; font-weight: 700;
     opacity: 0; pointer-events: none; transition: opacity .2s; }
   #pos-toast.show { opacity: .95; }
-  #products .list-group-item .name { font-weight: 700; }
-  #products .list-group-item .code { font-size: 12px; color: #8a8a93; }
+  #products .name { font-weight: 800; }
+  #products .code { font-size: 12px; color: #8a8a93; }
   #cart input.form-control { padding: 2px 6px; height: 32px; }
   #cart td { vertical-align: middle; }
   #search { font-size: 16px; height: 46px; }
@@ -44,7 +57,9 @@
 
   @media (max-width: 991px) {
     #products { max-height: 45vh; }
-    #products .list-group-item { padding: 14px 12px; font-size: 16px; }
+    #products { grid-template-columns: 1fr; }
+    .pm-chips .chip { padding: 8px 13px; font-size: 15px; }
+    .kbd-hint { display: none !important; }
     #cart input.form-control { height: 40px; font-size: 16px; }
     .qty-ctl button { width: 40px; height: 40px; font-size: 20px; }
     #cart td { padding: 8px 4px; }
@@ -117,9 +132,11 @@
                   aria-label="امسح الباركود بالكاميرا"><i class="fas fa-camera"></i></button>
         </div>
         <small id="scan-hint" class="pos-hint d-block mt-1"></small>
+        <small class="kbd-hint d-block mt-1">اختصارات: <kbd>F2</kbd> أو <kbd>/</kbd> البحث · <kbd>Enter</kbd> يضيف أول صنف ·
+          <kbd>F9</kbd> أو <kbd>Ctrl</kbd>+<kbd>Enter</kbd> إتمام البيع · <kbd>Esc</kbd> يفضّي البحث</small>
       </div>
       <div class="card-body p-0">
-        <div id="products" class="list-group list-group-flush"></div>
+        <div id="products"></div>
       </div>
     </div>
   </div>
@@ -151,7 +168,7 @@
             <label class="mb-1">البائع *</label>
             <select id="seller" class="form-control">
               <option value="">— اختار —</option>
-              {% for s in sellers %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
+              {% for s in sellers %}<option value="{{ s.pk }}"{% if s.pk == my_seller %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
             </select>
           </div>
           <div class="col-md-6 mb-2">
@@ -336,17 +353,31 @@
     renderPayRows();
   });
 
+  // الأصناف متجمعة: كارت لكل موديل، وتحته زراير المقاسات/الألوان بالكمية المتاحة
   function renderProducts() {
     var f = document.getElementById("search").value.trim().toLowerCase();
-    var html = "";
+    var groups = [], byCode = {};
     V.forEach(function (v) {
-      if (f && (label(v) + " " + v.code).toLowerCase().indexOf(f) === -1) return;
-      var out = v.qty <= 0;
-      html += '<a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center' +
-        (out ? " oos" : "") + '" data-id="' + v.id + '"' + (out ? ' title="الكمية خلصت"' : "") + ">" +
-        '<span><span class="name">' + esc(label(v)) + '</span><br><span class="code">' + esc(v.code) + "</span></span>" +
-        '<span class="text-left"><span class="badge ' + (out ? "badge-secondary" : "badge-info") + '">' +
-        (out ? "خلصت" : v.qty + " متاح") + '</span><br><b>' + money(chanPrice(v)) + "</b></span></a>";
+      var modelHit = !f || (v.name + " " + v.code).toLowerCase().indexOf(f) !== -1;
+      if (!modelHit && (label(v) + " " + v.code).toLowerCase().indexOf(f) === -1) return;
+      var key = v.code + "|" + v.name, g = byCode[key];
+      if (!g) { g = byCode[key] = {name: v.name, code: v.code, items: []}; groups.push(g); }
+      g.items.push(v);
+    });
+    var html = "";
+    groups.forEach(function (g) {
+      var prices = g.items.map(chanPrice), lo = Math.min.apply(null, prices), hi = Math.max.apply(null, prices);
+      var stock = g.items.reduce(function (t, v) { return t + v.qty; }, 0);
+      var one = g.items.length === 1 ? g.items[0] : null;
+      html += '<div class="pm' + (one ? " one" : "") + '"' + (one ? ' data-id="' + one.id + '" role="button" tabindex="0"' : "") + ">" +
+        '<div class="pm-head"><div><div class="name">' + esc(g.name) + '</div><div class="code">' + esc(g.code) +
+        " · " + stock + ' متاح</div></div><b class="pm-price">' + money(lo) + (hi > lo ? " – " + money(hi) : "") + "</b></div>" +
+        '<div class="pm-chips">' + g.items.map(function (v) {
+          var t = v.size + (v.color ? " · " + v.color : "");
+          return '<button type="button" class="chip' + (v.qty <= 3 ? " low" : "") + '" data-id="' + v.id + '"' +
+            ' data-tip="' + esc(t + " — " + money(chanPrice(v)) + " — " + v.qty + " متاح") + '">' +
+            esc(t) + " <small>" + v.qty + "</small></button>";
+        }).join("") + "</div></div>";
     });
     elProducts.innerHTML = html || '<div class="p-3 text-muted">لا توجد نتائج</div>';
   }
@@ -493,6 +524,21 @@
     document.getElementById("scan-close").addEventListener("click", stop);
   })();
 
+  elProducts.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && e.target.classList.contains("one")) { e.preventDefault(); add(parseInt(e.target.getAttribute("data-id"), 10)); }
+  });
+  // اختصارات الكيبورد للكاشير
+  document.addEventListener("keydown", function (e) {
+    var search = document.getElementById("search");
+    var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+    if (e.key === "F2" || (e.key === "/" && !typing)) { e.preventDefault(); search.focus(); search.select(); return; }
+    if (e.key === "F9" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) {
+      e.preventDefault();
+      if (!elCheckout.disabled && document.getElementById("sale-panel").style.display !== "none") elCheckout.click();
+      return;
+    }
+    if (e.key === "Escape" && e.target === search) { search.value = ""; hint.textContent = ""; renderProducts(); }
+  });
   elDiscount.addEventListener("input", updateTotals);
   document.getElementById("search").addEventListener("input", renderProducts);
   // Enter في البحث: يضيف أول صنف متاح ويفضّي البحث عشان الكاشير يكمل على طول
@@ -678,6 +724,15 @@
     });
   })();
 
+  // جاي من صفحة العميل (?customer=): العميل بيتختار لوحده وأسعاره بتنزل
+  (function () {
+    var cid = new URLSearchParams(location.search).get("customer");
+    var sel = document.getElementById("customer");
+    if (cid && sel.querySelector('option[value="' + cid.replace(/\D/g, "") + '"]')) {
+      sel.value = cid.replace(/\D/g, "");
+      sel.dispatchEvent(new Event("change"));
+    }
+  })();
   payRows = [{box: BOXES[2] ? BOXES[2].id : BOXES[0].id, amount: 0, touched: false}];
   renderProducts();
   renderCart();

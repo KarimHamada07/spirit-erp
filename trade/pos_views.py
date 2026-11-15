@@ -72,6 +72,7 @@ def pos(request):
         "variants": data,
         "customers": Customer.objects.select_related("seller").order_by("name"),
         "sellers": Seller.objects.filter(is_active=True).order_by("name"),
+        "my_seller": getattr(getattr(request.user, "seller_profile", None), "pk", None),
         "boxes": CashBox.objects.filter(is_active=True),
         "channels": SaleInvoice.CHANNELS,
         "can_edit_price": request.user.has_perm("trade.change_sale_price"),
@@ -222,14 +223,20 @@ def share_url(request, invoice):
     return request.build_absolute_uri(reverse("invoice_public", args=[token]))
 
 
-def whatsapp_url(request, invoice):
-    """رابط واتساب جاهز برسالة فيها رابط الفاتورة (لرقم العميل لو موجود)"""
-    from urllib.parse import quote
-    phone = "".join(ch for ch in (invoice.customer.phone if invoice.customer_id else "") if ch.isdigit())
+def wa_phone(raw):
+    """رقم الموبايل بالشكل اللي واتساب عايزه (كود مصر من غير +)"""
+    phone = "".join(ch for ch in (raw or "") if ch.isdigit())
     if phone.startswith("00"):
         phone = phone[2:]
     elif phone.startswith("0"):
         phone = "20" + phone[1:]       # مصر
+    return phone
+
+
+def whatsapp_url(request, invoice):
+    """رابط واتساب جاهز برسالة فيها رابط الفاتورة (لرقم العميل لو موجود)"""
+    from urllib.parse import quote
+    phone = wa_phone(invoice.customer.phone if invoice.customer_id else "")
     text = (f"أهلاً بيك 👋\nفاتورتك من {SHOP_NAME} رقم #{invoice.pk}\n"
             f"الإجمالي: {invoice.total:,.2f} ج.م\nتقدر تشوفها وتنزّلها من هنا:\n{share_url(request, invoice)}")
     return f"https://wa.me/{phone}?text={quote(text)}"

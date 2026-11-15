@@ -269,3 +269,47 @@ html .tab-content > .tab-pane { animation: erp-fade-up .3s var(--ui-ease) both; 
 html .form-group.row:has(.selector) > *, html .form-group .row:has(.selector) > * { flex: 0 0 100%; max-width: 100%; }
 html .form-group .row:has(.selector) > label, html .form-group .row:has(.selector) > div:first-child:not(:has(.selector)) {
   margin-bottom: 8px; font-weight: 800; text-align: right !important; }
+
+/* ===== أرقام الحاجات المستنية جنب الصفحات ===== */
+html .erp-count { display: inline-block; min-width: 20px; height: 20px; line-height: 20px; padding: 0 6px; margin-inline-start: 6px;
+  border-radius: 999px; background: #fe0000; color: #fff; font-size: 11.5px; font-weight: 800; text-align: center; vertical-align: middle; }
+html #jazzy-sidebar .nav-link.active .erp-count { background: #fff; color: #fe0000; }
+html #erp-bottom #erp-bottom-menu { position: relative; }
+html #erp-bottom #erp-bottom-menu .erp-count { position: absolute; top: 4px; left: calc(50% - 22px); margin: 0; height: 18px; line-height: 18px; min-width: 18px; padding: 0 5px; }
+
+/* ===== صفحات أكتر ===== */
+html #jazzy-sidebar .erp-more-btn { background: none; border: 0; color: inherit; text-align: start; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+html #jazzy-sidebar .erp-more-btn p { flex: 1; display: flex; justify-content: space-between; align-items: center; margin: 0; }
+html #jazzy-sidebar .erp-more-arrow { font-size: 11px; opacity: .6; transition: transform .2s; }
+html #jazzy-sidebar .erp-more.open .erp-more-arrow { transform: rotate(180deg); }
+html #jazzy-sidebar .erp-more-list { display: none; padding: 0; }
+html #jazzy-sidebar .erp-more.open .erp-more-list { display: block; }
+html #jazzy-sidebar .erp-more-list .nav-item { padding: 0; }
+
+/* ===== تثبيت الصفحات (النجمة) ===== */
+html #jazzy-sidebar .nav-item { position: relative; }
+html #jazzy-sidebar .erp-pin { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); border: 0; background: none;
+  color: #8d8d95; font-size: 12px; padding: 4px; opacity: 0; transition: opacity .15s; cursor: pointer; z-index: 2; }
+html #jazzy-sidebar .nav-item:hover .erp-pin, html #jazzy-sidebar .erp-pin:focus, html #jazzy-sidebar .erp-pin.on { opacity: 1; }
+html #jazzy-sidebar .erp-pin.on { color: #f5b301; }
+html #jazzy-sidebar .nav-link.active ~ .erp-pin { color: #fff; }
+@media (hover: none) { html #jazzy-sidebar .erp-pin { opacity: .55; } }
+html #jazzy-sidebar .erp-pins > ul { padding: 0; }
+
+/* ===== زرار + العائم (موبايل) ===== */
+#erp-fab, #erp-fab-sheet { display: none; }
+@media (max-width: 991.98px) {
+  #erp-fab { display: grid; place-items: center; position: fixed; left: 16px; bottom: calc(76px + env(safe-area-inset-bottom));
+    width: 56px; height: 56px; border-radius: 50%; border: 0; background: #fe0000; color: #fff; font-size: 22px; z-index: 1040;
+    box-shadow: 0 6px 18px rgba(254,0,0,.35); transition: transform .2s; }
+  #erp-fab[aria-expanded="true"] { transform: rotate(45deg); background: #000; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  #erp-fab-sheet { display: flex; flex-direction: column; gap: 8px; position: fixed; left: 16px; bottom: calc(142px + env(safe-area-inset-bottom));
+    z-index: 1040; opacity: 0; pointer-events: none; transform: translateY(10px); transition: opacity .18s, transform .18s; }
+  #erp-fab-sheet.show { opacity: 1; pointer-events: auto; transform: none; }
+  #erp-fab-sheet a { display: flex; align-items: center; gap: 10px; background: var(--erp-card,#fff); color: var(--erp-ink,#111);
+    border: 1px solid var(--erp-line,#e2e2e4); border-radius: 999px; padding: 10px 16px 10px 12px; font-weight: 700; text-decoration: none;
+    box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+  #erp-fab-sheet a i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(254,0,0,.1); color: #fe0000; }
+  body.erp-fab-open::after { content: ""; position: fixed; inset: 0; background: rgba(0,0,0,.25); z-index: 1039; }
+}
+@media print { #erp-fab, #erp-fab-sheet { display: none !important; } }

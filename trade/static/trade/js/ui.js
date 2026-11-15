@@ -283,7 +283,78 @@
     doc.querySelectorAll(".selector select.is-invalid").forEach(function (s) { s.classList.remove("is-invalid"); });
   }
 
+  /* القايمة: "صفحات أكتر" بتتفتح وتتقفل، والنجمة بتثبّت الصفحة فوق (محفوظة على الجهاز ده) */
+  function sidebarExtras() {
+    var nav = doc.getElementById("jazzy-navigation");
+    if (!nav) return;
+    var more = nav.querySelector(".erp-more");
+    if (more) {
+      var btn = more.querySelector(".erp-more-btn");
+      try { if (localStorage.getItem("erp-more-open") === "1") { more.classList.add("open"); btn.setAttribute("aria-expanded", "true"); } } catch (e) {}
+      btn.addEventListener("click", function () {
+        var open = more.classList.toggle("open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        try { localStorage.setItem("erp-more-open", open ? "1" : "0"); } catch (e) {}
+      });
+    }
+    var KEY = "erp-pins", pins = [];
+    try { pins = JSON.parse(localStorage.getItem(KEY) || "[]") || []; } catch (e) { pins = []; }
+    var box = nav.querySelector(".erp-pins"), head = nav.querySelector(".erp-pins-head");
+    if (!box) return;
+    var list = box.querySelector("ul");
+    var links = Array.prototype.filter.call(nav.querySelectorAll(".nav-item > a.nav-link"), function (a) {
+      return !a.closest(".erp-pins");
+    });
+    function draw() {
+      list.innerHTML = "";
+      pins.forEach(function (href) {
+        var a = links.filter(function (x) { return x.getAttribute("href") === href; })[0];
+        if (!a) return;
+        var li = a.parentNode.cloneNode(true);
+        var pin = li.querySelector(".erp-pin"); if (pin) pin.remove();
+        list.appendChild(li);
+      });
+      var any = list.children.length > 0;
+      box.hidden = !any; head.hidden = !any;
+      links.forEach(function (a) {
+        var p = a.parentNode.querySelector(".erp-pin"), on = pins.indexOf(a.getAttribute("href")) !== -1;
+        if (p) { p.classList.toggle("on", on); p.setAttribute("aria-pressed", on ? "true" : "false");
+                 p.setAttribute("data-tip", on ? "شيلها من المثبتة" : "ثبّتها فوق في القايمة"); }
+      });
+    }
+    links.forEach(function (a) {
+      var b = doc.createElement("button");
+      b.type = "button"; b.className = "erp-pin";
+      b.setAttribute("aria-label", "تثبيت " + a.textContent.trim());
+      b.innerHTML = '<i class="fas fa-star" aria-hidden="true"></i>';
+      b.addEventListener("click", function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var href = a.getAttribute("href"), i = pins.indexOf(href);
+        if (i === -1) pins.push(href); else pins.splice(i, 1);
+        try { localStorage.setItem(KEY, JSON.stringify(pins)); } catch (err) {}
+        draw();
+      });
+      a.parentNode.appendChild(b);
+    });
+    draw();
+  }
+
+  /* زرار + العائم على الموبايل */
+  function fab() {
+    var b = doc.getElementById("erp-fab"), sheet = doc.getElementById("erp-fab-sheet");
+    if (!b || !sheet) return;
+    function set(open) {
+      sheet.classList.toggle("show", open); b.setAttribute("aria-expanded", open ? "true" : "false");
+      doc.body.classList.toggle("erp-fab-open", open);
+    }
+    b.addEventListener("click", function () { set(!sheet.classList.contains("show")); });
+    doc.addEventListener("click", function (e) { if (!e.target.closest("#erp-fab, #erp-fab-sheet")) set(false); });
+    doc.addEventListener("keydown", function (e) { if (e.key === "Escape") set(false); });
+  }
+
   function init() {
+    sidebarExtras();
+    fab();
     fixSelectors(); setTimeout(fixSelectors, 400); setTimeout(fixSelectors, 1500);
     prepare();
     helpBox();

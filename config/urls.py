@@ -16,8 +16,9 @@ from trade.delete_views import (customer_delete, model_delete, purchase_delete,
                                  sale_delete)
 from trade.report_views import profit_report, report_export, report_print, reports
 from trade.search_views import search_api
+from trade.quick_views import quick_expense, quick_payment
 from trade.customer_views import (customer_add, customer_detail, customer_pay, customer_set_seller,
-                                  customer_statement_pdf, customers)
+                                  customer_statement_pdf, customers, statement_public)
 from trade.online_views import (online_create, online_detail, online_list,
                                 online_new, online_status)
 from trade.pwa_views import manifest, offline, service_worker
@@ -53,6 +54,7 @@ urlpatterns = [
     path("invoice/<int:pk>/", sale_print, name="sale_print"),
     path("invoice/<int:pk>/pdf/", sale_pdf, name="sale_pdf"),
     path("i/<str:token>/", invoice_public, name="invoice_public"),
+    path("s/<str:token>/", statement_public, name="statement_public"),
     path("inventory/", inventory, name="inventory"),
     path("inventory/<int:pk>/", inventory_detail, name="inventory_detail"),
     path("purchase/<int:pk>/confirm/", purchase_confirm, name="purchase_confirm"),
@@ -119,6 +121,8 @@ urlpatterns = [
     path("customers/add/", customer_add, name="customer_add"),
     path("customers/<int:pk>/", customer_detail, name="customer_detail"),
     path("customers/<int:pk>/pay/", customer_pay, name="customer_pay"),
+    path("quick/payment/", quick_payment, name="quick_payment"),
+    path("quick/expense/", quick_expense, name="quick_expense"),
     path("customers/<int:pk>/seller/", customer_set_seller, name="customer_set_seller"),
     path("customers/<int:pk>/statement/pdf/", customer_statement_pdf, name="customer_statement_pdf"),
     path("customers/<int:pk>/statement/<str:fmt>/", customer_statement_pdf, name="customer_statement"),

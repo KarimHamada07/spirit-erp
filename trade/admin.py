@@ -73,6 +73,7 @@ _confirm.short_description = "تأكيد الفواتير المحددة (تحد
 @admin.register(PurchaseInvoice)
 class PurchaseInvoiceAdmin(admin.ModelAdmin):
     list_display = ("id", "supplier", "date", "total", "is_confirmed")
+    list_filter = ("is_confirmed",)
     inlines = [PurchaseItemInline]
     actions = [_confirm]
 
@@ -221,7 +222,10 @@ class AuditLogAdmin(admin.ModelAdmin):
 
 
 # ================= الخزينة والبائعين =================
-admin.site.register(Seller)
+@admin.register(Seller)
+class SellerAdmin(admin.ModelAdmin):
+    list_display = ("name", "user", "is_commissionable", "is_active")
+    autocomplete_fields = ("user",)
 
 
 @admin.register(CommissionRate)
