@@ -671,6 +671,10 @@ class Seller(models.Model):
     is_commissionable = models.BooleanField("عليه عمولة", default=True,
                                             help_text="مباشر مش عليه عمولة")
     is_active = models.BooleanField("نشط", default=True)
+    # حساب البائع على السيستم: لوحة التحكم بتوريله مبيعاته وعمولته، ونقطة البيع بتختاره لوحدها
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name="seller_profile", verbose_name="حسابه على السيستم",
+                                help_text="اختياري: لو البائع بيدخل السيستم بحساب، اختاره هنا")
 
     class Meta:
         verbose_name = "بائع"

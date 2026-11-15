@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}تحصيل من عميل{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .qf { max-width: 560px; }
+  .qf label { font-weight: 700; margin-bottom: 4px; }
+  .qf .form-control { height: 46px; font-size: 16px; }
+  .qf .amt { font-size: 22px; font-weight: 800; }
+  .qf .owed { font-size: 14px; color: var(--erp-muted,#777); min-height: 20px; margin-top: 4px; }
+  .qf .owed b { color: #fe0000; }
+  .qf .boxes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .qf .boxes label { margin: 0; font-weight: 700; }
+  .qf .boxes input { position: absolute; opacity: 0; }
+  .qf .boxes span { display: inline-block; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--erp-line,#ddd); cursor: pointer; }
+  .qf .boxes input:checked + span { background: #000; color: #fff; border-color: #000; }
+  .qf .boxes input:focus-visible + span { outline: 2px solid #fe0000; outline-offset: 2px; }
+</style>
+<form method="post" class="card card-body qf">
+  {% csrf_token %}
+  {% if debtors %}
+  <div class="mb-3">
+    <label for="qp-customer">العميل</label>
+    <select id="qp-customer" name="customer" class="form-control" required>
+      <option value="">— اختار العميل —</option>
+      {% for c in debtors %}<option value="{{ c.pk }}" data-owed="{{ c.balance|floatformat:2 }}"{% if selected == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name }}{% if c.phone %} — {{ c.phone }}{% endif %}</option>{% endfor %}
+    </select>
+    <div class="owed" id="qp-owed"></div>
+  </div>
+  <div class="mb-3">
+    <label for="qp-amount">المبلغ</label>
+    <input id="qp-amount" name="amount" type="number" min="0.01" step="0.01" class="form-control amt" inputmode="decimal" required>
+  </div>
+  <div class="mb-3">
+    <label>اتحصّل في</label>
+    <div class="boxes">
+      {% for b in boxes %}<label><input type="radio" name="box" value="{{ b.pk }}"{% if forloop.first %} checked{% endif %}><span>{{ b.name }}</span></label>{% endfor %}
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-6 mb-3"><label for="qp-date">التاريخ</label>
+      <input id="qp-date" type="date" name="date" value="{{ today }}" class="form-control"></div>
+    <div class="col-6 mb-3"><label for="qp-notes">ملاحظة (اختياري)</label>
+      <input id="qp-notes" name="notes" maxlength="200" class="form-control"></div>
+  </div>
+  <button class="btn btn-primary btn-lg btn-block" data-tip="يسجل الدفعة على حساب العميل ويدخلها الخزنة">سجّل التحصيل</button>
+  <a href="{% url 'customers' %}?debt=1" class="d-block text-center mt-3">كل العملاء اللي عليهم فلوس</a>
+  {% else %}
+  <p class="mb-0 text-muted"><i class="fas fa-circle-check"></i> مفيش عملاء عليهم فلوس دلوقتي.</p>
+  {% endif %}
+</form>
+<script>
+(function () {
+  var sel = document.getElementById("qp-customer"); if (!sel) return;
+  var owed = document.getElementById("qp-owed"), amt = document.getElementById("qp-amount");
+  function show() {
+    var o = sel.selectedOptions[0], v = o && o.getAttribute("data-owed");
+    owed.innerHTML = v ? 'عليه: <b>' + v + '</b> — <a href="#" id="qp-all">حصّل الكل</a>' : "";
+    amt.max = v || "";
+    var all = document.getElementById("qp-all");
+    if (all) all.addEventListener("click", function (e) { e.preventDefault(); amt.value = v; amt.focus(); });
+  }
+  sel.addEventListener("change", function () { show(); amt.focus(); });
+  show();
+})();
+</script>
+{% endblock %}

@@ -19,7 +19,12 @@
 
 <div class="mb-3">
   <a href="{% url 'customers' %}" class="btn btn-outline-secondary">&rarr; كل العملاء</a>
-  {% if customer.phone %}<a href="tel:{{ customer.phone }}" class="btn btn-outline-primary">اتصال {{ customer.phone }}</a>{% endif %}
+  {% if perms.trade.add_saleinvoice %}<a href="{% url 'pos' %}?customer={{ customer.pk }}" class="btn btn-primary"
+     data-tip="يفتح نقطة البيع والعميل ده متختار، وأسعاره الثابتة بتنزل لوحدها"><i class="fas fa-cash-register"></i> بيع جديد له</a>{% endif %}
+  {% if customer.phone %}<a href="tel:{{ customer.phone }}" class="btn btn-outline-primary" data-tip="اتصال بالعميل"><i class="fas fa-phone"></i> {{ customer.phone }}</a>
+  <a href="{{ wa_chat }}" target="_blank" rel="noopener" class="btn btn-outline-success" data-tip="يفتح شات واتساب مع العميل"><i class="fab fa-whatsapp"></i> واتساب</a>
+  <a href="{{ wa_statement }}" target="_blank" rel="noopener" class="btn btn-success"
+     data-tip="يبعتله رسالة واتساب فيها رصيده ورابط كشف حسابه PDF (الرابط شغال 30 يوم)"><i class="fab fa-whatsapp"></i> ابعتله كشف الحساب</a>{% endif %}
   <span class="btn btn-light disabled">البائع: <b>{{ customer.seller.name|default:"—" }}</b></span>
   {% if can_change_seller %}
   <form method="post" action="{% url 'customer_set_seller' customer.pk %}" class="d-inline">{% csrf_token %}
@@ -80,6 +85,53 @@
   </div>
 </div>
 {% endif %}
+
+{% if followup %}
+<div class="alert alert-light border mb-3"><i class="fas fa-phone-volume text-danger"></i>
+  آخر متابعة تحصيل ({{ followup.created_at|date:"d/m" }}): {{ followup.note }}
+  {% if followup.next_date %} — <b>الميعاد الجاي: {{ followup.next_date|date:"d/m/Y" }}</b>{% endif %}
+  {% if perms.trade.view_debtfollowup %}<a href="{% url 'debts' %}" class="mr-2">متابعة التحصيل</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="row">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">آخر فواتيره</h3></div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>الإجمالي</th><th></th></tr></thead>
+          {% for inv in recent_invoices %}
+          <tr>
+            <td>{{ inv.pk }}</td>
+            <td>{{ inv.date|date:"d/m/Y" }}</td>
+            <td>{{ inv.get_payment_type_display }} · {{ inv.get_channel_display }}{% if not inv.is_confirmed %} <span class="badge badge-secondary">مسودة</span>{% endif %}</td>
+            <td>{{ inv.total|floatformat:2|intcomma }}</td>
+            <td><a href="{% url 'sale_print' inv.pk %}">عرض</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted p-3">لسه ما اشتراش حاجة.</td></tr>
+          {% endfor %}
+        </table>
+      </div></div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title" data-tip="آخر سعر اتباعله بيه كل صنف: بينزل لوحده في الفاتورة الجاية، والتعديل لمدير الحسابات">أسعاره الثابتة</h3></div>
+      <div class="card-body p-0"><div class="table-responsive" style="max-height:340px;overflow-y:auto">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>الصنف</th><th>السعر</th><th>آخر مرة</th></tr></thead>
+          {% for r in fixed_prices %}
+          <tr><td>{{ r.variant }}</td><td><b>{{ r.price|floatformat:2|intcomma }}</b></td><td>{{ r.date|date:"d/m/Y" }}</td></tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-muted p-3">مفيش أسعار ثابتة لسه: أول ما يشتري صنف، سعره بيتثبت هنا.</td></tr>
+          {% endfor %}
+        </table>
+      </div></div>
+    </div>
+  </div>
+</div>
 
 <div class="row">
   <div class="col-lg-7">

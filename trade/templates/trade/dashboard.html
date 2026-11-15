@@ -43,6 +43,23 @@
   .quick a i { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: rgba(254,0,0,.1); color: #fe0000; font-size: 16px; flex: 0 0 auto; }
   .quick a.main { background: #fe0000; color: #fff; border-color: #fe0000; }
   .quick a.main i { background: rgba(255,255,255,.2); color: #fff; }
+  .hello { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .hello h2 { font-size: 22px; font-weight: 800; margin: 0; }
+  .hello small { color: var(--erp-muted,#777); }
+  .todo { border: 1px solid rgba(254,0,0,.35); background: rgba(254,0,0,.04); border-radius: 14px; padding: 12px 14px; margin-bottom: 18px; }
+  .todo h3 { font-size: 15px; font-weight: 800; margin: 0 0 8px; color: #fe0000; }
+  .todo a { display: flex; align-items: center; gap: 10px; padding: 8px 4px; color: var(--erp-ink,#111); text-decoration: none;
+            border-top: 1px dashed var(--erp-line,#e2e2e4); font-weight: 600; }
+  .todo a:first-of-type { border-top: 0; }
+  .todo a:hover { color: #fe0000; }
+  .todo a i { width: 22px; text-align: center; color: #fe0000; }
+  .todo a b { margin-right: auto; background: #fe0000; color: #fff; border-radius: 999px; min-width: 28px; text-align: center; padding: 1px 8px; }
+  .todo.clear { border-color: var(--erp-line,#e2e2e4); background: transparent; color: var(--erp-muted,#777); }
+  .mine { border-radius: 14px; background: #000; color: #fff; padding: 16px 18px; margin-bottom: 18px; }
+  .mine .row > div { margin: 6px 0; }
+  .mine .t { font-size: 12.5px; opacity: .75; }
+  .mine .n { font-size: 22px; font-weight: 800; }
+  .mine .n.red { color: #ff4d4d; }
   @media (max-width: 767px) {
     .quick { grid-template-columns: 1fr 1fr; gap: 8px; }
     .quick a { padding: 10px; font-size: 14px; }
@@ -56,14 +73,44 @@
   }
 </style>
 
+<div class="hello">
+  <h2>{{ greeting }} يا {{ display_name }}</h2>
+  <small>{% now "l j F Y" %}</small>
+</div>
+
+{% if pending %}
+<div class="todo" role="region" aria-label="محتاج تتصرف فيه">
+  <h3><i class="fas fa-bell"></i> محتاج تتصرف فيه</h3>
+  {% for p in pending %}<a href="{{ p.url }}"><i class="{{ p.icon }}" aria-hidden="true"></i>{{ p.label }}<b>{{ p.count }}</b></a>{% endfor %}
+</div>
+{% else %}
+<div class="todo clear"><i class="fas fa-circle-check"></i> مفيش حاجة مستنياك دلوقتي</div>
+{% endif %}
+
 <div class="quick no-print">
   {% if perms.trade.add_saleinvoice %}<a class="main" href="{% url 'pos' %}"><i class="fas fa-cash-register"></i>بيع جديد</a>{% endif %}
   {% if perms.trade.add_onlineorder %}<a href="{% url 'online_new' %}"><i class="fas fa-truck-fast"></i>أوردر أونلاين</a>{% endif %}
-  {% if perms.trade.add_payment %}<a href="{% url 'customers' %}?debt=1"><i class="fas fa-hand-holding-dollar"></i>تحصيل من عميل</a>{% endif %}
+  {% if perms.trade.add_payment %}<a href="{% url 'quick_payment' %}"><i class="fas fa-hand-holding-dollar"></i>تحصيل من عميل</a>{% endif %}
+  {% if perms.trade.add_expense %}<a href="{% url 'quick_expense' %}"><i class="fas fa-receipt"></i>مصروف</a>{% endif %}
   {% if perms.trade.add_purchaseinvoice %}<a href="{% url 'admin:trade_purchaseinvoice_add' %}"><i class="fas fa-dolly"></i>توريد جديد</a>{% endif %}
+  {% if perms.trade.add_stockcount %}<a href="{% url 'stock_counts' %}"><i class="fas fa-clipboard-list"></i>جرد</a>{% endif %}
 </div>
 
-{% if pending_purchases %}
+{% if mine %}
+<div class="mine">
+  <div class="t mb-1"><i class="fas fa-id-badge"></i> شغلك ({{ mine.seller.name }})</div>
+  <div class="row">
+    <div class="col-6 col-lg-3"><div class="t">مبيعاتك النهارده</div><div class="n">{{ mine.today_total|floatformat:2|intcomma }}</div>
+      <div class="t">{{ mine.today_count }} فاتورة</div></div>
+    <div class="col-6 col-lg-3"><div class="t">اتحصّل منك الشهر ده</div><div class="n">{{ mine.month_collected|floatformat:2|intcomma }}</div></div>
+    <div class="col-6 col-lg-3"><div class="t">عمولتك الشهر ده</div><div class="n red">{{ mine.month_commission|floatformat:2|intcomma }}</div></div>
+    <div class="col-6 col-lg-3"><div class="t">على عملاءك</div><div class="n">{{ mine.debt|floatformat:2|intcomma }}</div>
+      <div class="t">{{ mine.debtors }} عميل عليه فلوس</div></div>
+  </div>
+</div>
+{% endif %}
+
+{% if sec.purchases and pending_purchases %}
 <div class="card card-warning card-outline mb-4">
   <div class="card-header">
     <h3 class="card-title"><i class="fas fa-bell text-warning"></i>
@@ -74,7 +121,7 @@
     <div class="border rounded p-3 mb-3">
       <div class="d-flex justify-content-between flex-wrap">
         <div><b>توريد #{{ p.invoice.pk }}</b> — {{ p.invoice.supplier }} — {{ p.invoice.date|date:"d/m/Y" }}</div>
-        <div>إجمالي الكمية: <b>{{ p.qty }}</b> قطعة · القيمة: {{ p.total|floatformat:2|intcomma }}</div>
+        <div>إجمالي الكمية: <b>{{ p.qty }}</b> قطعة{% if sec.money %} · القيمة: {{ p.total|floatformat:2|intcomma }}{% endif %}</div>
       </div>
       <ul class="mt-2 mb-2">
         {% for i in p.items %}
@@ -83,6 +130,7 @@
         <li class="text-danger">الفاتورة بدون أصناف</li>
         {% endfor %}
       </ul>
+      {% if perms.trade.change_purchaseinvoice %}
       <a href="{% url 'admin:trade_purchaseinvoice_change' p.invoice.pk %}" class="btn btn-sm btn-outline-secondary">مراجعة / تعديل</a>
       {% if p.items %}
       <form method="post" action="{% url 'purchase_confirm' p.invoice.pk %}" class="d-inline"
@@ -92,20 +140,24 @@
         <button type="submit" class="btn btn-sm btn-success">تأكيد استلام الكمية</button>
       </form>
       {% endif %}
+      {% endif %}
+      {% if perms.trade.delete_purchaseinvoice %}
       <form method="post" action="{% url 'purchase_delete' p.invoice.pk %}" class="d-inline"
             data-confirm="هل أنت متأكد من حذف فاتورة التوريد #{{ p.invoice.pk }}؟ مش هتقدر ترجّعها."
             data-confirm-title="تأكيد الحذف">{% csrf_token %}
         <button type="submit" class="btn btn-sm btn-outline-primary">حذف</button>
       </form>
+      {% endif %}
     </div>
     {% endfor %}
     {% if pending_count > pending_purchases|length %}
-    <a href="{% url 'admin:trade_purchaseinvoice_changelist' %}">عرض كل فواتير التوريد ({{ pending_count }})</a>
+    <a href="{% url 'admin:trade_purchaseinvoice_changelist' %}?is_confirmed__exact=0">عرض كل فواتير التوريد ({{ pending_count }})</a>
     {% endif %}
   </div>
 </div>
 {% endif %}
 
+{% if sec.sales %}
 <div class="row">
   <div class="col-lg-3 col-6">
     <div class="kpi bg-k1"><i class="fas fa-cash-register"></i>
@@ -113,6 +165,7 @@
       <div class="value">{{ today.revenue|floatformat:2|intcomma }}</div>
       <div class="sub">{{ today.invoices }} فاتورة · {{ today.pieces }} قطعة</div></div>
   </div>
+  {% if sec.money %}
   <div class="col-lg-3 col-6">
     <div class="kpi bg-k2"><i class="fas fa-coins"></i>
       <div class="label">ربح اليوم</div>
@@ -131,21 +184,29 @@
       <div class="value">{{ net_profit|floatformat:2|intcomma }}</div>
       <div class="sub">بعد مصروفات {{ month_expenses|floatformat:2|intcomma }}</div></div>
   </div>
+  {% endif %}
 </div>
+{% endif %}
 
+{% if sec.money or sec.stock %}
 <div class="row">
+  {% if sec.money %}
   <div class="col-lg-3 col-6">
     <div class="kpi bg-k6"><i class="fas fa-boxes"></i>
       <div class="label">قيمة المخزون (بالتكلفة)</div>
       <div class="value">{{ stock_value|floatformat:2|intcomma }}</div>
       <div class="sub">{{ stock_pieces }} قطعة بالمخزن</div></div>
   </div>
+  {% endif %}
+  {% if sec.stock %}
   <div class="col-lg-3 col-6">
-    <div class="kpi bg-k5"><i class="fas fa-exclamation-triangle"></i>
+    <a href="{% if perms.trade.view_purchaseinvoice %}{% url 'reorder' %}{% else %}{% url 'inventory' %}{% endif %}" style="text-decoration:none"><div class="kpi bg-k5"><i class="fas fa-exclamation-triangle"></i>
       <div class="label">أصناف قاربت على النفاد</div>
       <div class="value">{{ low_stock|length }}</div>
-      <div class="sub">وصلت لحد التنبيه بتاع الموديل</div></div>
+      <div class="sub">وصلت لحد التنبيه بتاع الموديل</div></div></a>
   </div>
+  {% endif %}
+  {% if sec.money %}
   <div class="col-lg-3 col-6">
     <div class="kpi bg-k7"><i class="fas fa-percentage"></i>
       <div class="label">هامش ربح الشهر</div>
@@ -158,14 +219,19 @@
       <div class="value">{{ month_expenses|floatformat:2|intcomma }}</div>
       <div class="sub">إيجار وشحن وغيره</div></div>
   </div>
+  {% endif %}
 </div>
+{% endif %}
 
+{% if sec.customers or sec.online or custody_balance is not None %}
 <div class="row">
+  {% if sec.customers %}
   <div class="col-lg col-6">
     <a class="stat debt" href="{% url 'customers' %}?debt=1">
       <div class="n">{{ receivable|floatformat:2|intcomma }}</div>
       <div class="t">مديونيات العملاء ({{ debtors_count }} عميل)</div></a>
   </div>
+  {% endif %}
   {% if custody_balance is not None %}
   <div class="col-lg col-6">
     <a class="stat" href="{% url 'custody' %}">
@@ -180,7 +246,9 @@
   </div>
   {% endfor %}
 </div>
+{% endif %}
 
+{% if sec.money %}
 <div class="row">
   <div class="col-lg-8">
     <div class="card">
@@ -203,7 +271,9 @@
     </div>
   </div>
 </div>
+{% endif %}
 
+{% if sec.stock %}
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between">
     <h3 class="card-title">المخزون بالنوع والمقاسات</h3>
@@ -228,8 +298,10 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <div class="row">
+  {% if sec.stock %}
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header"><h3 class="card-title text-danger">تنبيهات المخزون</h3></div>
@@ -246,24 +318,26 @@
       </div>
     </div>
   </div>
+  {% endif %}
+  {% if sec.sales %}
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header"><h3 class="card-title">آخر فواتير البيع</h3></div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0">
-          <thead><tr><th>#</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الربح</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th>{% if sec.money %}<th>الربح</th>{% endif %}<th></th></tr></thead>
           {% for s in recent_sales %}
           <tr>
             <td><a href="{% url 'admin:trade_saleinvoice_change' s.pk %}">{{ s.pk }}</a></td>
             <td>{{ s.customer|default:"—" }}</td>
             <td>{{ s.date|date:"d/m/Y" }}</td>
             <td>{{ s.total|floatformat:2 }}</td>
-            <td>{{ s.profit|floatformat:2 }}</td>
+            {% if sec.money %}<td>{{ s.profit|floatformat:2 }}</td>{% endif %}
             <td>{% if s.is_confirmed %}<span class="badge badge-success">مؤكدة</span>{% else %}<span class="badge badge-secondary">مسودة</span>
-              <form method="post" action="{% url 'sale_delete' s.pk %}" class="d-inline"
+              {% if perms.trade.delete_saleinvoice %}<form method="post" action="{% url 'sale_delete' s.pk %}" class="d-inline"
                     data-confirm="هل أنت متأكد من حذف مسودة فاتورة البيع #{{ s.pk }}؟"
                     data-confirm-title="تأكيد الحذف">{% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-outline-primary py-0">حذف</button></form>{% endif %}</td>
+                <button type="submit" class="btn btn-sm btn-outline-primary py-0">حذف</button></form>{% endif %}{% endif %}</td>
           </tr>
           {% empty %}
           <tr><td colspan="6" class="text-muted p-3">لا توجد فواتير بعد</td></tr>
@@ -272,8 +346,10 @@
       </div>
     </div>
   </div>
+  {% endif %}
 </div>
 
+{% if sec.money %}
 {{ chart|json_script:"chart-data" }}
 {% load static %}<script src="{% static 'trade/vendor/chart.umd.min.js' %}"></script>
 <script>
@@ -293,4 +369,5 @@
     });
   })();
 </script>
+{% endif %}
 {% endblock %}
