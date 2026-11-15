@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}اقتراحات الطلب{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<form method="get" class="d-flex flex-wrap align-items-end mb-3" style="gap:10px">
+  <div><label class="mb-1 d-block">على حسب بيع آخر</label><input type="number" name="days" value="{{ days }}" min="7" max="180" class="form-control" style="width:110px"></div>
+  <div><label class="mb-1 d-block">يكفي كام يوم؟</label><input type="number" name="cover" value="{{ cover }}" min="7" max="180" class="form-control" style="width:110px"></div>
+  <button class="btn btn-primary">احسب</button>
+  <a class="btn btn-success" href="?days={{ days }}&cover={{ cover }}&export=xlsx">Excel</a>
+</form>
+{% for g in groups %}
+<div class="card mb-3">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center" style="gap:8px">
+    <h3 class="card-title">{{ g.supplier|default:"أصناف من غير مورد (ما اتشرتش قبل كده)" }} — <span class="text-muted" style="font-size:14px">{{ g.rows|length }} صنف، تقريباً {{ g.total|floatformat:0|intcomma }}</span></h3>
+    {% if can_create and g.supplier %}<form method="post" action="{% url 'reorder_create' %}">{% csrf_token %}
+      <input type="hidden" name="supplier" value="{{ g.supplier.pk }}"><input type="hidden" name="days" value="{{ days }}"><input type="hidden" name="cover" value="{{ cover }}">
+      <button class="btn btn-sm btn-dark" data-tip="يعمل فاتورة توريد مسودة بالكميات دي تراجعها قبل ما تأكدها">اعمل فاتورة توريد مسودة</button></form>{% endif %}
+  </div>
+  <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>الصنف</th><th>اتباع</th><th>الموجود</th><th>المقترح</th><th>آخر سعر شراء</th></tr></thead>
+    {% for r in g.rows %}<tr><td>{{ r.variant }}</td><td>{{ r.sold }}</td><td class="{% if r.qty <= 0 %}text-danger{% endif %}">{{ r.qty }}</td>
+      <td><b>{{ r.suggest }}</b></td><td>{{ r.cost|floatformat:2|intcomma }}</td></tr>{% endfor %}
+  </table></div></div>
+</div>
+{% empty %}<p class="text-muted">مفيش أصناف محتاجة طلب دلوقتي 👌</p>{% endfor %}
+<p class="text-muted" style="font-size:13px">المقترح = (اللي اتباع في الفترة ÷ أيامها × الأيام اللي عايزها تكفي) + حد التنبيه − الموجود. المورد = آخر مورد اتشرى منه الصنف.</p>
+{% endblock %}

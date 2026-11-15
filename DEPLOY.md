@@ -67,6 +67,16 @@ Web > Reload. وبعد دقايق افتح https://erp.spiritegy.org/admin/ وس
    DJANGO_SECRET_KEY=المفتاح python manage.py collectstatic --noinput
    وبعدين Web > Reload.
 
+## 9-أ) المهمة الأساسية كل ليلة الساعة 3 الفجر (الملخص + النسخة الاحتياطية)
+في Tasks > Scheduled tasks اعمل مهمة يومية الساعة **01:00 UTC** (= 3 الفجر في مصر شتاءً، و4 صيفاً):
+
+    cd ~/erp_spirit && DJANGO_SECRET_KEY=$(grep -oP "DJANGO_SECRET_KEY'\] = '\K[^']+" /var/www/*_wsgi.py) ~/.virtualenvs/spirit/bin/python manage.py nightly
+
+بتعمل نسخة احتياطية، وبتبعت ملخص اليوم اللي فات على تليجرام (المبيعات، الربح، الخزن، النواقص، الحضور،
+الطلبات المستنية). عشان النسخة نفسها تتبعتلك كملف: زوّد في `~/.telegram_bot` السطر
+`BACKUP_CHAT_ID=رقم_الشات_الخاص_بيك` (شات خاص بيك بس، مش الجروب، لأن النسخة فيها كل البيانات).
+المهمة دي بتغني عن مهمة backup_db اللي تحت.
+
 ## 9) المهام اليومية (Tasks > Scheduled tasks)
 اعمل 3 مهام يومية (الوقت على PythonAnywhere بتوقيت UTC، يعني 22:00 UTC = 12 بالليل في مصر):
 

@@ -58,7 +58,7 @@ def profitability(d1, d2):
     shipping = {"fee": ZERO, "cost": ZERO, "returned_cost": ZERO, "orders": 0}
     for o in (OnlineOrder.objects
               .filter(status__in=[OnlineOrder.COLLECTED, OnlineOrder.RETURNED],
-                      updated_at__date__range=(d1, d2))
+                      status_at__date__range=(d1, d2))
               .prefetch_related("items__variant__model")):
         if o.status == OnlineOrder.RETURNED:
             shipping["returned_cost"] += o.shipping_cost

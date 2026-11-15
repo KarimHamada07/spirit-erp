@@ -42,6 +42,8 @@ def config():
         "FEED_KEY": os.environ.get("TELEGRAM_FEED_KEY", ""),
         # اختياري: شات المحاسب لتذكيرات التحصيل (لو مش موجود بتروح للشات العام)
         "ACCOUNTANT_CHAT_ID": os.environ.get("TELEGRAM_ACCOUNTANT_CHAT_ID", ""),
+        # اختياري: شات خاص (بتاع صاحب الشغل) تتبعتله النسخة الاحتياطية كل ليلة. فاضي = النسخة بتفضل على السيرفر بس
+        "BACKUP_CHAT_ID": os.environ.get("TELEGRAM_BACKUP_CHAT_ID", ""),
     }
     try:
         with open(CONFIG_FILE, encoding="utf-8") as f:
@@ -106,6 +108,32 @@ def send_telegram(token, chat_id, text, api_base=None):
             detail = str(e)
         return False, f"HTTP {e.code}: {detail}"
     except Exception as e:  # شبكة، بروكسي، timeout...
+        return False, str(e)
+
+
+def send_document(token, chat_id, path, caption="", api_base=None):
+    """يبعت ملف (النسخة الاحتياطية) لتليجرام. بيرجع (نجح؟، تفاصيل)"""
+    import mimetypes
+    import uuid
+    base = api_base or os.environ.get("TELEGRAM_API", "https://api.telegram.org")
+    boundary = uuid.uuid4().hex
+    name = os.path.basename(path)
+    with open(path, "rb") as f:
+        content = f.read()
+    parts = []
+    for key, val in (("chat_id", str(chat_id)), ("caption", caption[:1000])):
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{val}\r\n'.encode())
+    ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
+    parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="document"; filename="{name}"\r\n'
+                 f"Content-Type: {ctype}\r\n\r\n".encode() + content + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    req = urllib.request.Request(f"{base}/bot{token}/sendDocument", data=b"".join(parts),
+                                 headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            return bool(body.get("ok")), body.get("description", "")
+    except Exception as e:
         return False, str(e)
 
 

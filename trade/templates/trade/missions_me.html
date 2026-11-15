@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}مأمورياتي{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .mcard { max-width: 620px; border-radius: 16px; padding: 16px; background: var(--erp-card,#fff); border: 1px solid var(--erp-line,#e2e2e4); margin-bottom: 16px; }
+  .mcard h3 { font-size: 18px; font-weight: 800; margin: 0 0 10px; }
+  .mcard .form-control { height: 46px; margin-bottom: 8px; }
+  .big { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 56px; border: 0; border-radius: 14px;
+         font-size: 18px; font-weight: 800; color: #fff; margin-top: 6px; }
+  .big.go { background: linear-gradient(135deg,#ff2a2a,#b80012); } .big.dark { background: #111; } .big.light { background: var(--erp-soft,#eee); color: var(--erp-ink,#111); }
+  .tl { list-style: none; padding: 0; margin: 10px 0 0; border-inline-start: 3px solid #fe0000; }
+  .tl li { position: relative; padding: 6px 14px 10px; }
+  .tl li::before { content: ""; position: absolute; inset-inline-start: -8px; top: 10px; width: 13px; height: 13px; border-radius: 50%; background: #fe0000; border: 3px solid var(--erp-card,#fff); }
+  .tl small { color: var(--erp-muted,#777); }
+  .live { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #18a957; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+</style>
+
+{% if open %}
+<div class="mcard">
+  <h3><span class="live"></span> مأمورية شغالة: {{ open.purpose }}</h3>
+  <div class="text-muted">{% if open.destination %}{{ open.destination }} · {% endif %}من {{ open.started_at|date:"H:i" }} ({{ open.duration_minutes }} دقيقة)</div>
+  <ul class="tl">
+    {% for p in open.points.all %}<li><b>{{ p.get_kind_display }}</b> {{ p.at|date:"H:i" }}{% if p.note %} — {{ p.note }}{% endif %}
+      <br><small><a href="{{ p.map_url }}" target="_blank" rel="noopener">المكان على الخريطة</a></small></li>{% endfor %}
+  </ul>
+  <form method="post" action="{% url 'mission_point' open.pk %}" enctype="multipart/form-data" data-geo>
+    {% csrf_token %}<input type="hidden" name="lat"><input type="hidden" name="lng"><input type="hidden" name="accuracy">
+    <input name="note" class="form-control" placeholder="وصلت فين؟ (اسم العميل أو المكان)" maxlength="200">
+    <input name="photo" type="file" accept="image/*" capture="environment" class="form-control" style="height:auto">
+    <button name="kind" value="arrive" class="big go" data-tip="يسجل مكانك ووقت وصولك"><i class="fas fa-location-dot"></i> وصلت</button>
+    <button name="kind" value="note" class="big light" data-tip="يسجل ملاحظة بمكانك من غير ما يعتبرها وصول">ملاحظة بس</button>
+    <button name="kind" value="end" class="big dark" data-tip="يقفل المأمورية ويبعت خط سيرك"><i class="fas fa-flag-checkered"></i> خلّصت المأمورية</button>
+  </form>
+</div>
+{% else %}
+<div class="mcard">
+  <h3>مأمورية جديدة</h3>
+  <form method="post" action="{% url 'mission_start' %}" data-geo>
+    {% csrf_token %}<input type="hidden" name="lat"><input type="hidden" name="lng"><input type="hidden" name="accuracy">
+    <input name="purpose" class="form-control" placeholder="رايح ليه؟ (تحصيل، تسليم بضاعة، شراء خامات...)" required maxlength="200">
+    <input name="destination" class="form-control" placeholder="رايح فين؟ (اختياري)" maxlength="200">
+    <select name="customer" class="form-control"><option value="">— عميل (اختياري) —</option>{% for c in customers %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}</select>
+    <button class="big go" data-tip="يسجل بداية المأمورية بمكانك ووقتك"><i class="fas fa-car-side"></i> ابدأ المأمورية</button>
+  </form>
+</div>
+{% endif %}
+
+{% if recent %}
+<div class="mcard">
+  <h3>آخر مأمورياتي</h3>
+  {% for m in recent %}<div class="mb-2"><b>{{ m.purpose }}</b> — {{ m.started_at|date:"d/m H:i" }} ({{ m.duration_minutes }} دقيقة)
+    {% if m.route_url %}· <a href="{{ m.route_url }}" target="_blank" rel="noopener">خط السير</a>{% endif %}</div>{% endfor %}
+</div>
+{% endif %}
+{% include "trade/_geo_form_js.html" %}
+{% endblock %}

@@ -54,21 +54,27 @@ _PRODUCTION = [f"{a}_{m}" for m in ("rawmaterial", "bomline", "materialpurchase"
                for a in ("view", "add", "change")]
 _PRODUCTION_READ = [p for p in _PRODUCTION if p.startswith("view_")]
 
+_STOCKCOUNT = ["view_stockcount", "add_stockcount", "change_stockcount",
+               "view_stockcountline", "add_stockcountline", "change_stockcountline"]
+_HR_READ = ["view_employeeprofile", "view_employeetxn", "view_leaverequest", "view_mission",
+            "view_missionpoint", "view_attendance"]
+
 # مصفوفة الصلاحيات: كل دور وقائمة أكواد الصلاحيات (app trade)
 ROLE_PERMISSIONS = {
     ROLE_ACCOUNTANT: _CUSTOMERS + _PAYMENTS + _DEBT_FOLLOWUP + _CUSTODY + _EXPENSES + _SALES
     + _PURCHASE + _ONLINE + ["view_activitylog"]
     + ["view_clothingmodel", "view_variant"]
-    + _TREASURY_READ + _TREASURY_ACT + _RETURNS_SALE + _RETURNS_PURCHASE + _PRODUCTION_READ,
+    + _TREASURY_READ + _TREASURY_ACT + _RETURNS_SALE + _RETURNS_PURCHASE + _PRODUCTION_READ
+    + _HR_READ + ["view_stockcount", "view_stockcountline"],
 
     ROLE_WAREHOUSE_MANAGER: _STOCK_READ + _STOCK_WRITE + _PURCHASE + _ONLINE
-    + ["view_activitylog"] + _RETURNS_PURCHASE + _PRODUCTION,
+    + ["view_activitylog"] + _RETURNS_PURCHASE + _PRODUCTION + _STOCKCOUNT,
 
     ROLE_SALES: _STOCK_READ + _CUSTOMERS + _PAYMENTS + _SALES + _ONLINE
     + ["add_onlineorder", "view_onlineorder", "change_onlineorder"]
     + ["view_cashbox", "view_seller"],
 
-    ROLE_WAREHOUSE_EMPLOYEE: ["view_clothingmodel", "view_variant",
+    ROLE_WAREHOUSE_EMPLOYEE: _STOCKCOUNT + ["view_clothingmodel", "view_variant",
                               "view_purchaseinvoice", "view_onlineorder",
                               "change_onlineorder", "view_onlineorderitem"],
 

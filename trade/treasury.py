@@ -185,7 +185,7 @@ def commission_report(year, month):
         add(p.invoice.seller, p.invoice.channel, p.amount)
 
     for o in (OnlineOrder.objects.filter(status=OnlineOrder.COLLECTED,
-                                         updated_at__date__gte=start, updated_at__date__lt=end)
+                                         status_at__date__gte=start, status_at__date__lt=end)
               .select_related("seller").prefetch_related("items")):
         add(o.seller, "online", o.total_to_collect)
 

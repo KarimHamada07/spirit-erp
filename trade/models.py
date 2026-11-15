@@ -50,7 +50,9 @@ class Variant(models.Model):
     quantity = models.IntegerField("الكمية بالمخزن", default=0, editable=False)
     avg_cost = models.DecimalField("متوسط التكلفة", max_digits=12,
                                    decimal_places=2, default=0, editable=False)
-    sale_price = models.DecimalField("سعر البيع", max_digits=12, decimal_places=2)
+    sale_price = models.DecimalField("سعر القطاعي", max_digits=12, decimal_places=2)
+    wholesale_price = models.DecimalField("سعر الجملة", max_digits=12, decimal_places=2, null=True,
+                                          blank=True, help_text="فاضي = نفس سعر القطاعي")
 
     class Meta:
         verbose_name = "مقاس/لون"
@@ -59,6 +61,12 @@ class Variant(models.Model):
 
     def __str__(self):
         return f"{self.model.name} - {self.size} - {self.color}".strip(" -")
+
+    def price_for(self, channel):
+        """سعر البيع حسب نوع البيع: الجملة ليها سعرها لو متحدد"""
+        if channel == "wholesale" and self.wholesale_price:
+            return self.wholesale_price
+        return self.sale_price
 
     def add_stock(self, qty, unit_cost):
         """إضافة كمية للمخزن مع تحديث متوسط التكلفة (توريد أو مرتجع)"""
@@ -242,7 +250,8 @@ class SaleInvoice(models.Model):
         verbose_name_plural = "فواتير البيع"
         permissions = [("change_customer_price",
                         "تعديل سعر صنف لعميل سبق له شراءه (مدير الحسابات)"),
-                       ("change_invoice_date", "تعديل تاريخ فاتورة البيع (مدير الحسابات)")]
+                       ("change_invoice_date", "تعديل تاريخ فاتورة البيع (مدير الحسابات)"),
+                       ("change_sale_price", "تعديل سعر البيع في نقطة البيع (مدير الحسابات)")]
 
     def apply_percent(self):
         """لو الخصم بالنسبة: المبلغ = نسبة من مجموع البنود"""
@@ -396,6 +405,9 @@ class OnlineOrder(models.Model):
                                     verbose_name="الخزنة اللي اتحصل فيها")
     created_at = models.DateTimeField("تاريخ الإنشاء", auto_now_add=True)
     updated_at = models.DateTimeField("آخر تحديث", auto_now=True)
+    # تاريخ التحصيل (أو المرتجع): الربح بيتحسب في اليوم ده، مش في آخر تعديل على الأوردر
+    status_at = models.DateTimeField("تاريخ التحصيل/المرتجع", null=True, blank=True, editable=False,
+                                     db_index=True)
 
     class Meta:
         verbose_name = "أوردر أونلاين"
@@ -503,6 +515,8 @@ class OnlineOrder(models.Model):
                            f"تحصيل أوردر #{self.pk}", online_order=self)
         old_status = self.status
         self.status = new_status
+        if new_status in (self.COLLECTED, self.RETURNED):
+            self.status_at = timezone.now()
         self.save()
         log_event(online_status_text(self, old_status))
 
@@ -711,7 +725,8 @@ class CashEntry(models.Model):
     KINDS = [("sale", "بيع"), ("payment", "تحصيل عميل"),
              ("supplier_payment", "سداد مورد"), ("refund", "استرداد مرتجع عميل"),
              ("online", "تحصيل أونلاين"), ("online_return", "مرتجع أونلاين"),
-             ("transfer", "تحويل بين الخزن"), ("adjust", "رصيد افتتاحي / تسوية")]
+             ("transfer", "تحويل بين الخزن"), ("adjust", "رصيد افتتاحي / تسوية"),
+             ("salary", "مرتبات وسلف")]
 
     box = models.ForeignKey(CashBox, on_delete=models.PROTECT, related_name="entries",
                             verbose_name="الخزنة")
@@ -1333,3 +1348,219 @@ for _model, _prop, _label in [(PurchaseInvoice, "total", "الإجمالي"), (S
                               (SaleReturn, "total", "الإجمالي"), (MaterialPurchase, "total", "الإجمالي"),
                               (SaleInvoice, "pieces", "القطع"), (OnlineOrder, "pieces", "القطع")]:
     getattr(_model, _prop).fget.short_description = _label
+
+
+# ================= المأموريات =================
+class Mission(models.Model):
+    OPEN, DONE = "open", "done"
+    STATUSES = [(OPEN, "شغالة"), (DONE, "خلصت")]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="missions",
+                             verbose_name="الموظف")
+    purpose = models.CharField("الغرض", max_length=200)
+    destination = models.CharField("رايح فين", max_length=200, blank=True)
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True,
+                                 verbose_name="العميل")
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True,
+                                 verbose_name="المورد")
+    status = models.CharField("الحالة", max_length=5, choices=STATUSES, default=OPEN, db_index=True)
+    started_at = models.DateTimeField("البداية", default=timezone.now, db_index=True)
+    ended_at = models.DateTimeField("النهاية", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "مأمورية"
+        verbose_name_plural = "المأموريات"
+        ordering = ["-started_at", "-id"]
+
+    def __str__(self):
+        return f"{self.user} — {self.purpose}"
+
+    @property
+    def duration_minutes(self):
+        end = self.ended_at or timezone.now()
+        return int((end - self.started_at).total_seconds() // 60)
+
+    @property
+    def route_url(self):
+        pts = [f"{p.latitude},{p.longitude}" for p in self.points.all()]
+        if not pts:
+            return ""
+        if len(pts) == 1:
+            return f"https://www.google.com/maps?q={pts[0]}"
+        return "https://www.google.com/maps/dir/" + "/".join(pts[:25])
+
+
+class MissionPoint(models.Model):
+    KINDS = [("start", "بدأ"), ("arrive", "وصل"), ("note", "ملاحظة"), ("end", "خلّص")]
+    mission = models.ForeignKey(Mission, on_delete=models.CASCADE, related_name="points")
+    kind = models.CharField("النوع", max_length=6, choices=KINDS)
+    at = models.DateTimeField("الوقت", default=timezone.now)
+    latitude = models.DecimalField("خط العرض", max_digits=9, decimal_places=6)
+    longitude = models.DecimalField("خط الطول", max_digits=9, decimal_places=6)
+    accuracy_m = models.PositiveIntegerField("الدقة (متر)", default=0)
+    note = models.CharField("ملاحظة", max_length=200, blank=True)
+    photo = models.FileField("صورة", upload_to="missions/", storage=private_storage, blank=True)
+
+    class Meta:
+        verbose_name = "نقطة مأمورية"
+        verbose_name_plural = "نقاط المأموريات"
+        ordering = ["at", "id"]
+
+    @property
+    def map_url(self):
+        return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
+
+
+# ================= الموظفين: المرتبات والإجازات وكشف الحساب =================
+class EmployeeProfile(models.Model):
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                                related_name="employee", verbose_name="الموظف")
+    job_title = models.CharField("الوظيفة", max_length=100, blank=True)
+    monthly_salary = models.DecimalField("المرتب الشهري", max_digits=12, decimal_places=2, default=0)
+    shift_start = models.TimeField("ميعاد الحضور", default="10:00")
+    shift_end = models.TimeField("ميعاد الانصراف", default="18:00")
+    grace_minutes = models.PositiveIntegerField("سماح التأخير (دقيقة)", default=15)
+    off_days = models.CharField("أيام الإجازة الأسبوعية", max_length=20, default="4",
+                                help_text="أرقام الأيام مفصولة بفاصلة: 0 الاتنين ... 4 الجمعة، 5 السبت، 6 الحد")
+    overtime_rate = models.DecimalField("معامل الأوفر تايم", max_digits=4, decimal_places=2, default=1,
+                                        help_text="1 = نفس سعر الساعة، 1.5 = ساعة ونص")
+    count_overtime = models.BooleanField("يتحسب أوفر تايم", default=True)
+    start_date = models.DateField("بداية حساب المرتب", default=timezone.localdate,
+                                  help_text="الأيام اللي قبل التاريخ ده مش بتتحسب غياب")
+    is_active = models.BooleanField("بيشتغل حالياً", default=True)
+
+    class Meta:
+        verbose_name = "بيانات موظف"
+        verbose_name_plural = "بيانات الموظفين (المرتبات)"
+
+    def __str__(self):
+        return self.user.get_full_name() or self.user.get_username()
+
+    @property
+    def off_set(self):
+        return {int(x) for x in self.off_days.replace(" ", "").split(",") if x.isdigit()}
+
+
+class LeaveRequest(models.Model):
+    KINDS = [("annual", "إجازة اعتيادية"), ("sick", "إجازة مرضي"), ("unpaid", "إجازة من غير مرتب"),
+             ("permission", "إذن (ساعات)")]
+    PENDING, APPROVED, REJECTED = "pending", "approved", "rejected"
+    STATUSES = [(PENDING, "مستني الموافقة"), (APPROVED, "اتوافق عليها"), (REJECTED, "اترفضت")]
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="leaves",
+                             verbose_name="الموظف")
+    kind = models.CharField("النوع", max_length=10, choices=KINDS, default="annual")
+    start_date = models.DateField("من يوم")
+    end_date = models.DateField("لحد يوم")
+    hours = models.DecimalField("عدد الساعات (للإذن)", max_digits=4, decimal_places=1, null=True, blank=True)
+    reason = models.CharField("السبب", max_length=200, blank=True)
+    status = models.CharField("الحالة", max_length=10, choices=STATUSES, default=PENDING, db_index=True)
+    requested_at = models.DateTimeField("وقت الطلب", auto_now_add=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name="leave_reviews", verbose_name="راجعها")
+    review_note = models.CharField("ملاحظة المراجعة", max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "طلب إجازة/إذن"
+        verbose_name_plural = "طلبات الإجازات والأذونات"
+        ordering = ["-requested_at", "-id"]
+        permissions = [("approve_leaverequest", "الموافقة على الإجازات والأذونات (مدير الحسابات)")]
+
+    def __str__(self):
+        return f"{self.user} — {self.get_kind_display()} {self.start_date}"
+
+    @property
+    def days(self):
+        return (self.end_date - self.start_date).days + 1
+
+
+class EmployeeTxn(models.Model):
+    """حركة في كشف حساب الموظف. الرصيد = اللي ليه عند المحل."""
+    KINDS = [("salary", "مرتب الشهر"), ("bonus", "مكافأة"), ("deduction", "خصم/جزاء"),
+             ("advance", "سلفة"), ("payment", "صرف مرتب")]
+    PLUS = {"salary", "bonus"}
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="employee_txns",
+                             verbose_name="الموظف")
+    date = models.DateField("التاريخ", default=timezone.localdate)
+    kind = models.CharField("النوع", max_length=10, choices=KINDS)
+    amount = models.DecimalField("المبلغ", max_digits=12, decimal_places=2,
+                                 validators=[MinValueValidator(Decimal("0.01"))])
+    description = models.CharField("البيان", max_length=200, blank=True)
+    period = models.CharField("الشهر", max_length=7, blank=True, db_index=True, help_text="للمرتب: 2026-11")
+    details = models.JSONField("تفاصيل الحساب", default=dict, blank=True)
+    box = models.ForeignKey(CashBox, on_delete=models.SET_NULL, null=True, blank=True,
+                            verbose_name="الخزنة (للسلفة والصرف)")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                   blank=True, related_name="+", editable=False, verbose_name="سجّلها")
+    created_at = models.DateTimeField("وقت التسجيل", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "حركة موظف"
+        verbose_name_plural = "كشوف حساب الموظفين"
+        ordering = ["date", "id"]
+        constraints = [models.UniqueConstraint(fields=["user", "period"], condition=models.Q(kind="salary"),
+                                               name="one_salary_per_month")]
+
+    def __str__(self):
+        return f"{self.user} — {self.get_kind_display()} {self.amount}"
+
+    @property
+    def signed(self):
+        return self.amount if self.kind in self.PLUS else -self.amount
+
+
+# ================= الجرد =================
+class StockCount(models.Model):
+    DRAFT, APPLIED, CANCELLED = "draft", "applied", "cancelled"
+    STATUSES = [(DRAFT, "شغال"), (APPLIED, "اتطبق على المخزون"), (CANCELLED, "ملغي")]
+    name = models.CharField("اسم الجرد", max_length=120)
+    status = models.CharField("الحالة", max_length=10, choices=STATUSES, default=DRAFT, db_index=True)
+    note = models.CharField("ملاحظة", max_length=200, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                   related_name="+", verbose_name="بدأه")
+    created_at = models.DateTimeField("البداية", auto_now_add=True)
+    applied_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name="+", verbose_name="طبّقه")
+    applied_at = models.DateTimeField("وقت التطبيق", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "جرد"
+        verbose_name_plural = "الجرد"
+        ordering = ["-created_at", "-id"]
+        permissions = [("apply_stockcount", "تطبيق الجرد على المخزون (تعديل الكميات)")]
+
+    def __str__(self):
+        return self.name
+
+    @transaction.atomic
+    def apply(self, user):
+        """الكمية في السيستم بتبقى اللي اتعد. الأصناف اللي ما اتعدتش ما بتتغيرش."""
+        count = StockCount.objects.select_for_update().get(pk=self.pk)
+        if count.status != self.DRAFT:
+            raise ValidationError("الجرد ده اتقفل قبل كده")
+        lines = list(self.lines.select_related("variant"))
+        if not lines:
+            raise ValidationError("مفيش أصناف اتعدت")
+        diff_qty, diff_value = 0, ZERO
+        for line in lines:
+            v = Variant.objects.select_for_update().get(pk=line.variant_id)
+            line.expected = v.quantity
+            line.save(update_fields=["expected"])
+            delta = line.counted - v.quantity
+            diff_qty += delta
+            diff_value += delta * v.avg_cost
+            v.quantity = line.counted
+            v.save()
+        self.status, self.applied_by, self.applied_at = self.APPLIED, user, timezone.now()
+        self.save()
+        return diff_qty, diff_value
+
+
+class StockCountLine(models.Model):
+    count = models.ForeignKey(StockCount, on_delete=models.CASCADE, related_name="lines")
+    variant = models.ForeignKey(Variant, on_delete=models.PROTECT, verbose_name="الصنف")
+    counted = models.PositiveIntegerField("الكمية المعدودة", default=0)
+    expected = models.IntegerField("كانت في السيستم", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "صنف في الجرد"
+        verbose_name_plural = "أصناف الجرد"
+        unique_together = ("count", "variant")

@@ -1,0 +1,95 @@
+{% extends "admin/base.html" %}
+{% block content_title %}{{ count.name }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .sc-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .sc-tools input { flex: 1 1 260px; height: 46px; }
+  .sc-chips a { display: inline-block; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--erp-line,#ddd); margin: 0 0 6px 6px; text-decoration: none; color: var(--erp-ink,#111); font-weight: 700; font-size: 14px; }
+  .sc-chips a.on { background: #000; color: #fff; border-color: #000; }
+  #sc-table input { width: 90px; text-align: center; font-weight: 800; }
+  .diff-plus { color: #0a7d33; font-weight: 800; } .diff-minus { color: #fe0000; font-weight: 800; }
+  [data-bs-theme=dark] .diff-plus { color: #4cd07d; }
+  tr.done td { background: color-mix(in srgb, #18a957 7%, transparent); }
+  .sc-sum { position: sticky; bottom: 0; background: var(--erp-card,#fff); border-top: 1px solid var(--erp-line,#ddd); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; z-index: 5; }
+  @media (max-width: 991.98px) { .sc-sum { bottom: 64px; } }
+</style>
+<p class="text-muted">الحالة: <b>{{ count.get_status_display }}</b> — بدأه {{ count.created_by|default:"" }} {{ count.created_at|date:"d/m H:i" }}</p>
+{% if count.status == "applied" %}
+<div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table mb-0">
+  <thead><tr><th>الصنف</th><th>كان في السيستم</th><th>اتعد</th><th>الفرق</th></tr></thead>
+  {% for ln in applied_lines %}<tr><td>{{ ln.variant }}</td><td>{{ ln.expected }}</td><td>{{ ln.counted }}</td>
+    <td><span class="{% if ln.diff > 0 %}diff-plus{% elif ln.diff < 0 %}diff-minus{% endif %}">{% if ln.diff > 0 %}+{% endif %}{{ ln.diff }}</span></td></tr>{% endfor %}
+</table></div></div></div>
+{% else %}
+<div class="sc-tools">
+  <input id="sc-search" type="search" class="form-control" placeholder="امسح باركود الموديل أو اكتب الاسم/الكود..." autofocus>
+  <label class="d-flex align-items-center" style="gap:6px;margin:0"><input type="checkbox" id="sc-only"> المعدود بس</label>
+</div>
+<div class="table-responsive"><table class="table table-sm" id="sc-table">
+  <thead><tr><th>الصنف</th><th>الكود</th><th>في السيستم</th><th>اتعد</th><th>الفرق</th></tr></thead><tbody></tbody></table></div>
+<div class="sc-sum">
+  <span>اتعد <b id="sc-n">0</b> صنف · الفرق <b id="sc-d">0</b> قطعة (<b id="sc-v">0.00</b> بالتكلفة)</span>
+  {% if editable %}
+  {% if can_apply %}<form method="post" action="{% url 'stock_count_action' count.pk %}" data-confirm="الكميات في السيستم هتبقى اللي اتعد للأصناف اللي عديتها. متأكد؟" data-confirm-title="تطبيق الجرد">{% csrf_token %}
+    <button name="action" value="apply" class="btn btn-primary" data-tip="يخلي كمية كل صنف اتعد = اللي عديته">طبّق على المخزون</button></form>{% endif %}
+  <form method="post" action="{% url 'stock_count_action' count.pk %}" data-confirm="هتلغي الجرد ده؟">{% csrf_token %}
+    <button name="action" value="cancel" class="btn btn-outline-secondary">إلغاء الجرد</button></form>
+  {% endif %}
+</div>
+{{ variants|json_script:"sc-data" }}
+<script>
+(function () {
+  var V = JSON.parse(document.getElementById("sc-data").textContent), EDIT = {{ editable|yesno:"true,false" }};
+  var tbody = document.querySelector("#sc-table tbody"), search = document.getElementById("sc-search");
+  var url = "{% url 'stock_count_set' count.pk %}", csrf = "{{ csrf_token }}";
+  function lbl(v) { return v.name + " — " + v.size + (v.color ? " — " + v.color : ""); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function sums() {
+    var n = 0, d = 0, val = 0;
+    V.forEach(function (v) { if (v.counted !== null) { n++; d += v.counted - v.system; val += (v.counted - v.system) * v.cost; } });
+    document.getElementById("sc-n").textContent = n; document.getElementById("sc-d").textContent = (d > 0 ? "+" : "") + d;
+    document.getElementById("sc-v").textContent = val.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+  function render() {
+    var f = search.value.trim().toLowerCase(), only = document.getElementById("sc-only").checked;
+    var list = V.filter(function (v) {
+      if (only && v.counted === null) return false;
+      return !f || v.code.toLowerCase() === f || (lbl(v) + " " + v.code).toLowerCase().indexOf(f) !== -1;
+    }).slice(0, 200);
+    tbody.innerHTML = list.map(function (v) {
+      var diff = v.counted === null ? "" : v.counted - v.system;
+      return '<tr data-id="' + v.id + '" class="' + (v.counted !== null ? "done" : "") + '"><td>' + esc(lbl(v)) + "</td><td>" + esc(v.code) + "</td><td>" + v.system + "</td>" +
+        '<td><input type="number" min="0" class="form-control form-control-sm" value="' + (v.counted === null ? "" : v.counted) + '"' + (EDIT ? "" : " disabled") + "></td>" +
+        '<td class="' + (diff > 0 ? "diff-plus" : diff < 0 ? "diff-minus" : "") + '">' + (diff === "" ? "—" : (diff > 0 ? "+" : "") + diff) + "</td></tr>";
+    }).join("") || '<tr><td colspan="5" class="text-muted p-3">مفيش أصناف بالبحث ده.</td></tr>';
+    sums();
+  }
+  var timers = {};
+  tbody.addEventListener("input", function (e) {
+    var tr = e.target.closest("tr"); if (!tr) return;
+    var id = +tr.getAttribute("data-id"), v = V.find(function (x) { return x.id === id; });
+    var raw = e.target.value.trim();
+    v.counted = raw === "" ? null : Math.max(0, parseInt(raw, 10) || 0);
+    clearTimeout(timers[id]);
+    timers[id] = setTimeout(function () {
+      fetch(url, {method: "POST", headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
+                  body: JSON.stringify({variant: id, counted: v.counted})});
+    }, 400);
+    var diff = v.counted === null ? "" : v.counted - v.system, cell = tr.lastElementChild;
+    cell.textContent = diff === "" ? "—" : (diff > 0 ? "+" : "") + diff;
+    cell.className = diff > 0 ? "diff-plus" : diff < 0 ? "diff-minus" : "";
+    tr.classList.toggle("done", v.counted !== null);
+    sums();
+  });
+  search.addEventListener("input", render);
+  search.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return; e.preventDefault();
+    var inp = tbody.querySelector("input:not([disabled])"); if (inp) { inp.focus(); inp.select(); }
+  });
+  document.getElementById("sc-only").addEventListener("change", render);
+  render();
+})();
+</script>
+{% endif %}
+{% endblock %}

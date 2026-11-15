@@ -33,7 +33,7 @@ def _period(start, end):
     # الأونلاين: التحصيل بيدخل المبيعات والربح، والمرتجع بيخصم تكلفة الشحن
     online = (OnlineOrder.objects
               .filter(status__in=[OnlineOrder.COLLECTED, OnlineOrder.RETURNED],
-                      updated_at__date__range=(start, end))
+                      status_at__date__range=(start, end))
               .prefetch_related("items"))
     for o in online:
         profit += o.profit

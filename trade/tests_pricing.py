@@ -27,28 +27,28 @@ class RepeatCustomerPrices(TestCase):
         self.v = Variant.objects.create(model=model, size="L", color="أسود",
                                         sale_price=D("200"), quantity=50, avg_cost=D("80"))
 
-    def checkout(self, user, price, qty=1):
+    def checkout(self, user, price, qty=1, channel="retail", customer=True):
         self.client.force_login(user)
         body = {"items": [{"id": self.v.pk, "qty": qty, "price": price}],
-                "discount": 0, "customer": self.customer.pk, "seller": self.seller.pk,
-                "channel": "retail", "credit": False,
+                "discount": 0, "customer": self.customer.pk if customer else None, "seller": self.seller.pk,
+                "channel": channel, "credit": False,
                 "payments": [{"box": self.box.pk, "amount": price * qty}]}
         return self.client.post(reverse("pos_checkout"), json.dumps(body),
                                 content_type="application/json")
 
     def test_first_invoice_sets_the_price(self):
-        self.assertEqual(self.checkout(self.sales, 180).status_code, 200)
+        self.assertEqual(self.checkout(self.acct, 180).status_code, 200)
         self.assertEqual(customer_last_prices(self.customer)[self.v.pk], D("180"))
 
     def test_second_invoice_must_keep_previous_price(self):
-        self.checkout(self.sales, 180)
+        self.checkout(self.acct, 180)
         r = self.checkout(self.sales, 200)
         self.assertEqual(r.status_code, 400)
         self.assertIn("التعديل من مدير الحسابات", r.json()["error"])
         self.assertEqual(self.v.__class__.objects.get(pk=self.v.pk).quantity, 49)
 
     def test_second_invoice_same_price_is_accepted(self):
-        self.checkout(self.sales, 180)
+        self.checkout(self.acct, 180)
         self.assertEqual(self.checkout(self.sales, 180).status_code, 200)
 
     def test_accounts_manager_can_change_price(self):
@@ -56,25 +56,27 @@ class RepeatCustomerPrices(TestCase):
         self.assertEqual(self.checkout(self.acct, 150).status_code, 200)
         self.assertEqual(customer_last_prices(self.customer)[self.v.pk], D("150"))
 
-    def test_price_for_new_item_is_free(self):
-        other = Variant.objects.create(model=self.v.model, size="M", color="أبيض",
-                                       sale_price=D("100"), quantity=5, avg_cost=D("40"))
-        self.checkout(self.sales, 180)
-        self.client.force_login(self.sales)
-        body = {"items": [{"id": other.pk, "qty": 1, "price": 90}], "discount": 0,
-                "customer": self.customer.pk, "seller": self.seller.pk, "channel": "retail",
-                "credit": False, "payments": [{"box": self.box.pk, "amount": 90}]}
-        r = self.client.post(reverse("pos_checkout"), json.dumps(body),
-                             content_type="application/json")
-        self.assertEqual(r.status_code, 200)
+    def test_only_accounts_manager_changes_list_price(self):
+        r = self.checkout(self.sales, 180)   # السعر 200: البياع ميقدرش يغيّره
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("لمدير الحسابات", r.json()["error"])
+        self.assertEqual(self.checkout(self.sales, 200).status_code, 200)
+
+    def test_wholesale_price_by_channel(self):
+        self.v.wholesale_price = D("150")
+        self.v.save()
+        self.assertEqual(self.checkout(self.sales, 150, channel="wholesale", customer=False).status_code, 200)
+        self.assertEqual(self.checkout(self.sales, 200, channel="wholesale", customer=False).status_code, 400)
+        self.assertEqual(self.checkout(self.sales, 200, channel="retail", customer=False).status_code, 200)
+        self.assertEqual(self.checkout(self.acct, 140, channel="wholesale", customer=False).status_code, 200)
 
     def test_last_price_follows_latest_invoice(self):
-        self.checkout(self.sales, 180)
+        self.checkout(self.acct, 180)
         self.checkout(self.acct, 170)
         self.assertEqual(customer_last_prices(self.customer)[self.v.pk], D("170"))
 
     def test_prices_endpoint_reports_permission(self):
-        self.checkout(self.sales, 180)
+        self.checkout(self.acct, 180)
         self.client.force_login(self.sales)
         d = self.client.get(reverse("pos_customer_prices"), {"customer": self.customer.pk}).json()
         self.assertEqual(d["prices"], {str(self.v.pk): 180.0})

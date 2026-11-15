@@ -609,3 +609,56 @@ class SpiritGroupAdmin(GroupAdmin):
         if db_field.name == "permissions":
             return _permissions_field(db_field, request, self, **kwargs)
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
+# ================= الموظفين والمأموريات والجرد =================
+from .models import (EmployeeProfile, EmployeeTxn, LeaveRequest, Mission, MissionPoint,  # noqa: E402
+                     StockCount, StockCountLine)
+
+
+@admin.register(EmployeeProfile)
+class EmployeeProfileAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "job_title", "monthly_salary", "shift_start", "shift_end", "is_active")
+    list_filter = ("is_active",)
+    autocomplete_fields = ("user",)
+    search_fields = ("user__username", "user__first_name", "user__last_name", "job_title")
+
+
+class _ReadOnly(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(EmployeeTxn)
+class EmployeeTxnAdmin(_ReadOnly):
+    list_display = ("user", "date", "kind", "amount", "description")
+    list_filter = ("kind", "user")
+
+
+@admin.register(LeaveRequest)
+class LeaveRequestAdmin(_ReadOnly):
+    list_display = ("user", "kind", "start_date", "end_date", "hours", "status", "reviewed_by")
+    list_filter = ("status", "kind")
+
+
+class MissionPointInline(admin.TabularInline):
+    model = MissionPoint
+    extra = 0
+    exclude = ("photo",)
+    readonly_fields = ("kind", "at", "latitude", "longitude", "accuracy_m", "note")
+    can_delete = False
+
+
+@admin.register(Mission)
+class MissionAdmin(_ReadOnly):
+    list_display = ("user", "purpose", "started_at", "ended_at", "status")
+    list_filter = ("status", "user")
+    inlines = [MissionPointInline]
+
+
+@admin.register(StockCount)
+class StockCountAdmin(_ReadOnly):
+    list_display = ("name", "status", "created_by", "created_at", "applied_at")

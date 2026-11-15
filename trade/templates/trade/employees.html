@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}الموظفين والمرتبات{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap mb-3" style="gap:8px">
+  <a class="btn btn-primary" href="{% url 'payroll' %}?month={{ period }}" data-tip="يحسب مرتب كل موظف الشهر ده من البصمة والإجازات"><i class="fas fa-calculator"></i> حساب المرتبات</a>
+  <a class="btn btn-outline-secondary" href="{% url 'leaves' %}">الإجازات والأذونات</a>
+  {% if perms.trade.add_employeeprofile %}<a class="btn btn-outline-secondary" href="{% url 'admin:trade_employeeprofile_add' %}" data-tip="حدد مرتب الموظف ومواعيده وأيام إجازته">+ بيانات موظف</a>{% endif %}
+</div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table mb-0">
+  <thead><tr><th>الموظف</th><th>الوظيفة</th><th>المرتب</th><th>المواعيد</th><th>الباقي له</th><th></th></tr></thead>
+  {% for r in rows %}<tr{% if not r.p.is_active %} class="text-muted"{% endif %}>
+    <td><b>{{ r.p }}</b>{% if not r.p.is_active %} (مش بيشتغل){% endif %}</td><td>{{ r.p.job_title|default:"—" }}</td>
+    <td>{{ r.p.monthly_salary|floatformat:2|intcomma }}</td>
+    <td>{{ r.p.shift_start|time:"H:i" }} – {{ r.p.shift_end|time:"H:i" }}</td>
+    <td class="{% if r.balance > 0 %}text-danger{% endif %}"><b>{{ r.balance|floatformat:2|intcomma }}</b></td>
+    <td><a class="btn btn-sm btn-dark" href="{% url 'employee_detail' r.p.user_id %}">كشف الحساب</a>
+      {% if perms.trade.change_employeeprofile %}<a class="btn btn-sm btn-outline-secondary" href="{% url 'admin:trade_employeeprofile_change' r.p.pk %}">تعديل</a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6" class="text-muted p-3">لسه مفيش موظفين متسجلين. اضغط "+ بيانات موظف" واختار حسابه وحدد مرتبه ومواعيده.</td></tr>{% endfor %}
+</table></div></div></div>
+{% endblock %}

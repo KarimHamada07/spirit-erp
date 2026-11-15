@@ -1,0 +1,21 @@
+{# أي فورم عليه data-geo بيجيب اللوكيشن ويحطه في lat/lng/accuracy قبل ما يتبعت #}
+<script>
+(function () {
+  document.querySelectorAll("form[data-geo]").forEach(function (f) {
+    f.addEventListener("submit", function (e) {
+      if (f.lat.value) return;
+      e.preventDefault();
+      var btn = f.querySelector("button[type=submit],button:not([type])");
+      if (!navigator.geolocation) { alert("الموبايل ده مش بيدعم اللوكيشن"); return; }
+      if (btn) { btn.disabled = true; btn.dataset.txt = btn.innerHTML; btn.innerHTML = "بنحدد مكانك..."; }
+      navigator.geolocation.getCurrentPosition(function (p) {
+        f.lat.value = p.coords.latitude.toFixed(6); f.lng.value = p.coords.longitude.toFixed(6);
+        f.accuracy.value = Math.round(p.coords.accuracy); f.submit();
+      }, function () {
+        alert("لازم تسمح باستخدام اللوكيشن من إعدادات المتصفح");
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.txt; }
+      }, {enableHighAccuracy: true, timeout: 20000, maximumAge: 0});
+    });
+  });
+})();
+</script>
