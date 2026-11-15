@@ -200,3 +200,72 @@ html .select2-container--default.select2-container--open .select2-selection--sin
 html .select2-dropdown { border-radius: var(--ui-radius-sm); border-color: var(--erp-line); overflow: hidden;
   box-shadow: var(--ui-shadow-hover); animation: erp-drop .2s var(--ui-ease) both; }
 html .select2-results__option--highlighted { background: var(--ui-red-grad) !important; }
+
+/* ===== مربع الاختيار المزدوج (الأدوار والصلاحيات) ===== */
+html .related-widget-wrapper:has(> .selector) { display: block; width: 100%; }
+html .selector { display: flex !important; flex-wrap: wrap; align-items: stretch; gap: 14px; width: 100% !important; float: none; }
+html .selector-available, html .selector-chosen { flex: 1 1 240px; min-width: 0; width: auto !important; float: none !important;
+  display: flex; flex-direction: column; gap: 8px; padding: 14px; margin: 0;
+  background: var(--erp-card); border: 1px solid var(--erp-line); border-radius: var(--ui-radius); }
+html .selector-available-title, html .selector-chosen-title { border: 0 !important; background: transparent !important;
+  padding: 0 !important; text-align: start; color: var(--erp-ink); }
+html .selector-available-title label, html .selector-chosen-title label { font-weight: 800; font-size: 15px; display: block; }
+html .selector-available-title .helptext, html .selector-chosen-title .helptext { font-size: 12.5px; color: var(--erp-muted); margin: 4px 0 0; }
+html .selector-chosen-title label { color: #fe0000; }
+html .selector-filter { margin: 0; padding: 0 !important; border: 0 !important; background: transparent !important; }
+html .selector-filter input { width: 100% !important; border-radius: 999px; padding: 8px 14px; border: 1px solid var(--erp-line);
+  background: var(--erp-soft); color: var(--erp-ink); }
+html .selector-filter label, html .selector-filter .help-tooltip { display: none; }
+html .selector select { width: 100% !important; height: 300px !important; min-height: 300px; border-radius: var(--ui-radius-sm);
+  border: 1px solid var(--erp-line) !important; padding: 6px; background: var(--erp-card); color: var(--erp-ink);
+  font-size: 14px; box-shadow: none !important; background-image: none !important; }
+html .selector select option { padding: 7px 10px; border-radius: 8px; margin-bottom: 2px; white-space: normal; }
+html .selector select option:hover { background: var(--erp-soft); }
+html .selector select option:checked { background: linear-gradient(0deg, #fe0000, #fe0000); color: #fff; }
+html .selector .invalid-feedback { display: none !important; }   /* رسالة غلط بتظهر من غير سبب */
+html .selector-chooser { display: flex; flex-direction: column; justify-content: center; gap: 10px; width: auto !important;
+  margin: 0 !important; padding: 0 !important; list-style: none; align-self: center; background: transparent !important; }
+html .selector-chooser li { margin: 0; }
+html .selector-chooser button, html .selector-chooser a {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 120px; max-width: 160px; padding: 8px 12px;
+  white-space: normal; line-height: 1.4;
+  border-radius: 999px; border: 1px solid var(--erp-line); background: var(--erp-card); color: var(--erp-ink);
+  font-weight: 700; font-size: 13px; text-indent: 0; width: auto; height: auto; overflow: visible; background-image: none;
+  transition: all .2s var(--ui-ease); }
+html .selector-chooser .active, html .selector-chooser button:not(:disabled):not(.disabled) {
+  background: var(--ui-red-grad); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(254,0,0,.25); }
+html .selector-chooser button:disabled, html .selector-chooser .disabled { opacity: .45; }
+html .selector-chooseall, html .selector-clearall { border-radius: 999px !important; padding: 7px 14px !important; font-weight: 700;
+  border: 1px solid var(--erp-line) !important; background: var(--erp-soft) !important; color: var(--erp-ink) !important;
+  text-indent: 0 !important; width: 100% !important; height: auto !important; background-image: none !important; }
+html .selector-chooseall:not(:disabled):hover, html .selector-clearall:not(:disabled):hover { border-color: #fe0000 !important; color: #fe0000 !important; }
+html .selector-chooseall:disabled, html .selector-clearall:disabled { opacity: .5; }
+html .list-footer-display { font-size: 12px; color: var(--erp-muted); text-align: center; }
+html .related-widget-wrapper-link.add-related { display: inline-flex; margin-top: 8px; }
+@media (max-width: 767px) {
+  html .selector-chooser { flex-direction: row; width: 100% !important; justify-content: center; }
+  html .selector-chooser button, html .selector-chooser a { min-width: 0; flex: 1 1 0; }
+  html .selector select { height: 220px !important; min-height: 220px; }
+}
+
+/* ===== الخانات اللي آه/لأ في فورمات لوحة الإدارة: شكل مفتاح ===== */
+html form[id$="_form"]:not(#changelist-form) input[type=checkbox]:not(.action-select):not(#action-toggle) {
+  appearance: none; -webkit-appearance: none; width: 44px; height: 24px; border-radius: 999px; position: relative;
+  background: var(--erp-line); cursor: pointer; vertical-align: middle; flex: 0 0 auto;
+  transition: background .25s var(--ui-ease); margin: 0; }
+html form[id$="_form"]:not(#changelist-form) input[type=checkbox]:not(.action-select):not(#action-toggle)::after {
+  content: ""; position: absolute; top: 3px; inset-inline-start: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: inset-inline-start .25s var(--ui-ease); }
+html form[id$="_form"]:not(#changelist-form) input[type=checkbox]:not(.action-select):not(#action-toggle):checked { background: var(--ui-red-grad); }
+html form[id$="_form"]:not(#changelist-form) input[type=checkbox]:not(.action-select):not(#action-toggle):checked::after { inset-inline-start: 23px; }
+
+/* ===== فورمات لوحة الإدارة: صفوف أوضح ===== */
+html .form-group.row, html fieldset .form-row { padding: 10px 0; border-bottom: 1px dashed color-mix(in srgb, var(--erp-line) 70%, transparent); margin: 0; }
+html .form-group.row:last-child { border-bottom: 0; }
+html .form-group .help-block, html .form-group .helptext, html .form-text { color: var(--erp-muted); font-size: 12.5px; line-height: 1.7; }
+html .tab-content > .tab-pane { animation: erp-fade-up .3s var(--ui-ease) both; }
+
+/* صف فيه مربع اختيار مزدوج: ياخد عرض الصفحة كله عشان القايمتين يبقوا جنب بعض */
+html .form-group.row:has(.selector) > *, html .form-group .row:has(.selector) > * { flex: 0 0 100%; max-width: 100%; }
+html .form-group .row:has(.selector) > label, html .form-group .row:has(.selector) > div:first-child:not(:has(.selector)) {
+  margin-bottom: 8px; font-weight: 800; text-align: right !important; }

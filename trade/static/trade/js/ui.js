@@ -278,7 +278,13 @@
     window.addEventListener("pageshow", function () { bar.className = ""; });
   }
 
+  /* AdminLTE بيعلّم مربع الاختيار المزدوج إنه غلط أول ما الصفحة تفتح: نشيل العلامة */
+  function fixSelectors() {
+    doc.querySelectorAll(".selector select.is-invalid").forEach(function (s) { s.classList.remove("is-invalid"); });
+  }
+
   function init() {
+    fixSelectors(); setTimeout(fixSelectors, 400); setTimeout(fixSelectors, 1500);
     prepare();
     helpBox();
     reveal();
