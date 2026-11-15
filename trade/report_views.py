@@ -70,10 +70,10 @@ def collect(d1, d2):
     online = []
     orders = (OnlineOrder.objects
               .filter(status__in=[OnlineOrder.COLLECTED, OnlineOrder.RETURNED],
-                      updated_at__date__range=(d1, d2))
-              .prefetch_related("items__variant__model").order_by("updated_at"))
+                      status_at__date__range=(d1, d2))
+              .prefetch_related("items__variant__model").order_by("status_at"))
     for o in orders:
-        d = timezone.localtime(o.updated_at).date()
+        d = timezone.localtime(o.status_at).date()
         collected = o.status == OnlineOrder.COLLECTED
         revenue = (o.items_total - o.discount) if collected else ZERO
         online.append({"no": o.pk, "date": d, "name": o.customer_name, "phone": o.phone,

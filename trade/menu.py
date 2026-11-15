@@ -13,6 +13,9 @@ MENU = [
     ("", [
         ("لوحة التحكم", "dashboard", "fas fa-house", "trade.view_saleinvoice"),
         ("بصمتي", "my_attendance", "fas fa-fingerprint", None),
+        ("مأمورياتي", "my_missions", "fas fa-car-side", None),
+        ("إجازاتي", "leaves", "fas fa-umbrella-beach", None),
+        ("حسابي", "my_statement", "fas fa-id-card", "employee"),
         ("عهدتي", "my_custody", "fas fa-wallet", "custody_holder"),
     ]),
     ("البيع", [
@@ -28,6 +31,8 @@ MENU = [
     ]),
     ("المخزون", [
         ("المخزون", "inventory", "fas fa-boxes-stacked", "trade.view_variant"),
+        ("الجرد", "stock_counts", "fas fa-clipboard-list", "trade.view_stockcount"),
+        ("اقتراحات الطلب", "reorder", "fas fa-cart-flatbed", "trade.view_purchaseinvoice"),
         ("الموديلات", "admin:trade.clothingmodel", "fas fa-shirt", "trade.view_clothingmodel"),
         ("المقاسات والألوان", "admin:trade.variant", "fas fa-palette", "trade.view_variant"),
         ("فواتير التوريد", "admin:trade.purchaseinvoice", "fas fa-dolly", "trade.view_purchaseinvoice"),
@@ -63,7 +68,9 @@ MENU = [
         ("المستخدمين", "admin:auth.user", "fas fa-user-shield", "auth.view_user"),
         ("الأدوار والصلاحيات", "admin:auth.group", "fas fa-users-gear", "auth.view_group"),
         ("استيراد وتصدير Excel", "data_center", "fas fa-file-import", "trade.import_data"),
+        ("الموظفين والمرتبات", "employees", "fas fa-people-group", "trade.view_employeetxn"),
         ("الحضور والانصراف", "attendance_report", "fas fa-user-clock", "trade.view_attendance"),
+        ("المأموريات", "missions_report", "fas fa-route", "trade.view_mission"),
         ("سجل المراجعة", "audit", "fas fa-clock-rotate-left", "trade.view_auditlog"),
         ("سجل النشاط وتليجرام", "activity", "fas fa-bell", "superuser"),
     ]),
@@ -94,6 +101,8 @@ def _allowed(user, perm):
         return True
     if perm == "superuser":
         return user.is_superuser
+    if perm == "employee":  # الموظف اللي ليه بيانات مرتب يشوف كشف حسابه
+        return getattr(user, "employee", None) is not None
     if perm == "custody_holder":  # الشخص اللي عليه عهدة مربوطة بحسابه
         return getattr(user, "custody_holder", None) is not None
     return user.has_perm(perm)

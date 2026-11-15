@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+
+{% block content_title %}المأموريات{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<style>
+  .ms { border: 1px solid var(--erp-line,#e2e2e4); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; background: var(--erp-card,#fff); }
+  .ms .top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+  .pts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .pt { font-size: 13px; padding: 6px 10px; border-radius: 10px; background: var(--erp-soft,#f1f1f2); }
+  .pt img { display: block; width: 90px; height: 90px; object-fit: cover; border-radius: 8px; margin-top: 4px; }
+  .open { color: #18a957; font-weight: 800; }
+</style>
+<form method="get" class="d-flex flex-wrap align-items-end mb-3" style="gap:10px">
+  <div><label class="mb-1 d-block">من</label><input type="date" name="from" value="{{ d1 }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">إلى</label><input type="date" name="to" value="{{ d2 }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">الموظف</label><select name="user" class="form-control"><option value="">الكل</option>
+    {% for u in users %}<option value="{{ u.pk }}" {% if user_id == u.pk|stringformat:"s" %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">عرض</button>
+</form>
+{% for m in missions %}
+<div class="ms">
+  <div class="top">
+    <div><b>{{ m.user.get_full_name|default:m.user.username }}</b> — {{ m.purpose }}{% if m.destination %} ({{ m.destination }}){% endif %}{% if m.customer %} · عميل: {{ m.customer }}{% endif %}</div>
+    <div>{{ m.started_at|date:"D d/m H:i" }} · {{ m.duration_minutes }} دقيقة {% if m.status == "open" %}<span class="open">شغالة</span>{% endif %}
+      {% if m.route_url %}· <a href="{{ m.route_url }}" target="_blank" rel="noopener" data-tip="يفتح كل الأماكن على خريطة جوجل بالترتيب">خط السير</a>{% endif %}</div>
+  </div>
+  <div class="pts">
+    {% for p in m.points.all %}<div class="pt"><b>{{ p.get_kind_display }}</b> {{ p.at|date:"H:i" }}{% if p.note %}<br>{{ p.note }}{% endif %}
+      <br><a href="{{ p.map_url }}" target="_blank" rel="noopener">الخريطة</a> <small class="text-muted">±{{ p.accuracy_m }}م</small>
+      {% if p.photo %}<a href="{% url 'mission_photo' p.pk %}" target="_blank"><img loading="lazy" src="{% url 'mission_photo' p.pk %}" alt="صورة"></a>{% endif %}</div>{% endfor %}
+  </div>
+</div>
+{% empty %}<p class="text-muted">مفيش مأموريات في الفترة دي.</p>{% endfor %}
+{% endblock %}

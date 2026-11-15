@@ -21,13 +21,20 @@ from trade.customer_views import (customer_add, customer_detail, customer_pay, c
 from trade.online_views import (online_create, online_detail, online_list,
                                 online_new, online_status)
 from trade.pwa_views import manifest, offline, service_worker
-from trade.pos_views import pos, pos_checkout, pos_customer_prices, sale_pdf, sale_print
+from trade.pos_views import (invoice_public, pos, pos_checkout, pos_customer_prices, pos_return,
+                             pos_return_lookup, sale_pdf, sale_print)
 from trade.stock_views import inventory, inventory_detail, purchase_confirm
 from trade.treasury_views import (commissions_view, daily_close_view,
                                   treasury, treasury_action)
 from trade.data_views import data_center, data_confirm, data_file, data_preview, data_upload
 from trade.debt_views import debt_followup_add, debts
 from trade.supplier_views import supplier_statement_view, suppliers
+from trade.employee_views import (employee_detail, employee_statement_file, employee_txn_add, employees,
+                                  leave_request, leave_review, leaves, my_statement, payroll, payroll_approve)
+from trade.mission_views import (mission_photo, mission_point, mission_start, missions_report,
+                                 my_missions)
+from trade.stock_count_views import (reorder, reorder_create, stock_count_action, stock_count_detail,
+                                     stock_count_set, stock_counts)
 from trade.views import dashboard
 
 urlpatterns = [
@@ -41,8 +48,11 @@ urlpatterns = [
     path("pos/", pos, name="pos"),
     path("pos/checkout/", pos_checkout, name="pos_checkout"),
     path("pos/customer-prices/", pos_customer_prices, name="pos_customer_prices"),
+    path("pos/return/lookup/", pos_return_lookup, name="pos_return_lookup"),
+    path("pos/return/", pos_return, name="pos_return"),
     path("invoice/<int:pk>/", sale_print, name="sale_print"),
     path("invoice/<int:pk>/pdf/", sale_pdf, name="sale_pdf"),
+    path("i/<str:token>/", invoice_public, name="invoice_public"),
     path("inventory/", inventory, name="inventory"),
     path("inventory/<int:pk>/", inventory_detail, name="inventory_detail"),
     path("purchase/<int:pk>/confirm/", purchase_confirm, name="purchase_confirm"),
@@ -72,6 +82,27 @@ urlpatterns = [
     path("attendance/report/", attendance_report, name="attendance_report"),
     path("attendance/workplace/add/", workplace_add, name="workplace_add"),
     path("attendance/<int:pk>/photo/", attendance_photo, name="attendance_photo"),
+    path("missions/", my_missions, name="my_missions"),
+    path("missions/start/", mission_start, name="mission_start"),
+    path("missions/<int:pk>/point/", mission_point, name="mission_point"),
+    path("missions/report/", missions_report, name="missions_report"),
+    path("missions/photo/<int:pk>/", mission_photo, name="mission_photo"),
+    path("employees/", employees, name="employees"),
+    path("employees/me/", my_statement, name="my_statement"),
+    path("employees/payroll/", payroll, name="payroll"),
+    path("employees/payroll/approve/", payroll_approve, name="payroll_approve"),
+    path("employees/<int:user_id>/", employee_detail, name="employee_detail"),
+    path("employees/<int:user_id>/add/", employee_txn_add, name="employee_txn_add"),
+    path("employees/<int:user_id>/statement/<str:fmt_>/", employee_statement_file, name="employee_statement_file"),
+    path("leaves/", leaves, name="leaves"),
+    path("leaves/request/", leave_request, name="leave_request"),
+    path("leaves/<int:pk>/review/", leave_review, name="leave_review"),
+    path("stock-count/", stock_counts, name="stock_counts"),
+    path("stock-count/<int:pk>/", stock_count_detail, name="stock_count_detail"),
+    path("stock-count/<int:pk>/set/", stock_count_set, name="stock_count_set"),
+    path("stock-count/<int:pk>/action/", stock_count_action, name="stock_count_action"),
+    path("reorder/", reorder, name="reorder"),
+    path("reorder/create/", reorder_create, name="reorder_create"),
     path("data/", data_center, name="data_center"),
     path("data/<str:key>/<str:kind>.xlsx", data_file, name="data_file"),
     path("data/<str:key>/upload/", data_upload, name="data_upload"),

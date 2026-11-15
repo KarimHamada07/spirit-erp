@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<form method="get" class="d-flex flex-wrap align-items-end mb-3" style="gap:10px">
+  <div><label class="mb-1 d-block">الشهر</label><input type="month" name="month" value="{{ period }}" class="form-control"></div>
+  <button class="btn btn-primary">احسب</button>
+  <a class="btn btn-outline-secondary" href="{% url 'employees' %}">الموظفين</a>
+</form>
+<div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table mb-0">
+  <thead><tr><th>الموظف</th><th>أيام الشغل</th><th>حضور</th><th>غياب</th><th>إجازات</th><th>تأخير (دقيقة)</th><th>أوفر تايم (دقيقة)</th>
+    <th>الأساسي</th><th>خصم غياب</th><th>خصم تأخير</th><th>أوفر تايم</th><th>الصافي</th><th></th></tr></thead>
+  {% for r in rows %}{% with s=r.st %}<tr>
+    <td><a href="{% url 'employee_detail' r.profile.user_id %}"><b>{{ r.profile }}</b></a></td>
+    <td>{{ s.work_days }}</td><td>{{ s.present }}</td><td class="{% if s.absent %}text-danger{% endif %}">{{ s.absent }}</td>
+    <td>{{ s.paid_leave }}{% if s.unpaid_leave %} + {{ s.unpaid_leave }} من غير مرتب{% endif %}</td>
+    <td>{{ s.late_minutes }}{% if s.excused %} <small class="text-muted">(إذن {{ s.excused }})</small>{% endif %}</td><td>{{ s.overtime }}</td>
+    <td>{{ s.salary|floatformat:2|intcomma }}</td><td class="text-danger">{{ s.absence_deduction|floatformat:2|intcomma }}</td>
+    <td class="text-danger">{{ s.late_deduction|floatformat:2|intcomma }}</td><td>{{ s.overtime_pay|floatformat:2|intcomma }}</td>
+    <td><b>{{ s.net|floatformat:2|intcomma }}</b></td>
+    <td>{% if r.done %}<span class="badge badge-success">اتعتمد</span>{% endif %}</td></tr>{% endwith %}
+  {% empty %}<tr><td colspan="13" class="text-muted p-3">مفيش موظفين ليهم بيانات مرتب. ضيفهم من صفحة الموظفين.</td></tr>{% endfor %}
+  {% if rows %}<tr><td colspan="11"><b>الإجمالي</b></td><td><b>{{ total|floatformat:2|intcomma }}</b></td><td></td></tr>{% endif %}
+</table></div></div></div>
+{% if can_approve and pending %}
+<form method="post" action="{% url 'payroll_approve' %}" class="mt-3" data-confirm="هيتسجل مرتب {{ pending }} موظف في كشف حسابهم ومصروفات الشهر. متأكد؟" data-confirm-title="اعتماد المرتبات">
+  {% csrf_token %}<input type="hidden" name="month" value="{{ period }}">
+  <button class="btn btn-primary btn-lg" data-tip="يسجل المرتب في كشف حساب كل موظف ويضيفه للمصروفات (مرة واحدة للشهر)">اعتمد المرتبات ({{ pending }})</button>
+</form>
+{% endif %}
+<p class="text-muted mt-3" style="font-size:13px">اليوم = المرتب ÷ 30. الغياب بيتخصم يوم، والتأخير بعد السماح والخروج بدري بيتخصموا بالدقيقة، والإذن المتوافق عليه بيغطي ساعاته. الأوفر تايم بالدقيقة × المعامل. الشهر الحالي بيتحسب لحد النهارده.</p>
+{% endblock %}

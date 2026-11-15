@@ -257,7 +257,8 @@ class ProductsSpec(Spec):
         ("category", "التصنيف", False, "جاكيت / تريكو / بنطلون / سويت شيرت / تيشيرت / بدلة / شورت / قميص"),
         ("size", "المقاس", True, "S / M / L / XL أو رقم"),
         ("color", "اللون", False, ""),
-        ("sale_price", "سعر البيع", True, ""),
+        ("sale_price", "سعر البيع", True, "سعر القطاعي"),
+        ("wholesale_price", "سعر الجملة", False, "فاضي = نفس سعر القطاعي"),
         ("low_stock_level", "حد التنبيه", False, "للموديل كله. فاضي = 5"),
         ("opening_qty", "كمية افتتاحية", False, "بتتضاف مرة واحدة بس لصنف مالوش حركة قبل كده"),
         ("unit_cost", "تكلفة القطعة", False, "مطلوبة لو فيه كمية افتتاحية"),
@@ -270,7 +271,7 @@ class ProductsSpec(Spec):
     def export_rows(self):
         for v in Variant.objects.select_related("model").order_by("model__code", "size", "color"):
             yield [v.model.code, v.model.name, v.model.get_category_display(), v.size, v.color,
-                   v.sale_price,
+                   v.sale_price, v.wholesale_price or "",
                    v.model.low_stock_level, "", "", v.quantity, v.avg_cost]
 
     def check(self, raw, cache):
@@ -285,6 +286,7 @@ class ProductsSpec(Spec):
         size = _req(raw.get("size"), "المقاس")[:20]
         color = _text(raw.get("color"))[:30]
         price = _dec(raw.get("sale_price"), "سعر البيع", required=True)
+        wprice = _dec(raw.get("wholesale_price"), "سعر الجملة")
         low = _int(raw.get("low_stock_level"), "حد التنبيه")
         qty = _int(raw.get("opening_qty"), "الكمية الافتتاحية")
         cost = _dec(raw.get("unit_cost"), "تكلفة القطعة")
@@ -308,7 +310,7 @@ class ProductsSpec(Spec):
             qty = None
         label = f"{model_name} — {size}{' — ' + color if color else ''}{note}"
         clean = {"code": code, "model_name": model_name, "category": category, "size": size, "color": color,
-                 "sale_price": price, "low": low, "qty": qty, "cost": cost,
+                 "sale_price": price, "wholesale_price": wprice, "low": low, "qty": qty, "cost": cost,
                  "variant": v.pk if v else None}
         return ("update" if v else "new"), label, clean
 
@@ -325,6 +327,8 @@ class ProductsSpec(Spec):
         v = (Variant.objects.select_for_update().get(pk=c["variant"]) if c["variant"]
              else Variant(model=model, size=c["size"], color=c["color"]))
         v.sale_price = c["sale_price"]
+        if c["wholesale_price"] is not None:
+            v.wholesale_price = c["wholesale_price"]
         if c["qty"]:
             v.add_stock(c["qty"], c["cost"])
         v.save()

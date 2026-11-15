@@ -54,7 +54,17 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   مع كود مؤقت في الـ session (مرة واحدة، 3 دقايق)، والسيرفر بيتأكد من وجود وش بـ OpenCV
   (`opencv-python-headless`)، واللوكيشن بيتقارن بأماكن الشغل `Workplace`. الموظف اللي مالوش صلاحية
   `view_saleinvoice` بيتحوّل من لوحة التحكم لـ "بصمتي". التقرير بصلاحية `view_attendance`.
-- أوامر: `backup_db`، `debt_reminders`، `stock_alerts`، `telegram_test`.
+- الموظفين: `payroll.py` (المرتب من البصمة والإجازات: اليوم = المرتب ÷ 30، والتأخير/الأوفر تايم بالدقيقة) +
+  `employee_views.py` (كشف حساب `EmployeeTxn`، الإجازات `LeaveRequest` بموافقة `approve_leaverequest`).
+  `EmployeeProfile.start_date`: اللي قبله مش غياب.
+- المأموريات: `mission_views.py` (بداية/وصول/نهاية باللوكيشن، وخط السير على خريطة جوجل).
+- الجرد واقتراحات الطلب: `stock_count_views.py` (`StockCount.apply` بصلاحية `apply_stockcount`).
+- نقطة البيع: سعر الجملة `Variant.wholesale_price` حسب القناة، وتعديل السعر بصلاحية `change_sale_price` بس
+  (السيرفر بيتحقق). المرتجع من نفس الشاشة برقم الفاتورة (`pos_return_lookup` / `pos_return`).
+  الفاتورة ليها رابط موقّع للعميل `/i/<token>/` بيتبعت واتساب.
+- الأونلاين: الربح بيتحسب بـ `OnlineOrder.status_at` (يوم التحصيل/المرتجع)، مش `updated_at`.
+- أوامر: `nightly` (3 الفجر: نسخة + ملخص + النسخة لتليجرام)، `backup_db`، `debt_reminders`، `stock_alerts`،
+  `telegram_test`.
 
 ## اتفاقيات
 - اللغة عربي بس (`LANGUAGES = [("ar", ...)]`) مهما كانت لغة الموبايل. الكلام اللي Jazzmin/Django ما ترجموهوش

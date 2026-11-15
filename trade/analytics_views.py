@@ -74,9 +74,9 @@ def build(today=None, months=12, top_n=10):
 
     for o in (OnlineOrder.objects
               .filter(status__in=[OnlineOrder.COLLECTED, OnlineOrder.RETURNED],
-                      updated_at__date__gte=start)
+                      status_at__date__gte=start)
               .select_related("seller").prefetch_related("items__variant__model")):
-        d = timezone.localtime(o.updated_at).date()
+        d = timezone.localtime(o.status_at).date()
         k = keys.get((d.year, d.month))
         if k is None:
             continue

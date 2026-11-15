@@ -1,0 +1,18 @@
+{% extends "admin/base.html" %}
+{% block content_title %}الجرد{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+{% if perms.trade.add_stockcount %}
+<form method="post" class="card card-body mb-3 d-flex flex-row flex-wrap align-items-center" style="gap:8px;max-width:640px">
+  {% csrf_token %}<input name="name" class="form-control" style="flex:1 1 240px" placeholder="اسم الجرد (مثلاً: جرد آخر الشهر)">
+  <button class="btn btn-primary" data-tip="يفتح جرد جديد تعد فيه البضاعة">+ جرد جديد</button>
+</form>
+{% endif %}
+<div class="card"><div class="card-body p-0"><table class="table mb-0">
+  <thead><tr><th>الجرد</th><th>البداية</th><th>الحالة</th><th></th></tr></thead>
+  {% for c in counts %}<tr><td><b>{{ c.name }}</b></td><td>{{ c.created_at|date:"d/m/Y H:i" }} — {{ c.created_by|default:"" }}</td>
+    <td>{{ c.get_status_display }}{% if c.applied_at %} {{ c.applied_at|date:"d/m H:i" }}{% endif %}</td>
+    <td><a class="btn btn-sm btn-dark" href="{% url 'stock_count_detail' c.pk %}">فتح</a></td></tr>
+  {% empty %}<tr><td colspan="4" class="text-muted p-3">مفيش جرد لسه.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}

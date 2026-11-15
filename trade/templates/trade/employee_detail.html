@@ -1,0 +1,43 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .kpi { border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; background: var(--erp-card,#fff); border: 1px solid var(--erp-line,#e2e2e4); }
+  .kpi .label { font-size: 13px; opacity: .85; } .kpi .value { font-size: 24px; font-weight: 800; direction: ltr; text-align: right; }
+  .kpi.dark { background: #111; color: #fff; }
+  .plus { color: #0a7d33; font-weight: 700; } .minus { color: #fe0000; font-weight: 700; }
+  [data-bs-theme=dark] .plus { color: #4cd07d; }
+</style>
+<div class="row">
+  <div class="col-lg-4 col-12"><div class="kpi dark"><div class="label">الباقي له عند المحل</div><div class="value">{{ balance|floatformat:2|intcomma }}</div></div></div>
+  {% if profile %}<div class="col-lg-4 col-6"><div class="kpi"><div class="label">المرتب الشهري</div><div class="value">{{ profile.monthly_salary|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-lg-4 col-6"><div class="kpi"><div class="label">المواعيد</div><div class="value" style="font-size:20px">{{ profile.shift_start|time:"H:i" }} – {{ profile.shift_end|time:"H:i" }}</div></div></div>{% endif %}
+</div>
+{% url 'employee_statement_file' emp.pk 'pdf' as pdf_url %}{% url 'employee_statement_file' emp.pk 'xlsx' as xlsx_url %}
+{% include "trade/_statement_box.html" with pdf_url=pdf_url xlsx_url=xlsx_url %}
+{% if can_add and not is_me %}
+<form method="post" action="{% url 'employee_txn_add' emp.pk %}" class="card card-body mb-3">
+  {% csrf_token %}
+  <div class="row">
+    <div class="col-md-2 mb-2"><select name="kind" class="form-control" id="ek">{% for k, v in kinds %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-2 mb-2"><input name="amount" type="number" step="0.01" min="0.01" class="form-control" placeholder="المبلغ" required></div>
+    <div class="col-md-2 mb-2" id="ebox"><select name="box" class="form-control"><option value="">— الخزنة —</option>{% for b in boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-2 mb-2"><input name="date" type="date" value="{{ today }}" class="form-control"></div>
+    <div class="col-md-3 mb-2"><input name="description" class="form-control" placeholder="البيان (اختياري)" maxlength="200"></div>
+    <div class="col-md-1 mb-2"><button class="btn btn-dark btn-block">سجّل</button></div>
+  </div>
+  <small class="text-muted">السلفة وصرف المرتب بيطلعوا من الخزنة. المكافأة بتزود اللي ليه، والخصم بيقلله.</small>
+</form>
+<script>(function(){var k=document.getElementById("ek"),b=document.getElementById("ebox");function s(){b.style.display=(k.value==="advance"||k.value==="payment")?"":"none";}k.addEventListener("change",s);s();})();</script>
+{% endif %}
+<div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table mb-0">
+  <thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th>المبلغ</th><th>الرصيد</th></tr></thead>
+  {% for r in rows %}<tr><td>{{ r.t.date|date:"d/m/Y" }}</td><td>{{ r.t.get_kind_display }}{% if r.t.box %}<div class="text-muted" style="font-size:12px">من {{ r.t.box }}</div>{% endif %}</td>
+    <td style="max-width:420px">{{ r.t.description|default:"—" }}</td>
+    <td class="{% if r.t.signed > 0 %}plus{% else %}minus{% endif %}">{{ r.t.signed|floatformat:2|intcomma }}</td>
+    <td><b>{{ r.balance|floatformat:2|intcomma }}</b></td></tr>
+  {% empty %}<tr><td colspan="5" class="text-muted p-3">مفيش حركات لسه.</td></tr>{% endfor %}
+</table></div></div></div>
+{% endblock %}

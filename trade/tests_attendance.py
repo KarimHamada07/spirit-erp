@@ -203,7 +203,7 @@ class UiHelpTests(TestCase):
                 self.assertIn(name, MENU_TIPS, name)
                 if target.startswith("admin:"):
                     self.assertIn(target[6:], MODEL_HELP, target)
-                elif target != "my_custody":   # بتحوّل لصفحة عهدة الشخص (ليها شرح)
+                elif target not in ("my_custody", "my_statement"):   # بيحوّلوا لصفحات ليها شرح
                     self.assertIn(target, PAGE_HELP, target)
 
 

@@ -32,6 +32,11 @@
   .pos-hint { font-size: 12px; color: #8a8a93; }
   .total-box { font-size: 30px; font-weight: 700; color: #000000; }
   #mobilebar { display: none; }
+  .pos-mode { display: inline-flex; background: var(--erp-soft,#eee); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 14px; }
+  .pos-mode button { border: 0; background: transparent; padding: 8px 20px; border-radius: 9px; font-weight: 800; color: var(--erp-muted,#666); }
+  .pos-mode button.on { background: var(--erp-card,#fff); color: #fe0000; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .ret-find { display: flex; gap: 8px; max-width: 420px; }
+  #ret-table input { width: 90px; }
   .disc-row { display: flex; gap: 6px; }
   .disc-type { display: flex; border: 1px solid var(--erp-line,#ddd); border-radius: 8px; overflow: hidden; flex: 0 0 auto; }
   .disc-type button { border: 0; background: var(--erp-card,#fff); color: var(--erp-ink,#111); padding: 0 14px; font-weight: 700; min-width: 48px; }
@@ -62,7 +67,45 @@
   }
 </style>
 
-<div class="row">
+{% if can_return %}
+<div class="pos-mode" role="tablist">
+  <button type="button" class="on" data-mode="sale" data-tip="فاتورة بيع جديدة"><i class="fas fa-cash-register"></i> بيع</button>
+  <button type="button" data-mode="return" data-tip="بضاعة راجعة من عميل برقم فاتورة البيع"><i class="fas fa-rotate-left"></i> مرتجع</button>
+</div>
+<div id="return-panel" class="card" style="display:none">
+  <div class="card-body">
+    <div class="ret-find">
+      <input id="ret-no" type="number" min="1" class="form-control" placeholder="رقم فاتورة البيع" inputmode="numeric">
+      <button type="button" id="ret-load" class="btn btn-dark" data-tip="يجيب أصناف الفاتورة عشان تختار الراجع منها">هات الفاتورة</button>
+    </div>
+    <div id="ret-info" class="text-muted my-2"></div>
+    <div class="table-responsive"><table class="table table-sm mb-2" id="ret-table" style="display:none">
+      <thead><tr><th>الصنف</th><th>اتباع</th><th>رجع قبل كده</th><th>الراجع دلوقتي</th><th>قيمة القطعة</th></tr></thead>
+      <tbody></tbody></table></div>
+    <div id="ret-form" style="display:none">
+      <div class="row">
+        <div class="col-md-4 mb-2"><label class="mb-1">رد الفلوس</label>
+          <select id="ret-mode" class="form-control">
+            <option value="box">كاش من خزنة</option>
+            <option value="account">خصم من مديونية العميل</option>
+          </select></div>
+        <div class="col-md-4 mb-2" id="ret-box-wrap"><label class="mb-1">الخزنة</label>
+          <select id="ret-box" class="form-control">{% for b in return_boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
+        <div class="col-md-4 mb-2"><label class="mb-1">السبب (اختياري)</label>
+          <input id="ret-reason" class="form-control" maxlength="200" placeholder="مقاس مش مظبوط، عيب..."></div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap:10px">
+        <div>قيمة المرتجع: <span id="ret-total" class="total-box">0.00</span></div>
+        <button type="button" id="ret-save" class="btn btn-primary btn-lg" disabled
+                data-tip="يرجّع الأصناف للمخزن ويرد الفلوس أو يخصمها من حساب العميل">سجّل المرتجع</button>
+      </div>
+    </div>
+    <div id="ret-msg" class="alert mt-3 d-none"></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="row" id="sale-panel">
   <!-- الأصناف -->
   <div class="col-lg-6">
     <div class="card">
@@ -177,9 +220,12 @@
   var pricesUrl = "{% url 'pos_customer_prices' %}";
   var custPrices = {};        // آخر سعر للعميل لكل صنف (من فواتيره السابقة)
   var canChangePrice = false; // مدير الحسابات بس يقدر يغيّر سعر صنف سبق للعميل شراءه
+  var canEditPrice = {{ can_edit_price|yesno:"true,false" }};  // تعديل السعر عموماً: مدير الحسابات والأدمن
   var priceToken = 0;
 
-  function lockedPrice(c) { return c.locked && !canChangePrice; }
+  function channel() { return document.getElementById("channel").value; }
+  function chanPrice(v) { return channel() === "wholesale" && v.wprice ? v.wprice : v.price; }
+  function lockedPrice(c) { return c.locked ? !canChangePrice : !canEditPrice; }
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -297,7 +343,7 @@
         (out ? " oos" : "") + '" data-id="' + v.id + '"' + (out ? ' title="الكمية خلصت"' : "") + ">" +
         '<span><span class="name">' + esc(label(v)) + '</span><br><span class="code">' + esc(v.code) + "</span></span>" +
         '<span class="text-left"><span class="badge ' + (out ? "badge-secondary" : "badge-info") + '">' +
-        (out ? "خلصت" : v.qty + " متاح") + '</span><br><b>' + money(v.price) + "</b></span></a>";
+        (out ? "خلصت" : v.qty + " متاح") + '</span><br><b>' + money(chanPrice(v)) + "</b></span></a>";
     });
     elProducts.innerHTML = html || '<div class="p-3 text-muted">لا توجد نتائج</div>';
   }
@@ -313,7 +359,7 @@
         '<input type="number" min="1" max="' + c.max + '" value="' + c.qty + '" class="form-control" data-f="qty">' +
         '<button type="button" data-step="1" aria-label="أكتر">+</button></div></td>' +
         '<td><input type="number" min="0" step="0.01" value="' + c.price + '" class="form-control" data-f="price"' +
-        (lockedPrice(c) ? ' readonly title="التعديل من مدير الحسابات"' : "") + "></td>" +
+        (lockedPrice(c) ? ' readonly data-tip="تعديل السعر لمدير الحسابات بس"' : "") + "></td>" +
         '<td id="line-' + id + '">' + money(c.qty * c.price) + "</td>" +
         '<td><button type="button" class="btn btn-sm btn-outline-danger" data-del="' + id + '">×</button></td></tr>';
     });
@@ -353,8 +399,8 @@
       c.qty += 1;
     } else {
       var known = custPrices.hasOwnProperty(id);
-      cart[id] = {id: id, label: label(v), qty: 1, listPrice: v.price,
-                  price: known ? custPrices[id] : v.price, locked: known, max: v.qty};
+      cart[id] = {id: id, label: label(v), qty: 1, listPrice: chanPrice(v),
+                  price: known ? custPrices[id] : chanPrice(v), locked: known, max: v.qty};
     }
     renderCart();
     toast("اتضاف: " + label(v) + " (" + cart[id].qty + ")");
@@ -486,12 +532,16 @@
   function applyPrices() {
     Object.keys(cart).forEach(function (id) {
       var c = cart[id];
+      var v = V.find(function (x) { return String(x.id) === String(id); });
+      if (v) c.listPrice = chanPrice(v);
       var known = custPrices.hasOwnProperty(id);
       c.locked = known;
       c.price = known ? custPrices[id] : c.listPrice;
     });
     renderCart();
   }
+  // الجملة والقطاعي: الأسعار بتتغير لوحدها لما تغيّر نوع البيع
+  document.getElementById("channel").addEventListener("change", function () { applyPrices(); renderProducts(); });
   function loadCustomerPrices() {
     var cid = document.getElementById("customer").value;
     var token = ++priceToken;
@@ -550,6 +600,79 @@
       elCheckout.disabled = false;
     });
   });
+
+  /* ---------- المرتجع ---------- */
+  (function () {
+    var tabs = document.querySelectorAll(".pos-mode button");
+    if (!tabs.length) return;
+    var salePanel = document.getElementById("sale-panel"), retPanel = document.getElementById("return-panel");
+    var mobilebar = document.getElementById("mobilebar");
+    tabs.forEach(function (t) {
+      t.addEventListener("click", function () {
+        tabs.forEach(function (x) { x.classList.toggle("on", x === t); });
+        var ret = t.getAttribute("data-mode") === "return";
+        salePanel.style.display = ret ? "none" : ""; retPanel.style.display = ret ? "" : "none";
+        if (mobilebar) mobilebar.style.visibility = ret ? "hidden" : "";
+        if (ret) document.getElementById("ret-no").focus();
+      });
+    });
+    var inv = null, items = [];
+    var tbody = document.querySelector("#ret-table tbody"), msg = document.getElementById("ret-msg");
+    function say(kind, text) { msg.className = "alert mt-3 alert-" + kind; msg.textContent = text; }
+    function total() {
+      var t = 0;
+      items.forEach(function (it) { t += (it.take || 0) * it.unit_refund; });
+      document.getElementById("ret-total").textContent = money(t);
+      document.getElementById("ret-save").disabled = t <= 0;
+    }
+    function load() {
+      var no = document.getElementById("ret-no").value.trim();
+      if (!no) return;
+      msg.className = "alert mt-3 d-none";
+      fetch("{% url 'pos_return_lookup' %}?invoice=" + encodeURIComponent(no), {credentials: "same-origin"})
+        .then(function (r) { return r.json(); }).then(function (d) {
+          if (!d.ok) { say("danger", d.error); document.getElementById("ret-table").style.display = "none";
+                       document.getElementById("ret-form").style.display = "none"; return; }
+          inv = d.invoice; items = d.items;
+          document.getElementById("ret-info").textContent = "فاتورة #" + inv.id + " — " + inv.date + " — " + inv.type +
+            (inv.customer ? " — " + inv.customer : "") + (inv.discount ? " (عليها خصم، والمرتجع بياخد نصيبه منه)" : "");
+          tbody.innerHTML = items.map(function (it, i) {
+            return "<tr><td>" + esc(it.label) + "</td><td>" + it.sold + "</td><td>" + (it.returned || "—") + "</td>" +
+              '<td><input type="number" class="form-control form-control-sm" min="0" max="' + it.returnable + '" value="0" data-i="' + i + '"' +
+              (it.returnable ? "" : " disabled") + "></td><td>" + money(it.unit_refund) + "</td></tr>";
+          }).join("");
+          document.getElementById("ret-table").style.display = "";
+          document.getElementById("ret-form").style.display = "";
+          var mode = document.getElementById("ret-mode");
+          mode.querySelector('[value="account"]').disabled = !inv.can_account;
+          if (!inv.can_account) mode.value = "box";
+          mode.dispatchEvent(new Event("change"));
+          total();
+        }).catch(function () { say("danger", "تعذر الاتصال بالسيرفر"); });
+    }
+    document.getElementById("ret-load").addEventListener("click", load);
+    document.getElementById("ret-no").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); load(); } });
+    tbody.addEventListener("input", function (e) {
+      var i = e.target.getAttribute("data-i"); if (i === null) return;
+      var it = items[i], v = Math.max(0, Math.min(parseInt(e.target.value || 0, 10) || 0, it.returnable));
+      it.take = v; total();
+    });
+    document.getElementById("ret-mode").addEventListener("change", function () {
+      document.getElementById("ret-box-wrap").style.display = this.value === "box" ? "" : "none";
+    });
+    document.getElementById("ret-save").addEventListener("click", function () {
+      var btn = this;
+      var lines = items.filter(function (it) { return it.take > 0; }).map(function (it) { return {sale_item: it.sale_item, qty: it.take}; });
+      if (!lines.length || !confirm("تسجيل المرتجع بقيمة " + document.getElementById("ret-total").textContent + "؟")) return;
+      btn.disabled = true;
+      fetch("{% url 'pos_return' %}", {method: "POST", headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
+        body: JSON.stringify({invoice: inv.id, items: lines, mode: document.getElementById("ret-mode").value,
+                              box: document.getElementById("ret-box").value, reason: document.getElementById("ret-reason").value})})
+        .then(function (r) { return r.json(); }).then(function (d) {
+          if (d.ok) { say("success", d.message); load(); } else { say("danger", d.error); btn.disabled = false; }
+        }).catch(function () { say("danger", "تعذر الاتصال بالسيرفر"); btn.disabled = false; });
+    });
+  })();
 
   payRows = [{box: BOXES[2] ? BOXES[2].id : BOXES[0].id, amount: 0, touched: false}];
   renderProducts();

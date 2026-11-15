@@ -93,3 +93,53 @@ class SaleOptionsTests(TestCase):
         url = self.c.post(reverse("data_upload", args=["products"]), {"file": buf})["Location"]
         self.c.post(reverse("data_confirm", args=[url.rstrip("/").split("/")[-1]]))
         self.assertEqual(ClothingModel.objects.get(code="T9").category, "tshirt")
+
+
+class PosReturnTests(SaleOptionsTests):
+    def test_return_from_pos_by_invoice_number(self):
+        self.checkout(10, "percent", 899.10)          # 3 قطع × 333 − 10%
+        inv = SaleInvoice.objects.get()
+        d = self.c.get(reverse("pos_return_lookup"), {"invoice": inv.pk}).json()
+        self.assertTrue(d["ok"])
+        item = d["items"][0]
+        self.assertEqual((item["returnable"], item["unit_refund"]), (3, 299.7))
+        r = self.c.post(reverse("pos_return"), json.dumps({
+            "invoice": inv.pk, "mode": "box", "box": self.box.pk,
+            "items": [{"sale_item": item["sale_item"], "qty": 2}]}), content_type="application/json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.v.refresh_from_db()
+        self.assertEqual(self.v.quantity, 19)          # 20 − 3 + 2
+        self.assertEqual(self.box.entries.get(kind="refund").amount, D("-599.40"))
+        d = self.c.get(reverse("pos_return_lookup"), {"invoice": inv.pk}).json()
+        self.assertEqual(d["items"][0]["returnable"], 1)
+        # أكتر من المتاح يترفض، والخصم من المديونية للآجل بس
+        r = self.c.post(reverse("pos_return"), json.dumps({
+            "invoice": inv.pk, "mode": "box", "box": self.box.pk,
+            "items": [{"sale_item": item["sale_item"], "qty": 2}]}), content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        r = self.c.post(reverse("pos_return"), json.dumps({
+            "invoice": inv.pk, "mode": "account", "items": [{"sale_item": item["sale_item"], "qty": 1}]}),
+            content_type="application/json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.c.get(reverse("pos_return_lookup"), {"invoice": 999}).status_code, 404)
+
+
+class WhatsappShareTests(SaleOptionsTests):
+    def test_whatsapp_link_and_public_invoice(self):
+        from trade.models import Customer
+        self.checkout(0, "amount", 999)
+        inv = SaleInvoice.objects.get()
+        inv.customer = Customer.objects.create(name="ع", phone="01012345678", seller=self.seller)
+        inv.save()
+        page = self.c.get(reverse("sale_print", args=[inv.pk])).content.decode()
+        self.assertIn("https://wa.me/201012345678?text=", page)
+        import re
+        from urllib.parse import unquote
+        link = unquote(re.search(r'href="(https://wa\.me/[^"]+)"', page).group(1).replace("&amp;", "&"))
+        public = re.search(r"https?://[^\s]+/i/[^/\s]+/", link).group(0)
+        anon = Client()
+        r = anon.get(public.split("testserver")[1])
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "#%d" % inv.pk)
+        self.assertNotContains(r, "بيع جديد")      # من غير أزرار السيستم
+        self.assertEqual(anon.get("/i/fake-token/").status_code, 404)

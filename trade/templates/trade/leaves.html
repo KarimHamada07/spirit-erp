@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block content_title %}الإجازات والأذونات{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>.st{display:inline-block;padding:1px 10px;border-radius:10px;font-size:12px;font-weight:700}
+.st.pending{background:#fff3cd;color:#7a5a00}.st.approved{background:#000;color:#fff}.st.rejected{border:1px solid #fe0000;color:#fe0000}
+[data-bs-theme=dark] .st.pending{background:#4a3b00;color:#ffd666}</style>
+{% if approver and pending %}
+<div class="card mb-3"><div class="card-header"><h3 class="card-title">طلبات مستنية موافقتك ({{ pending|length }})</h3></div>
+<div class="card-body p-0"><div class="table-responsive"><table class="table mb-0">
+  {% for lv in pending %}<tr><td><b>{{ lv.user.get_full_name|default:lv.user.username }}</b></td><td>{{ lv.get_kind_display }}</td>
+    <td>{{ lv.start_date|date:"d/m" }}{% if lv.end_date != lv.start_date %} → {{ lv.end_date|date:"d/m" }} ({{ lv.days }} يوم){% endif %}{% if lv.hours %} — {{ lv.hours }} ساعة{% endif %}</td>
+    <td>{{ lv.reason|default:"—" }}</td>
+    <td><form method="post" action="{% url 'leave_review' lv.pk %}" class="d-flex" style="gap:6px">{% csrf_token %}
+      <input name="note" class="form-control form-control-sm" placeholder="ملاحظة" maxlength="200">
+      <button name="decision" value="approve" class="btn btn-sm btn-dark">موافقة</button>
+      <button name="decision" value="reject" class="btn btn-sm btn-outline-primary">رفض</button></form></td></tr>{% endfor %}
+</table></div></div></div>
+{% endif %}
+<form method="post" action="{% url 'leave_request' %}" class="card card-body mb-3" style="max-width:720px">
+  {% csrf_token %}<h3 style="font-size:17px;font-weight:800">طلب جديد</h3>
+  <div class="row">
+    <div class="col-md-4 mb-2"><select name="kind" id="lk" class="form-control">{% for k, v in kinds %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></div>
+    <div class="col-md-4 mb-2"><input type="date" name="start_date" value="{{ today }}" class="form-control" required></div>
+    <div class="col-md-4 mb-2" id="lend"><input type="date" name="end_date" class="form-control" title="لحد يوم (فاضي = نفس اليوم)"></div>
+    <div class="col-md-4 mb-2" id="lhours" style="display:none"><input type="number" name="hours" step="0.5" min="0.5" max="12" class="form-control" placeholder="كام ساعة؟"></div>
+    <div class="col-md-8 mb-2"><input name="reason" class="form-control" placeholder="السبب (اختياري)" maxlength="200"></div>
+    <div class="col-md-4 mb-2"><button class="btn btn-primary btn-block" data-tip="يبعت الطلب لمدير الحسابات يوافق عليه">ابعت الطلب</button></div>
+  </div>
+</form>
+<script>(function(){var k=document.getElementById("lk");function s(){var p=k.value==="permission";document.getElementById("lhours").style.display=p?"":"none";document.getElementById("lend").style.display=p?"none":"";}k.addEventListener("change",s);s();})();</script>
+<div class="card"><div class="card-header"><h3 class="card-title">طلباتي</h3></div><div class="card-body p-0"><table class="table mb-0">
+  {% for lv in mine %}<tr><td>{{ lv.get_kind_display }}</td><td>{{ lv.start_date|date:"d/m/Y" }}{% if lv.end_date != lv.start_date %} → {{ lv.end_date|date:"d/m/Y" }}{% endif %}{% if lv.hours %} — {{ lv.hours }} ساعة{% endif %}</td>
+    <td><span class="st {{ lv.status }}">{{ lv.get_status_display }}</span>{% if lv.review_note %} <small class="text-muted">{{ lv.review_note }}</small>{% endif %}</td></tr>
+  {% empty %}<tr><td class="text-muted p-3">مفيش طلبات.</td></tr>{% endfor %}
+</table></div></div>
+{% endblock %}
