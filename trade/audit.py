@@ -30,6 +30,10 @@ def _value(field, instance):
         return "مرفق" if v else ""
     if v is None:
         return ""
+    if isinstance(field, models.BooleanField):   # بدل True/False
+        return "أيوه" if v else "لأ"
+    if field.choices:   # cash ← نقدي
+        return str(dict(field.flatchoices).get(v, v))[:200]
     if isinstance(field, models.DecimalField):   # 250 و 250.00 نفس القيمة: نوحّد الشكل عشان ما يظهرش "تغيير" وهمي
         try:
             return f"{Decimal(v):.{field.decimal_places}f}"
@@ -38,13 +42,23 @@ def _value(field, instance):
     return str(v)[:200]
 
 
+# أسماء أوضح لخانات المستخدم بدل ترجمة Django
+FIELD_AR = {
+    "is_superuser": "مدير كامل (كل الصلاحيات)",
+    "is_staff": "يقدر يدخل السيستم",
+    "is_active": "الحساب شغال",
+    "first_name": "الاسم الأول",
+    "last_name": "الاسم الأخير",
+}
+
+
 def snapshot(instance):
     skip = SKIP | SKIP_BY_MODEL.get(instance.__class__.__name__, set())
     out = {}
     for f in instance._meta.concrete_fields:
         if f.name in skip or f.attname in skip:
             continue
-        out[str(f.verbose_name)] = _value(f, instance)
+        out[FIELD_AR.get(f.name, str(f.verbose_name))] = _value(f, instance)
     return out
 
 
@@ -90,7 +104,7 @@ def _notify(action, sender, instance=None, label="", repr_="", changes=None):
         lines = [f"{head} {label}: {repr_}", f"بواسطة: {who}"]
         for k, v in list((changes or {}).items())[:6]:
             if isinstance(v, (list, tuple)) and len(v) == 2:
-                lines.append(f"• {k}: {v[0] or '—'} ← {v[1] or '—'}")
+                lines.append(f"• {k}: من «{v[0] or '—'}» إلى «{v[1] or '—'}»")
             else:
                 lines.append(f"• {k}: {v}")
         log_event("\n".join(lines), user=user)

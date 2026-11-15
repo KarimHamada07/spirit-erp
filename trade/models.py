@@ -610,7 +610,7 @@ class CustodySettlement(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
                                    on_delete=models.SET_NULL, editable=False,
                                    verbose_name="سجّلها")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField("وقت التسجيل", auto_now_add=True)
 
     class Meta:
         verbose_name = "تصفية عهدة"
@@ -720,16 +720,16 @@ class CashEntry(models.Model):
     kind = models.CharField("النوع", max_length=20, choices=KINDS)
     description = models.CharField("البيان", max_length=200, blank=True)
     invoice = models.ForeignKey(SaleInvoice, on_delete=models.SET_NULL, null=True, blank=True,
-                                related_name="cash_entries")
+                                related_name="cash_entries", verbose_name="الفاتورة")
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True,
-                                 related_name="cash_entries")
+                                 related_name="cash_entries", verbose_name="العميل")
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True,
-                                 related_name="cash_entries")
+                                 related_name="cash_entries", verbose_name="المورد")
     online_order = models.ForeignKey(OnlineOrder, on_delete=models.SET_NULL, null=True,
-                                     blank=True, related_name="cash_entries")
+                                     blank=True, related_name="cash_entries", verbose_name="الأوردر الأونلاين")
     transfer = models.ForeignKey("CashTransfer", on_delete=models.CASCADE, null=True,
-                                 blank=True, related_name="entries")
-    created_at = models.DateTimeField(auto_now_add=True)
+                                 blank=True, related_name="entries", verbose_name="التحويل")
+    created_at = models.DateTimeField("وقت التسجيل", auto_now_add=True)
 
     class Meta:
         verbose_name = "حركة خزنة"
@@ -756,8 +756,8 @@ class CashTransfer(models.Model):
     date = models.DateField("التاريخ", default=timezone.localdate)
     note = models.CharField("ملاحظة", max_length=200, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
-                                   on_delete=models.SET_NULL, editable=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+                                   on_delete=models.SET_NULL, editable=False, verbose_name="سجّله")
+    created_at = models.DateTimeField("وقت التسجيل", auto_now_add=True)
 
     class Meta:
         verbose_name = "تحويل بين خزن"
@@ -782,7 +782,7 @@ class SupplierPayment(models.Model):
                                  validators=[MinValueValidator(Decimal("0.01"))])
     date = models.DateField("التاريخ", default=timezone.localdate)
     notes = models.CharField("ملاحظات", max_length=200, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField("وقت التسجيل", auto_now_add=True)
 
     class Meta:
         verbose_name = "سداد مورد"
@@ -1187,7 +1187,7 @@ class CustodyHolder(models.Model):
                                 help_text="لو مربوط بحساب، يقدر يفتح 'عهدتي' ويطلب تصفية بنفسه")
     phone = models.CharField("الموبايل", max_length=30, blank=True)
     is_active = models.BooleanField("نشط", default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField("وقت التسجيل", auto_now_add=True)
 
     class Meta:
         verbose_name = "صاحب عهدة"
@@ -1325,3 +1325,11 @@ class Attendance(models.Model):
     @property
     def map_url(self):
         return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
+
+
+# عناوين أعمدة الحسابات في لوحة الإدارة (بدل Total و Profit)
+for _model, _prop, _label in [(PurchaseInvoice, "total", "الإجمالي"), (SaleInvoice, "total", "الإجمالي"),
+                              (SaleInvoice, "profit", "الربح"), (PurchaseReturn, "total", "الإجمالي"),
+                              (SaleReturn, "total", "الإجمالي"), (MaterialPurchase, "total", "الإجمالي"),
+                              (SaleInvoice, "pieces", "القطع"), (OnlineOrder, "pieces", "القطع")]:
+    getattr(_model, _prop).fget.short_description = _label

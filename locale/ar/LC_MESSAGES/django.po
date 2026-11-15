@@ -1,0 +1,115 @@
+# ترجمة الحاجات اللي Jazzmin و Django ما ترجموهاش للعربي.
+# بعد أي تعديل هنا: python manage.py compile_ar (بيعمل django.mo من غير gettext)
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ar\n"
+
+msgid "General"
+msgstr "البيانات"
+
+msgid "Account"
+msgstr "الحساب"
+
+msgid "See Profile"
+msgstr "بياناتي"
+
+msgid "Actions"
+msgstr "إجراءات"
+
+msgid "Jazzmin version"
+msgstr "إصدار الواجهة"
+
+msgid "Copyright"
+msgstr "جميع الحقوق محفوظة"
+
+msgid "All rights reserved."
+msgstr "جميع الحقوق محفوظة."
+
+msgid "Theme"
+msgstr "الشكل"
+
+msgid "Color Scheme"
+msgstr "الألوان"
+
+msgid "Light"
+msgstr "فاتح"
+
+msgid "Dark"
+msgstr "داكن"
+
+msgid "Auto"
+msgstr "تلقائي"
+
+msgid "Dashboard"
+msgstr "لوحة التحكم"
+
+msgid "Popup closing..."
+msgstr "بنقفل النافذة..."
+
+msgid "Please correct the errors below."
+msgstr "صلّح الأخطاء اللي تحت."
+
+msgid "Enter a username and password."
+msgstr "اكتب اسم المستخدم وكلمة السر."
+
+msgid "Forgotten your password or username?"
+msgstr "نسيت كلمة السر أو اسم المستخدم؟"
+
+msgid "Filters"
+msgstr "فلاتر"
+
+msgid "Submit"
+msgstr "إرسال"
+
+msgid "Models"
+msgstr "الجداول"
+
+msgid "Skip to main content"
+msgstr "انتقل للمحتوى"
+
+msgid "Skip to navigation"
+msgstr "انتقل للقايمة"
+
+msgid "First, enter a username and password. Then, you'll be able to edit more user options."
+msgstr "اكتب اسم المستخدم وكلمة السر الأول، وبعد الحفظ تقدر تكمّل باقي بياناته وصلاحياته."
+
+msgid "Password-based authentication"
+msgstr "الدخول بكلمة سر"
+
+msgid "Password-based authentication was disabled."
+msgstr "الدخول بكلمة السر اتقفل."
+
+msgid "Enabled"
+msgstr "مسموح"
+
+msgid "Disabled"
+msgstr "مقفول"
+
+msgid ""
+"Whether the user will be able to authenticate using a password or not. If "
+"disabled, they may still be able to authenticate using other backends, such "
+"as Single Sign-On or LDAP."
+msgstr "هل المستخدم يقدر يدخل بكلمة سر ولا لأ."
+
+msgid "Reset password"
+msgstr "تغيير كلمة السر"
+
+msgid "Set password"
+msgstr "تحديد كلمة السر"
+
+msgid "Raw passwords are not stored, so there is no way to see the user’s password."
+msgstr "كلمات السر مش بتتحفظ زي ما هي، فمحدش يقدر يشوف كلمة سر المستخدم. تقدر تغيّرها من زرار تغيير كلمة السر."
+
+msgid ""
+"Please enter your old password, for security’s sake, and then enter your new "
+"password twice so we can verify you typed it in correctly."
+msgstr "اكتب كلمة السر القديمة، وبعدين الجديدة مرتين عشان نتأكد إنها مكتوبة صح."
+
+msgid "Total"
+msgstr "الإجمالي"
+
+msgid ""
+"Please enter your old password, for security's sake, and then enter your new "
+"password twice so we can verify you typed it in correctly."
+msgstr "اكتب كلمة السر القديمة، وبعدين الجديدة مرتين عشان نتأكد إنها مكتوبة صح."

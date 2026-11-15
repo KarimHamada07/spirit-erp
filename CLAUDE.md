@@ -52,6 +52,9 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - أوامر: `backup_db`، `debt_reminders`، `stock_alerts`، `telegram_test`.
 
 ## اتفاقيات
+- اللغة عربي بس (`LANGUAGES = [("ar", ...)]`) مهما كانت لغة الموبايل. الكلام اللي Jazzmin/Django ما ترجموهوش
+  في `locale/ar/LC_MESSAGES/django.po` و `djangojs.po`؛ بعد التعديل `python manage.py compile_ar` (بيعمل .mo من
+  غير gettext) وارفع ملفات .mo. رسايل التحقق وزرار اختيار الملف بيتعرّبوا من JS في `middleware.py`.
 - الصفحات المخصصة بتورث `admin/base.html` وبتمرر `admin.site.each_context(request)`، ومحمية بـ
   `staff_member_required` + `has_perm`. روابطها في القايمة من `trade/menu.py`.
 - قوالب الصفحات بتحط `<div class="row">` جوه صف القالب على طول؛ `spirit.css` فيه إصلاح للحالة دي.
