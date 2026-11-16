@@ -68,6 +68,8 @@ def _confirm(modeladmin, request, queryset):
 
 
 _confirm.short_description = "تأكيد الفواتير المحددة (تحديث المخزون)"
+# التأكيد بيغيّر المخزون والحسابات: يظهر ويشتغل بس للي عنده صلاحية التعديل (مش العرض بس)
+_confirm.allowed_permissions = ("change",)
 
 
 @admin.register(PurchaseInvoice)
@@ -319,6 +321,7 @@ def _confirm_returns(modeladmin, request, queryset):
 
 
 _confirm_returns.short_description = "تأكيد المرتجعات المحددة (تحديث المخزون والحسابات)"
+_confirm_returns.allowed_permissions = ("change",)
 
 
 @admin.register(PurchaseReturn)
@@ -402,6 +405,7 @@ def _confirm_material_purchases(modeladmin, request, queryset):
 
 
 _confirm_material_purchases.short_description = "تأكيد الاستلام (إضافة الخامات للمخزن)"
+_confirm_material_purchases.allowed_permissions = ("change",)
 
 
 @admin.register(MaterialPurchase)
@@ -454,10 +458,13 @@ def _po_action(method, done_msg):
 
 _po_bom = _po_action("fill_from_bom", "اتحسبت الخامات من مكونات الموديل")
 _po_bom.short_description = "احسب الخامات من مكونات الموديل (BOM)"
+_po_bom.allowed_permissions = ("change",)
 _po_complete = _po_action("complete", "اتسلّم للمخزن واتحسبت تكلفة القطعة")
 _po_complete.short_description = "تسليم للمخزن (صرف الخامات وإضافة القطع)"
+_po_complete.allowed_permissions = ("change",)
 _po_cancel = _po_action("cancel", "اتلغى")
 _po_cancel.short_description = "إلغاء الأوامر المحددة"
+_po_cancel.allowed_permissions = ("change",)
 
 
 @admin.register(ProductionOrder)
@@ -622,9 +629,9 @@ from .models import (EmployeeProfile, EmployeeTxn, LeaveRequest, Mission, Missio
 
 @admin.register(EmployeeProfile)
 class EmployeeProfileAdmin(admin.ModelAdmin):
-    list_display = ("__str__", "job_title", "monthly_salary", "shift_start", "shift_end", "is_active")
+    list_display = ("__str__", "job_title", "manager", "monthly_salary", "shift_start", "shift_end", "is_active")
     list_filter = ("is_active",)
-    autocomplete_fields = ("user",)
+    autocomplete_fields = ("user", "manager")
     search_fields = ("user__username", "user__first_name", "user__last_name", "job_title")
 
 

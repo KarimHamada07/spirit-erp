@@ -31,7 +31,7 @@
 <script>(function(){var k=document.getElementById("lk");function s(){var p=k.value==="permission";document.getElementById("lhours").style.display=p?"":"none";document.getElementById("lend").style.display=p?"none":"";}k.addEventListener("change",s);s();})();</script>
 <div class="card"><div class="card-header"><h3 class="card-title">طلباتي</h3></div><div class="card-body p-0"><table class="table mb-0">
   {% for lv in mine %}<tr><td>{{ lv.get_kind_display }}</td><td>{{ lv.start_date|date:"d/m/Y" }}{% if lv.end_date != lv.start_date %} → {{ lv.end_date|date:"d/m/Y" }}{% endif %}{% if lv.hours %} — {{ lv.hours }} ساعة{% endif %}</td>
-    <td><span class="st {{ lv.status }}">{{ lv.get_status_display }}</span>{% if lv.review_note %} <small class="text-muted">{{ lv.review_note }}</small>{% endif %}</td></tr>
+    <td><span class="st {{ lv.status }}">{{ lv.get_status_display }}</span>{% if lv.reviewed_by %} <small class="text-muted">— {{ lv.reviewed_by.get_full_name|default:lv.reviewed_by.username }}</small>{% endif %}{% if lv.review_note %} <small class="text-muted">{{ lv.review_note }}</small>{% endif %}</td></tr>
   {% empty %}<tr><td class="text-muted p-3">مفيش طلبات.</td></tr>{% endfor %}
 </table></div></div>
 {% endblock %}

@@ -1297,7 +1297,7 @@ class CustodyClearance(models.Model):
         if obj.status != self.PENDING:
             raise ValidationError("الطلب ده اتراجع قبل كده")
         if not user.has_perm("trade.approve_custodyclearance"):
-            raise ValidationError("الموافقة لمدير الحسابات بس")
+            raise ValidationError("الموافقة للمحاسب ومدير الحسابات بس")
         if obj.requested_by_id == user.pk and not user.is_superuser:
             raise ValidationError("مينفعش توافق على طلب انت اللي عامله")
         if approve:
@@ -1443,6 +1443,9 @@ class EmployeeProfile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
                                 related_name="employee", verbose_name="الموظف")
     job_title = models.CharField("الوظيفة", max_length=100, blank=True)
+    manager = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name="team", verbose_name="المدير المباشر",
+                                help_text="بيوافق على إجازاته وأذوناته (ومدير الحسابات كمان يقدر)")
     monthly_salary = models.DecimalField("المرتب الشهري", max_digits=12, decimal_places=2, default=0)
     shift_start = models.TimeField("ميعاد الحضور", default="10:00")
     shift_end = models.TimeField("ميعاد الانصراف", default="18:00")

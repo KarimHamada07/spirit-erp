@@ -162,3 +162,44 @@ class TelegramWho(TestCase):
         self.assertIn("عملها: السيستم (تلقائي)", ActivityLog.objects.latest("id").message)
         log_event("طلب", actor="عميل من الموقع: أحمد")
         self.assertIn("عملها: عميل من الموقع: أحمد", ActivityLog.objects.latest("id").message)
+
+
+class ConfirmPermissions(TestCase):
+    """التأكيد الجماعي من لوحة الإدارة للي عنده صلاحية التعديل بس، والسيلز بيعمل مرتجع، وكل خطوة متسجلة باليوزر"""
+
+    def test_view_only_user_cannot_confirm_purchase_from_admin(self):
+        from trade.models import PurchaseInvoice, PurchaseItem, Supplier
+        from trade.roles import ROLE_WAREHOUSE_EMPLOYEE, ROLE_WAREHOUSE_MANAGER
+        m = ClothingModel.objects.create(name="قميص", code="SH-1")
+        v = Variant.objects.create(model=m, size="L", sale_price=D("300"))
+        inv = PurchaseInvoice.objects.create(supplier=Supplier.objects.create(name="مصنع"), date=date(2026, 11, 1))
+        PurchaseItem.objects.create(invoice=inv, variant=v, quantity=10, unit_cost=D("100"))
+        url = reverse("admin:trade_purchaseinvoice_changelist")
+        data = {"action": "_confirm", "_selected_action": [inv.pk], "index": 0}
+        _u, store = login("store", ROLE_WAREHOUSE_EMPLOYEE)
+        self.assertNotIn('value="_confirm"', store.get(url).content.decode())
+        store.post(url, data)
+        inv.refresh_from_db()
+        self.assertFalse(inv.is_confirmed)
+        _u, wm = login("wm", ROLE_WAREHOUSE_MANAGER)
+        wm.post(url, data)
+        inv.refresh_from_db()
+        self.assertTrue(inv.is_confirmed)
+        self.assertEqual(Variant.objects.get(pk=v.pk).quantity, 10)
+
+    def test_sales_can_return_from_pos_and_step_is_audited(self):
+        from trade.models import AuditLog, CashBox, Supplier
+        from trade.treasury import record_supplier_payment
+        _u, sales = login("sales", ROLE_SALES)
+        self.assertIn('data-mode="return"', sales.get(reverse("pos")).content.decode())
+        u, mgr = login("boss", ROLE_ACCOUNTS_MANAGER)
+        sup = Supplier.objects.create(name="مصنع النور")
+        from trade.notify import _current_user
+        tok = _current_user.set(u)
+        try:
+            record_supplier_payment(sup, CashBox.objects.get(name="كاش المحل"), D("500"))
+        finally:
+            _current_user.reset(tok)
+        a = AuditLog.objects.filter(action="create").latest("id")
+        self.assertEqual(a.username, "boss")
+        self.assertIn("مصنع النور", a.object_repr)
