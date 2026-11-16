@@ -294,7 +294,12 @@ def transfer_text(t):
 
 
 def supplier_payment_text(p):
-    line = f"💳 تسديد مورد {p.supplier} — {fmt(p.amount)} من {p.box}"
+    if p.kind == "refund":
+        line = f"↩️ استرداد من المورد {p.supplier} — {fmt(p.amount)} في {p.box}"
+    else:
+        line = f"💳 تسديد مورد {p.supplier} — {fmt(p.amount)} من {p.box}"
+    b = p.supplier.balance
+    line += f"\nرصيده: {'ليه عندنا' if b > 0 else 'لينا عنده' if b < 0 else 'خالص'} {fmt(abs(b))}"
     if p.notes:
         line += f"\nملاحظة: {p.notes}"
     return line

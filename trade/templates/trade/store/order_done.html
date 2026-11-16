@@ -1,0 +1,20 @@
+{% extends "trade/store/base.html" %}
+{% block title %}طلبك وصل — SPIRIT{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="done">
+    <div class="check">✓</div>
+    <h1>شكراً يا {{ order.customer_name }}، طلبك وصلنا</h1>
+    <div>رقم الطلب</div>
+    <div class="no">#{{ order.pk }}</div>
+    <p>هنكلمك على <b dir="ltr">{{ order.phone }}</b> نأكد الطلب قبل الشحن. احتفظ برقم الطلب عشان تتابعه.</p>
+    <div class="box sum" style="text-align:right;margin:18px 0">
+      {% for i in order.items.all %}<div><span>{{ i.variant.model.name }} <small style="color:var(--muted)">({{ i.variant.size }}{% if i.variant.color %} · {{ i.variant.color }}{% endif %}) × {{ i.quantity }}</small></span><span>{% widthratio i.quantity 1 i.unit_price %}</span></div>{% endfor %}
+      <div><span>الشحن ({{ order.zone_name }})</span><span>{{ order.shipping_fee|floatformat:0 }}</span></div>
+      <div class="total"><span>المطلوب عند الاستلام</span><span>{{ order.total|floatformat:0 }} ج.م</span></div>
+    </div>
+    <a href="{% url 'store:track' %}?no={{ order.pk }}&phone={{ order.phone }}" class="btn btn-dark">تابع طلبك</a>
+    <a href="{% url 'store:home' %}" class="btn btn-line">ارجع للمتجر</a>
+  </div>
+</div>
+{% endblock %}

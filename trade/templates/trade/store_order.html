@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}طلب الموقع #{{ order.pk }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'store_orders' %}" class="btn btn-outline-secondary">&rarr; طلبات الموقع</a>
+  <a href="tel:{{ order.phone }}" class="btn btn-outline-primary" data-tip="اتصال بالعميل"><i class="fas fa-phone"></i> <span dir="ltr">{{ order.phone }}</span></a>
+  {% if order.phone2 %}<a href="tel:{{ order.phone2 }}" class="btn btn-outline-primary"><i class="fas fa-phone"></i> <span dir="ltr">{{ order.phone2 }}</span></a>{% endif %}
+  <a href="{{ wa }}" target="_blank" rel="noopener" class="btn btn-success" data-tip="رسالة واتساب جاهزة لتأكيد الطلب والعنوان"><i class="fab fa-whatsapp"></i> أكد معاه واتساب</a>
+</div>
+<div class="row">
+  <div class="col-lg-7">
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">الأصناف</h3></div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table mb-0">
+        <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>في المخزن</th></tr></thead>
+        {% for r in rows %}
+        <tr><td>{{ r.item.variant }}</td><td>{{ r.item.quantity }}</td><td>{{ r.item.unit_price|floatformat:2 }}</td>
+          <td>{{ r.total|floatformat:2|intcomma }}</td>
+          <td>{% if r.short %}<span class="badge badge-danger">{{ r.stock }} بس</span>{% else %}{{ r.stock }}{% endif %}</td></tr>
+        {% endfor %}
+        <tr><td colspan="3">الشحن على العميل ({{ order.zone_name }})</td><td colspan="2">{{ order.shipping_fee|floatformat:2 }}</td></tr>
+        <tr><td colspan="3"><b>المطلوب تحصيله</b></td><td colspan="2"><b>{{ order.total|floatformat:2|intcomma }}</b></td></tr>
+      </table></div></div>
+    </div>
+    <div class="card mb-3"><div class="card-body">
+      <div><b>{{ order.customer_name }}</b></div>
+      <div>{{ order.zone_name }} - {{ order.city }}</div>
+      <div>{{ order.address }}</div>
+      {% if order.notes %}<div class="mt-2 text-muted">ملاحظات العميل: {{ order.notes }}</div>{% endif %}
+      <div class="mt-2 text-muted">وقت الطلب: {{ order.created_at|date:"d/m/Y H:i" }}</div>
+      {% if order.handled_by %}<div class="text-muted">{{ order.get_status_display }} بواسطة {{ order.handled_by }} — {{ order.handled_at|date:"d/m H:i" }}{% if order.cancel_reason %} ({{ order.cancel_reason }}){% endif %}</div>{% endif %}
+    </div></div>
+  </div>
+  <div class="col-lg-5">
+    {% if order.status == "new" and can_act %}
+    <form method="post" class="card mb-3">{% csrf_token %}
+      <div class="card-header"><h3 class="card-title">تأكيد الطلب</h3></div>
+      <div class="card-body">
+        {% if short %}<div class="alert alert-warning">فيه صنف المخزون بتاعه أقل من المطلوب: عدّل مع العميل أو الغي.</div>{% endif %}
+        <label class="mb-1">البائع</label>
+        <select name="seller" class="form-control mb-2" required>
+          <option value="">— اختار —</option>
+          {% for s in sellers %}<option value="{{ s.pk }}"{% if s.pk == default_seller %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+        <div class="row">
+          <div class="col-6"><label class="mb-1">تكلفة الشحن علينا</label><input name="shipping_cost" type="number" step="0.01" min="0" value="0" class="form-control"></div>
+          <div class="col-6"><label class="mb-1">خصم (اختياري)</label><input name="discount" type="number" step="0.01" min="0" value="0" class="form-control"></div>
+        </div>
+        <button name="action" value="confirm" class="btn btn-primary btn-block btn-lg mt-3"
+                data-tip="بيعمل أوردر أونلاين (تم التجهيز) ويخصم الأصناف من المخزون">تأكيد وتحويله أوردر</button>
+      </div>
+    </form>
+    <form method="post" class="card" data-confirm="إلغاء طلب الموقع #{{ order.pk }}؟" data-confirm-title="إلغاء الطلب">{% csrf_token %}
+      <div class="card-body">
+        <label class="mb-1">لو العميل لغى أو الرقم مش بيرد</label>
+        <input name="reason" class="form-control mb-2" maxlength="200" placeholder="سبب الإلغاء (اختياري)">
+        <button name="action" value="cancel" class="btn btn-outline-primary btn-block">إلغاء الطلب</button>
+      </div>
+    </form>
+    {% elif order.online_order_id %}
+    <div class="card"><div class="card-body">
+      الطلب اتأكد واتحول <a href="{% url 'online_detail' order.online_order_id %}"><b>أوردر أونلاين #{{ order.online_order_id }}</b></a>: كمّل منه (شحن، تحصيل).
+    </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

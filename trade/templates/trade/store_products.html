@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}منتجات الموقع{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .sp-ph { width: 54px; height: 66px; border-radius: 8px; object-fit: cover; background: var(--erp-soft,#eee); display: block; }
+  .sp-ph.none { display: grid; place-items: center; color: var(--erp-muted,#999); font-size: 18px; }
+</style>
+<form method="get" class="d-flex flex-wrap mb-3" style="gap:8px">
+  <input name="q" value="{{ q }}" class="form-control" style="max-width:280px" placeholder="اسم الموديل أو الكود">
+  <select name="show" class="form-control" style="max-width:200px" onchange="this.form.submit()">
+    <option value="">الكل</option>
+    <option value="1"{% if show == "1" %} selected{% endif %}>ظاهر في الموقع</option>
+    <option value="0"{% if show == "0" %} selected{% endif %}>مش ظاهر</option>
+  </select>
+  <button class="btn btn-dark">بحث</button>
+  <span class="align-self-center text-muted mr-2">ظاهر في الموقع: <b>{{ online_count }}</b> موديل</span>
+  <a href="{% url 'store:home' %}" target="_blank" rel="noopener" class="btn btn-outline-secondary mr-auto"><i class="fas fa-up-right-from-square"></i> افتح الموقع</a>
+</form>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table mb-0 align-middle">
+    <thead><tr><th></th><th>الموديل</th><th>المخزون</th><th>الصور</th><th>في الموقع</th><th></th></tr></thead>
+    {% for m in rows %}
+    <tr>
+      <td>{% if m.cover %}<img src="{{ m.cover.thumb_url }}" class="sp-ph" alt="" loading="lazy">{% else %}<span class="sp-ph none"><i class="fas fa-image"></i></span>{% endif %}</td>
+      <td><b>{{ m.name }}</b><div class="text-muted">{{ m.code }}{% if m.category %} · {{ m.get_category_display }}{% endif %}</div></td>
+      <td>{{ m.stock|default:0 }}</td>
+      <td>{{ m.n_images }}</td>
+      <td>{% if m.show_online %}<span class="badge badge-dark">ظاهر</span>{% if m.featured %} <span class="badge badge-danger">مميز</span>{% endif %}
+            {% if m.problem %}<div class="text-danger" style="font-size:12px">مش هيبان: {{ m.problem }}</div>{% endif %}
+          {% else %}<span class="badge badge-secondary">مخفي</span>{% endif %}</td>
+      <td><a href="{% url 'store_product' m.pk %}" class="btn btn-sm btn-primary">الصور والبيانات</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-muted p-4 text-center">مفيش موديلات.</td></tr>
+    {% endfor %}
+  </table>
+</div></div></div>
+{% endblock %}

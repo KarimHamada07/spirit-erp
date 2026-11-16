@@ -1,0 +1,86 @@
+{% extends "admin/base.html" %}
+{% block content_title %}{{ m.name }} — في الموقع{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .imgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+  .imgs .it { border: 1px solid var(--erp-line,#ddd); border-radius: 12px; overflow: hidden; background: var(--erp-card,#fff); }
+  .imgs img { width: 100%; aspect-ratio: 4/5; object-fit: cover; display: block; }
+  .imgs .meta { padding: 8px; display: grid; gap: 6px; }
+  .imgs .meta input, .imgs .meta select { height: 34px; font-size: 13px; }
+  .drop { border: 2px dashed var(--erp-line,#ccc); border-radius: 12px; padding: 18px; text-align: center; }
+</style>
+<div class="mb-3">
+  <a href="{% url 'store_products' %}" class="btn btn-outline-secondary">&rarr; منتجات الموقع</a>
+  <a href="{{ preview }}" target="_blank" rel="noopener" class="btn btn-outline-primary" data-tip="يفتح صفحة المنتج في الموقع"><i class="fas fa-up-right-from-square"></i> شوفه في الموقع</a>
+</div>
+<div class="row">
+  <div class="col-lg-5">
+    <form method="post" class="card mb-3">{% csrf_token %}<input type="hidden" name="what" value="info">
+      <div class="card-header"><h3 class="card-title">البيانات</h3></div>
+      <div class="card-body">
+        <label class="d-block mb-2" style="font-size:16px"><input type="checkbox" name="show_online" value="1"{% if m.show_online %} checked{% endif %}> <b>يظهر في الموقع</b></label>
+        <label class="d-block mb-3"><input type="checkbox" name="featured" value="1"{% if m.featured %} checked{% endif %}> مميز في الصفحة الرئيسية</label>
+        <label class="mb-1">التصنيف</label>
+        <select name="category" class="form-control mb-2"><option value="">—</option>{% for k, v in categories %}<option value="{{ k }}"{% if m.category == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select>
+        <label class="mb-1">الوصف (بيظهر في صفحة المنتج)</label>
+        <textarea name="description" class="form-control mb-2" rows="5" placeholder="الخامة، القَصّة، نصايح المقاس...">{{ m.description }}</textarea>
+        <label class="mb-1">السعر قبل الخصم <small class="text-muted">(اختياري، بيظهر مشطوب)</small></label>
+        <input name="old_price" type="number" step="0.01" min="0" value="{{ m.old_price|default_if_none:''|stringformat:'s' }}" class="form-control mb-3">
+        <button class="btn btn-primary btn-block">احفظ البيانات</button>
+      </div>
+    </form>
+    {% if perms.trade.change_variant %}
+    <form method="post" class="card mb-3">{% csrf_token %}<input type="hidden" name="what" value="prices">
+      <div class="card-header"><h3 class="card-title" data-tip="ده نفس سعر القطاعي في المحل">الأسعار</h3></div>
+      <div class="card-body p-0"><table class="table table-sm mb-0">
+        <thead><tr><th>المقاس</th><th>اللون</th><th>المخزون</th><th>السعر</th></tr></thead>
+        {% for v in variants %}<tr><td>{{ v.size }}</td><td>{{ v.color|default:"—" }}</td><td>{{ v.quantity }}</td>
+          <td><input name="price_{{ v.pk }}" type="number" step="0.01" min="0.01" value="{{ v.sale_price|stringformat:'.2f' }}" class="form-control form-control-sm" style="max-width:120px"></td></tr>{% endfor %}
+      </table></div>
+      <div class="card-footer"><button class="btn btn-dark btn-block">احفظ الأسعار</button></div>
+    </form>
+    {% endif %}
+  </div>
+  <div class="col-lg-7">
+    {% if perms.trade.add_productimage %}
+    <form method="post" enctype="multipart/form-data" class="card mb-3">{% csrf_token %}<input type="hidden" name="what" value="images">
+      <div class="card-header"><h3 class="card-title">إضافة صور</h3></div>
+      <div class="card-body">
+        <div class="drop">
+          <input type="file" name="images" accept="image/*" multiple required class="form-control mb-2">
+          <small class="text-muted">تقدر تختار كذا صورة مرة واحدة. الصور بتتصغر لوحدها، وأول صورة هي اللي بتظهر في الكارت.</small>
+        </div>
+        <div class="row mt-2">
+          <div class="col-md-7 mb-2"><label class="mb-1">الصور دي للون</label>
+            <select name="color" class="form-control"><option value="">كل الألوان</option>{% for c in colors %}<option value="{{ c }}">{{ c }}</option>{% endfor %}</select></div>
+          <div class="col-md-5 mb-2 d-flex align-items-end"><button class="btn btn-primary btn-block">ارفع الصور</button></div>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+    <form method="post" class="card" id="imgs-form">{% csrf_token %}<input type="hidden" name="what" value="image_meta">
+      <div class="card-header"><h3 class="card-title">الصور ({{ images|length }})</h3></div>
+      <div class="card-body">
+        {% if images %}
+        <div class="imgs">
+          {% for img in images %}
+          <div class="it"><a href="{{ img.image.url }}" target="_blank" rel="noopener"><img src="{{ img.thumb_url }}" alt="" loading="lazy"></a>
+            <div class="meta">
+              <select name="color_{{ img.pk }}" class="form-control" aria-label="اللون"><option value="">كل الألوان</option>{% for c in colors %}<option value="{{ c }}"{% if img.color == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+              <input name="sort_{{ img.pk }}" type="number" min="0" value="{{ img.sort }}" class="form-control" aria-label="الترتيب" data-tip="الترتيب: الأصغر بيظهر الأول">
+              {% if perms.trade.delete_productimage %}<button type="submit" form="del-{{ img.pk }}" class="btn btn-sm btn-outline-primary">امسح</button>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% if perms.trade.change_productimage %}<button class="btn btn-dark mt-3">احفظ الترتيب والألوان</button>{% endif %}
+        {% else %}
+        <p class="text-muted mb-0">مفيش صور لسه. الموديل مش هيبان حلو في الموقع من غير صور.</p>
+        {% endif %}
+      </div>
+    </form>
+    {% for img in images %}<form id="del-{{ img.pk }}" method="post" action="{% url 'store_image_delete' img.pk %}" data-confirm="امسح الصورة دي؟" data-confirm-title="مسح صورة">{% csrf_token %}</form>{% endfor %}
+  </div>
+</div>
+{% endblock %}

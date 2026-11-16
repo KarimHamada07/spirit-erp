@@ -98,3 +98,36 @@ Web > Reload. وبعد دقايق افتح https://erp.spiritegy.org/admin/ وس
 
 ## 10) أمان
 - HSTS متفعّل لمدة شهر (`DJANGO_HSTS_SECONDS` لو عايز تغيّرها). اتأكد إن الموقع شغال https قبل الرفع.
+
+## 11) الموقع (المتجر) على spiritegy.org
+الموقع نفس الكود ونفس قاعدة البيانات بتوع السيستم. الفرق إن أي طلب جاي على `spiritegy.org` أو
+`www.spiritegy.org` بيفتح صفحات المتجر بس (من غير لوحة الإدارة)، والدومينات دي متحددة في
+`STORE_HOSTS` في الإعدادات. قبل ما الدومين يشتغل، تقدر تعاين المتجر من السيستم على
+`https://erp.spiritegy.org/shop/`.
+
+### أ) Web app تاني على PythonAnywhere
+كل دومين على PythonAnywhere محتاج web app لوحده. لو باقتك فيها web app واحد بس، زوّد العدد من صفحة
+**Account** (الباقة المخصصة بتسمح بأكتر من web app).
+1. Web > Add a new web app > اكتب الدومين `www.spiritegy.org` > Manual configuration > Python 3.12
+2. Source code: `/home/spiritegy/erp_spirit` — Virtualenv: `/home/spiritegy/.virtualenvs/spirit`
+3. ملف WSGI: نفس محتوى ملف WSGI بتاع السيستم بالظبط (نفس المفتاح السري).
+4. Static files (في الـ web app الجديد):
+   - `/static/` → `/home/spiritegy/erp_spirit/staticfiles`
+   - `/media/` → `/home/spiritegy/erp_spirit/media`
+5. وزوّد كمان في web app السيستم (`erp.spiritegy.org`) نفس سطر `/media/` عشان الصور تظهر في السيستم.
+6. في الـ web app الجديد: فعّل **HTTPS** (Let's Encrypt) و **Force HTTPS**.
+
+### ب) الدومين على Namecheap (Advanced DNS)
+- CNAME: Host `www` → القيمة اللي PythonAnywhere بيكتبها في تبويب Web للدومين الجديد
+  (بتبقى زي `webapp-123456.pythonanywhere.com`).
+- الدومين من غير www (`spiritegy.org`): من Namecheap اعمل **URL Redirect Record**: Host `@` →
+  `https://www.spiritegy.org` (Permanent 301). PythonAnywhere ما بيشتغلش على الدومين من غير www مباشرة.
+
+### ج) بعد كل تحديث
+`git pull` و `migrate` و `collectstatic` مرة واحدة، وبعدين **Reload للاتنين** (السيستم والموقع).
+
+### د) التشغيل أول مرة
+- من السيستم: **إعدادات الموقع** (واتساب، الإعلان، الصورة الرئيسية، البائع اللي الطلبات بتتسجل عليه).
+- **مصاريف الشحن**: المحافظات متسجلة بأسعار مبدئية، راجعها.
+- **منتجات الموقع**: لكل موديل ارفع الصور واكتب الوصف وعلّم "يظهر في الموقع".
+

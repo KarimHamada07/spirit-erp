@@ -42,7 +42,7 @@ def _phone(v):
     return s
 
 
-def _dec(v, label, required=False, positive=False):
+def _dec(v, label, required=False, positive=False, signed=False):
     s = _text(v).replace(",", "").replace("٫", ".")
     if not s:
         if required:
@@ -52,7 +52,7 @@ def _dec(v, label, required=False, positive=False):
         d = Decimal(s)
     except InvalidOperation:
         raise RowError(f"{label} لازم يكون رقم ({s})")
-    if d < 0 or (positive and d == 0):
+    if (d < 0 and not signed) or (positive and d == 0):
         raise RowError(f"{label} لازم يكون أكبر من صفر")
     return d
 
@@ -199,11 +199,12 @@ class CustomersSpec(Spec):
 class SuppliersSpec(Spec):
     key, title, icon = "suppliers", "الموردين", "fas fa-industry"
     perm_view, perm_add = "trade.view_supplier", "trade.add_supplier"
+    old_headers = {"رصيد افتتاحي (لينا عليه)": "opening_balance"}
     columns = [
         ("name", "اسم المورد", True, "بيتعرف بيه المورد"),
         ("phone", "الموبايل", False, ""),
         ("address", "العنوان", False, ""),
-        ("opening_balance", "رصيد افتتاحي (لينا عليه)", False, "المستحق للمورد قبل النظام"),
+        ("opening_balance", "رصيد افتتاحي", False, "قبل النظام: موجب = ليه عندنا، سالب (بعلامة -) = لينا عنده"),
         ("opening_date", "تاريخ الرصيد", False, "مثلاً 2026-01-31"),
     ]
     info_columns = ["المستحق دلوقتي (للعلم)"]
@@ -224,7 +225,7 @@ class SuppliersSpec(Spec):
         obj = existing[0] if existing else None
         clean = {"pk": obj.pk if obj else None, "name": name, "phone": _phone(raw.get("phone")),
                  "address": _text(raw.get("address"))[:250],
-                 "opening_balance": _dec(raw.get("opening_balance"), "الرصيد الافتتاحي"),
+                 "opening_balance": _dec(raw.get("opening_balance"), "الرصيد الافتتاحي", signed=True),
                  "opening_date": _date(raw.get("opening_date"), "تاريخ الرصيد")}
         return ("update" if obj else "new"), name, clean
 
@@ -515,6 +516,7 @@ def read_rows(spec, fileobj):
     except StopIteration:
         raise RowError("الملف فاضي")
     by_header = {h: k for k, h, _r, _h in spec.columns}
+    by_header.update(getattr(spec, "old_headers", {}))   # أسماء أعمدة قديمة (فورم اتنزل قبل كده)
     index = {}
     for i, h in enumerate(header):
         name = _text(h).replace("*", "").strip()

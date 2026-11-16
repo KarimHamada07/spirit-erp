@@ -25,6 +25,7 @@ def suppliers(request):
     return render(request, "trade/suppliers.html", {
         **admin.site.each_context(request), "title": "الموردين", "rows": rows, "q": q,
         "payable": sum((r["balance"] for r in rows if r["balance"] > 0), Decimal("0")),
+        "advances": -sum((r["balance"] for r in rows if r["balance"] < 0), Decimal("0")),
         "can_pay": request.user.has_perm("trade.add_supplierpayment"),
     })
 

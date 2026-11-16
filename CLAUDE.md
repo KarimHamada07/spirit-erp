@@ -23,6 +23,8 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `treasury.py` — كل حركة فلوس بتعدي من هنا وبتتسجل `CashEntry` (موجب داخل / سالب خارج).
 - مديونية العميل: `Customer.objects.with_balance()` (subqueries). المرتجع على الحساب بيتخصم بـ
   `SaleReturnItem.unit_refund` (سعر البيع بعد نصيبه من خصم الفاتورة، بيتثبت وقت التأكيد).
+- رصيد المورد (`Supplier.balance`) بالإشارة: موجب = ليه عندنا، سالب = لينا عنده (دفعة مقدمة تحت الحساب).
+  `SupplierPayment.kind`: `pay` (سداد، ينفع أكتر من المستحق) أو `refund` (استرداد، مش أكتر من اللي لينا).
 - `debts.py` + `debt_views.py` — أعمار المديونيات (FIFO) ومتابعة التحصيل للمحاسب (`DebtFollowUp`).
 - `profit.py` (تقرير الربحية)، `analytics_views.py` (رسوم)، `report_views.py` (تقارير + Excel).
 - `notify.py` — `log_event(text, audience="")` بيسجل `ActivityLog` وبيبعته تليجرام (مباشر أو عن طريق
@@ -41,6 +43,13 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   والبياع المربوط بحسابه (`Seller.user`) بيشوف مبيعاته وعمولته، ونقطة البيع بتختاره لوحدها.
 - `quick_views.py` — فورم التحصيل السريع والمصروف (بدل لوحة الإدارة). منطق التحصيل في `customer_views.take_payment`.
   كشف حساب العميل ليه رابط موقّع `/s/<token>/` (30 يوم) بيتبعت واتساب من صفحة العميل.
+- الموقع (المتجر) على `spiritegy.org`: نفس المشروع ونفس القاعدة. `store_views.StoreHostMiddleware` بيخلي أي
+  دومين في `settings.STORE_HOSTS` يستخدم `config/store_urls.py` (المتجر بس). على دومين السيستم المتجر للمعاينة على
+  `/shop/` (namespace `store`). القوالب في `templates/trade/store/` (مش admin) والشكل `static/trade/store/store.css`.
+  الطلب `WebOrder` محتاج تأكيد من `store_admin_views` (طلبات الموقع) ← `WebOrder.confirm()` بيعمل `OnlineOrder`
+  ويخصم المخزون. الموديل بيظهر لو `show_online` وليه مخزون. الصور `ProductImage` بتتصغر وقت الرفع (`store_media.py`)
+  وبتتحفظ في `MEDIA_ROOT` (`media/`). مصاريف الشحن `ShippingZone`، والإعدادات `StoreSettings.get()`.
+  في الاختبارات استخدم `reverse(..., urlconf="config.store_urls")` مع `HTTP_HOST="spiritegy.org"`.
 - `help_texts.py` — شرح كل صفحة (`PAGE_HELP` بالـ url name، و`MODEL_HELP` لجداول لوحة الإدارة) بيظهر في صندوق
   "الصفحة دي بتعمل إيه؟"، و`MENU_TIPS` تلميحات القايمة. أي صفحة أو جدول جديد لازم يتضافله شرح (فيه اختبار).
 - `static/trade/js/ui.js` + `static/trade/css/ui.css` — التلميحات لكل زرار (data-tip ← title ← قاموس بالنص

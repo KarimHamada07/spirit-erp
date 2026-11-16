@@ -1,0 +1,27 @@
+{% extends "trade/store/base.html" %}
+{% block title %}{{ title }} — SPIRIT{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="bar">
+    <h1>{{ title }}{% if q %}: “{{ q }}”{% endif %}</h1>
+    <form method="get">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+      {% if sizes %}<select name="size" aria-label="المقاس" onchange="this.form.submit()">
+        <option value="">كل المقاسات</option>
+        {% for z in sizes %}<option value="{{ z }}"{% if z == size %} selected{% endif %}>{{ z }}</option>{% endfor %}
+      </select>{% endif %}
+      <select name="sort" aria-label="الترتيب" onchange="this.form.submit()">
+        <option value="new"{% if sort == "new" %} selected{% endif %}>الأحدث</option>
+        <option value="low"{% if sort == "low" %} selected{% endif %}>السعر: من الأقل</option>
+        <option value="high"{% if sort == "high" %} selected{% endif %}>السعر: من الأعلى</option>
+      </select>
+      <noscript><button class="btn btn-line" style="height:42px">تطبيق</button></noscript>
+    </form>
+  </div>
+  {% if cards %}
+  <div class="grid">{% for c in cards %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+  {% else %}
+  <div class="empty"><b>مفيش منتجات هنا دلوقتي</b>جرّب قسم تاني أو <a href="{% url 'store:all' %}" style="color:var(--red)">شوف كل المنتجات</a>.</div>
+  {% endif %}
+</div>
+{% endblock %}

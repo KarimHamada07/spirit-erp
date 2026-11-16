@@ -1,0 +1,79 @@
+{% load static %}<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}SPIRIT{% endblock %}</title>
+<meta name="description" content="{% block desc %}{{ s.hero_subtitle|default:'SPIRIT — لبس رجالي. اطلب أونلاين والدفع عند الاستلام لكل محافظات مصر.' }}{% endblock %}">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="{% static 'trade/img/favicon.ico' %}">
+<link rel="apple-touch-icon" href="{% static 'trade/img/apple-touch-icon.png' %}">
+<link rel="canonical" href="{{ request.build_absolute_uri }}">
+<meta property="og:site_name" content="SPIRIT">
+<meta property="og:type" content="{% block og_type %}website{% endblock %}">
+<meta property="og:title" content="{% block og_title %}SPIRIT{% endblock %}">
+<meta property="og:url" content="{{ request.build_absolute_uri }}">
+{% block og_image %}{% if s.hero_image %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ s.hero_image.url }}">{% endif %}{% endblock %}
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ css }}">
+{% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<a class="sr" href="#main">انتقل للمحتوى</a>
+{% if s.announcement %}<div class="ann">{{ s.announcement }}</div>{% endif %}
+<header class="top">
+  <div class="wrap">
+    <a href="{% url 'store:home' %}" class="brand" aria-label="SPIRIT الرئيسية"><img src="{% static 'trade/img/logo.png' %}" alt="" width="38" height="38">SPIRIT</a>
+    <form class="search-bar" action="{% url 'store:all' %}" role="search">
+      <input type="search" name="q" value="{{ q|default:'' }}" placeholder="دوّر على هودي، جاكيت، بنطلون..." aria-label="بحث في المنتجات">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </form>
+    <div class="tools">
+      <a href="{% url 'store:track' %}" class="icon-btn hide-m" aria-label="تتبع طلبك" title="تتبع طلبك">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg></a>
+      <a href="{% url 'store:cart' %}" class="icon-btn" aria-label="السلة ({{ cart_count }})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+        {% if cart_count %}<span class="n">{{ cart_count }}</span>{% endif %}</a>
+    </div>
+  </div>
+</header>
+{% block chips %}{% if nav_cats %}<div class="wrap"><nav class="chips" aria-label="الأقسام">
+  <a href="{% url 'store:home' %}" class="{% if request.resolver_match.url_name == 'home' %}on{% endif %}">الكل</a>
+  <a href="{% url 'store:all' %}?sort=new" class="{% if request.resolver_match.url_name == 'all' and not q %}on{% endif %}">🔥 الجديد</a>
+  {% for key, label in nav_cats %}<a href="{% url 'store:category' key %}" class="{% if category == key %}on{% endif %}">{{ label }}</a>{% endfor %}
+</nav></div>{% endif %}{% endblock %}
+
+<main id="main">{% block main %}{% endblock %}</main>
+
+<nav class="tabbar" aria-label="تنقل سريع">
+  <a href="{% url 'store:home' %}" class="{% if request.resolver_match.url_name == 'home' %}on{% endif %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>الرئيسية</a>
+  <a href="{% url 'store:all' %}" class="{% if request.resolver_match.url_name == 'all' or request.resolver_match.url_name == 'category' %}on{% endif %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>المنتجات</a>
+  <a href="{% url 'store:track' %}" class="{% if request.resolver_match.url_name == 'track' %}on{% endif %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg>تتبع طلبك</a>
+  <a href="{% url 'store:cart' %}" class="{% if request.resolver_match.url_name == 'cart' or request.resolver_match.url_name == 'checkout' %}on{% endif %}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 7h12l-1 13H7z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>السلة{% if cart_count %}<span class="n">{{ cart_count }}</span>{% endif %}</a>
+</nav>
+<footer class="foot">
+  <div class="wrap">
+    <div>
+      <div class="brand" style="margin-bottom:8px"><img src="{% static 'trade/img/logo.png' %}" alt="" width="40" height="40">SPIRIT</div>
+      <p style="margin:0;max-width:340px">الدفع عند الاستلام، والشحن لكل محافظات مصر. أي سؤال كلمنا على واتساب.</p>
+    </div>
+    <div><h4>المتجر</h4>
+      <a href="{% url 'store:all' %}">كل المنتجات</a>
+      {% for key, label in nav_cats|slice:":5" %}<a href="{% url 'store:category' key %}">{{ label }}</a>{% endfor %}
+    </div>
+    <div><h4>خدمة العملاء</h4>
+      <a href="{% url 'store:track' %}">تتبع طلبك</a>
+      {% if wa %}<a href="{{ wa }}" target="_blank" rel="noopener">واتساب</a>{% endif %}
+      {% if s.facebook %}<a href="{{ s.facebook }}" target="_blank" rel="noopener">فيسبوك</a>{% endif %}
+      {% if s.instagram %}<a href="{{ s.instagram }}" target="_blank" rel="noopener">إنستجرام</a>{% endif %}
+      {% if s.tiktok %}<a href="{{ s.tiktok }}" target="_blank" rel="noopener">تيك توك</a>{% endif %}
+    </div>
+  </div>
+  <div class="copy">© {{ year|stringformat:'d' }} SPIRIT</div>
+</footer>
+{% if wa %}<a class="wa-float" href="{{ wa }}" target="_blank" rel="noopener" aria-label="كلمنا على واتساب">
+  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .2-1.2c-.1-.1-.3-.2-.5-.3Z"/></svg></a>{% endif %}
+{% block scripts %}{% endblock %}
+</body>
+</html>
