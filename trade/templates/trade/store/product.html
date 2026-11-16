@@ -8,69 +8,93 @@
 {% block head %}
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"{{ m.name|escapejs }}","sku":"{{ m.code|escapejs }}",{% if images %}"image":"{{ request.scheme }}://{{ request.get_host }}{{ images.0.image.url }}",{% endif %}"description":"{{ m.description|default:m.name|escapejs }}","brand":{"@type":"Brand","name":"SPIRIT"},"offers":{"@type":"Offer","priceCurrency":"EGP","price":"{{ price|stringformat:'.2f' }}","availability":"https://schema.org/InStock"}}</script>
 {% endblock %}
+{% block js_extra %}, viewed: "{{ m.code|escapejs }}"{% endblock %}
 {% block main %}
 <div class="wrap">
   <nav class="crumbs" aria-label="مكانك"><a href="{% url 'store:home' %}">الرئيسية</a><span>/</span>
     {% if m.category %}<a href="{% url 'store:category' m.category %}">{{ category_label }}</a><span>/</span>{% endif %}<span>{{ m.name }}</span></nav>
   <div class="pd">
-    <div class="gallery">
-      <div class="main" id="g-main">{% if images %}<img src="{{ images.0.image.url }}" alt="{{ m.name }}" width="1200" height="1500" id="g-img">{% else %}<img id="g-img" alt="" hidden>{% endif %}</div>
-      <div class="thumbs" id="g-thumbs" role="list"></div>
+    <div class="gallery rv" id="gal">
+      <div class="gal-track" id="g-track">
+        {% for i in images %}<figure data-color="{{ i.color }}"><img src="{{ i.image.url }}" data-full="{{ i.image.url }}" alt="{{ m.name }}" width="1200" height="1500"{% if not forloop.first %} loading="lazy"{% endif %}></figure>
+        {% empty %}<figure><div class="card"><div class="ph" style="border-radius:0;border:0"><div class="noimg">S</div></div></div></figure>{% endfor %}
+      </div>
+      <div class="gal-dots"></div>
+      {% if images|length > 1 %}<div class="gal-nav"><button type="button" class="round" data-dir="prev" aria-label="الصورة اللي قبلها">→</button><button type="button" class="round" data-dir="next" aria-label="الصورة اللي بعدها">←</button></div>
+      <div class="gal-thumbs">{% for i in images %}<button type="button" aria-label="صورة {{ forloop.counter }}"><img src="{{ i.thumb_url }}" alt="" loading="lazy"></button>{% endfor %}</div>{% endif %}
     </div>
-    <form class="info" method="post" action="{% url 'store:cart_add' %}" id="buy-form">
+
+    <form class="info rv" style="--i:1" method="post" action="{% url 'store:cart_add' %}" id="buy-form" data-ajax-cart>
       {% csrf_token %}
-      {% if m.old_price and m.old_price > price %}<span class="badge">خصم {{ discount_pct }}%</span>{% elif category_label %}<span class="badge">{{ category_label }}</span>{% endif %}
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        {% if discount_pct %}<span class="badge">🔥 خصم {{ discount_pct }}%</span>{% elif category_label %}<span class="badge">{{ category_label }}</span>{% else %}<span></span>{% endif %}
+        <button type="button" class="round fav" data-code="{{ m.code }}" aria-label="المفضلة"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20s-7-4.4-9-9.2C1.7 7.4 4 4 7.4 4c2 0 3.5 1.2 4.6 2.8C13.1 5.2 14.6 4 16.6 4 20 4 22.3 7.4 21 10.8 19 15.6 12 20 12 20z"/></svg></button>
+      </div>
       <h1>{{ m.name }}</h1>
       <div class="code">كود: {{ m.code }}</div>
-      <div class="price"><b id="p-price">{{ price|floatformat:0 }} ج.م</b>
-        {% if m.old_price and m.old_price > price %}<s>{{ m.old_price|floatformat:0 }} ج.م</s>{% endif %}</div>
+      <div class="price"><b id="p-price">{{ price|floatformat:0 }} ج.م</b>{% if m.old_price and m.old_price > price %}<s>{{ m.old_price|floatformat:0 }} ج.م</s>{% endif %}</div>
 
-      <div class="opt" id="colors-box" hidden><h3>اللون: <span id="color-name"></span></h3><div class="swatches" id="colors"></div></div>
-      <div class="opt"><h3>المقاس: <span id="size-name">اختار المقاس</span></h3><div class="sizes" id="sizes"></div></div>
+      <div class="opt" id="colors-box" hidden><h3><span>اللون: <b id="color-name" style="color:var(--ink)"></b></span></h3><div class="swatches" id="colors"></div></div>
+      <div class="opt"><h3><span>المقاس: <b id="size-name" style="color:var(--ink)">اختار المقاس</b></span><button type="button" data-modal="guide">دليل المقاسات</button></h3><div class="sizes" id="sizes"></div></div>
       <div class="stock-note" id="note" aria-live="polite"></div>
 
       <input type="hidden" name="variant" id="variant">
       <div class="buy">
-        <div class="qty"><button type="button" data-d="-1" aria-label="أقل">−</button>
-          <input type="number" name="qty" id="qty" value="1" min="1" max="10" aria-label="الكمية"><button type="button" data-d="1" aria-label="أكتر">+</button></div>
-        <button class="btn btn-red" id="add" disabled>أضف للسلة</button>
+        <div class="qty"><button type="button" data-d="-1" aria-label="أقل">−</button><input type="number" name="qty" id="qty" value="1" min="1" max="10" aria-label="الكمية"><button type="button" data-d="1" aria-label="أكتر">+</button></div>
+        <button class="btn btn-red" id="add" type="submit">أضف للسلة</button>
       </div>
-      <button class="btn btn-dark btn-block" name="buy_now" value="1" id="buy-now" style="margin-top:10px" disabled>اطلب دلوقتي</button>
-      <div class="note">💵 الدفع عند الاستلام · 🚚 شحن لكل محافظات مصر
-        {% if wa %}<br>💬 سؤال عن المقاس؟ <a href="{{ wa }}?text={{ m.name|urlencode }}%20-%20{{ m.code|urlencode }}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">كلمنا واتساب</a>{% endif %}</div>
-      {% if m.description %}<div class="desc">{{ m.description }}</div>{% endif %}
+      <button class="btn btn-glass btn-block" type="submit" name="buy_now" value="1" id="buy-now" style="margin-top:10px">اطلب دلوقتي ⚡</button>
+
+      <div class="perks">
+        <div><i>💵</i>الدفع عند الاستلام: افحص الأوردر وبعدين ادفع</div>
+        <div><i>🚚</i>شحن لكل محافظات مصر{% if s.free_shipping_over %}، ومجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% endif %}</div>
+        {% if wa %}<div><i>💬</i><span>سؤال عن المقاس؟ <a href="{{ wa }}?text={{ m.name|urlencode }}%20-%20{{ m.code|urlencode }}" target="_blank" rel="noopener" style="color:#ff6b7d;font-weight:800">كلمنا واتساب</a></span></div>{% endif %}
+      </div>
+      <div class="acc">
+        {% if m.description %}<details open><summary>الوصف والخامة</summary><div class="body">{{ m.description }}</div></details>{% endif %}
+        <details><summary>الشحن والدفع</summary><div class="body">الدفع كاش عند الاستلام. بنكلمك نأكد الطلب قبل الشحن، والتوصيل من يوم لـ 5 أيام حسب المحافظة.</div></details>
+        <details><summary>الاستبدال</summary><div class="body">لو المقاس مش مظبوط كلمنا على واتساب ونستبدلهولك.</div></details>
+      </div>
     </form>
   </div>
 
   {% if related %}
   <section class="section">
-    <div class="section-head"><h2>ممكن يعجبك كمان</h2></div>
-    <div class="grid">{% for c in related %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+    <div class="h2 rv"><div><small>من نفس القسم</small><h2>ممكن يعجبك كمان</h2></div></div>
+    <div class="rail">{% for c in related %}{% include "trade/store/_card.html" %}{% endfor %}</div>
   </section>
   {% endif %}
+  <section class="section" data-hide-empty hidden>
+    <div class="h2"><div><small>كمّل من مكان ما وقفت</small><h2>اتفرجت عليهم قبل كده</h2></div></div>
+    <div class="rail" data-cards-from="spirit-viewed" data-skip="{{ m.code }}"></div>
+  </section>
 </div>
+
+<div class="modal" id="guide" role="dialog" aria-label="دليل المقاسات"><div class="box" style="width:min(560px,100%)"><button type="button" class="round x" data-close aria-label="قفل">✕</button>
+  <div class="guide"><h2>دليل المقاسات</h2><p style="color:var(--muted);margin:0">المقاسات بالسنتيمتر. لو بين مقاسين خد الأكبر.</p>
+    <table><thead><tr><th>المقاس</th><th>الصدر</th><th>الطول</th><th>الوزن المناسب</th></tr></thead>
+      <tbody>{% for r in size_guide %}<tr>{% for c in r %}<td>{{ c|default:"—" }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div></div></div>
+
 <div class="sticky-buy"><b id="s-price">{{ price|floatformat:0 }} ج.م</b><button type="button" class="btn btn-red" id="s-add">أضف للسلة</button></div>
-{{ variants_json|json_script:"V" }}{{ images_json|json_script:"I" }}{{ color_hex|json_script:"H" }}
+{{ variants_json|json_script:"V" }}{{ color_hex|json_script:"H" }}
 {% endblock %}
 {% block scripts %}
 <script>
-(function () {
-  var V = JSON.parse(document.getElementById("V").textContent), I = JSON.parse(document.getElementById("I").textContent);
-  var H = JSON.parse(document.getElementById("H").textContent);
+document.addEventListener("DOMContentLoaded", function () {
+  var V = JSON.parse(document.getElementById("V").textContent), H = JSON.parse(document.getElementById("H").textContent);
+  var $ = function (id) { return document.getElementById(id); };
   var colors = [], color = null, size = null;
   V.forEach(function (v) { if (colors.indexOf(v.color) === -1) colors.push(v.color); });
-  var $ = function (id) { return document.getElementById(id); };
   function money(n) { return Math.round(n).toLocaleString("en-US") + " ج.م"; }
   function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
   function avail(c) { return V.some(function (v) { return v.color === c && v.qty > 0; }); }
   color = colors.filter(avail)[0];
   if (colors.length > 1 || (colors[0] || "")) $("colors-box").hidden = false;
-
   function drawColors() {
     $("colors").innerHTML = colors.map(function (c) {
       var ok = avail(c);
-      return '<button type="button" data-c="' + esc(c) + '" class="' + (c === color ? "on" : "") + (ok ? "" : " out") + '"' +
-        (ok ? "" : " disabled") + ' aria-pressed="' + (c === color) + '">' + (H[c] ? '<i style="background:' + H[c] + '"></i>' : "") + esc(c || "—") + "</button>";
+      return '<button type="button" data-c="' + esc(c) + '" class="' + (c === color ? "on" : "") + (ok ? "" : " out") + '"' + (ok ? "" : " disabled") +
+        ' aria-pressed="' + (c === color) + '">' + (H[c] ? '<i style="background:' + H[c] + '"></i>' : "") + esc(c || "—") + "</button>";
     }).join("");
     $("color-name").textContent = color || "";
   }
@@ -85,50 +109,40 @@
     var cur = list.filter(function (v) { return v.size === size; })[0];
     $("variant").value = cur ? cur.id : "";
     $("size-name").textContent = cur ? cur.size : "اختار المقاس";
-    $("add").disabled = $("buy-now").disabled = !cur;
-    $("note").textContent = cur && cur.left ? "فاضل " + cur.left + " بس من المقاس ده" : "";
+    $("note").textContent = cur && cur.left ? "🔥 فاضل " + cur.left + " بس من المقاس ده" : "";
     $("qty").max = cur ? cur.qty : 10;
     if (cur) { $("p-price").textContent = money(cur.price); $("s-price").textContent = money(cur.price); }
   }
-  function drawGallery() {
-    var imgs = I.filter(function (i) { return i.color && i.color === color; });
-    if (!imgs.length) imgs = I;
-    if (!imgs.length) return;
-    $("g-img").src = imgs[0].src;
-    $("g-thumbs").innerHTML = imgs.length < 2 ? "" : imgs.map(function (i, n) {
-      return '<button type="button" role="listitem" data-src="' + i.src + '" class="' + (n ? "" : "on") + '" aria-label="صورة ' + (n + 1) + '"><img src="' + i.thumb + '" alt="" loading="lazy"></button>';
-    }).join("");
+  function syncGallery() {   // الصور بتاعة اللون المختار الأول
+    var g = $("gal"), figs = [].slice.call(document.querySelectorAll("#g-track figure"));
+    var first = figs.findIndex(function (f) { return color && f.getAttribute("data-color") === color; });
+    if (first > 0 && g._to) g._to(first);
   }
   $("colors").addEventListener("click", function (e) {
     var b = e.target.closest("[data-c]"); if (!b || b.disabled) return;
-    color = b.getAttribute("data-c"); drawColors(); drawSizes(); drawGallery();
+    color = b.getAttribute("data-c"); drawColors(); drawSizes(); syncGallery();
   });
   $("sizes").addEventListener("click", function (e) {
     var b = e.target.closest("[data-s]"); if (!b || b.disabled) return;
     size = b.getAttribute("data-s"); drawSizes();
   });
-  $("g-thumbs").addEventListener("click", function (e) {
-    var b = e.target.closest("[data-src]"); if (!b) return;
-    $("g-img").src = b.getAttribute("data-src");
-    [].forEach.call(this.children, function (x) { x.classList.toggle("on", x === b); });
-  });
-  document.querySelector(".qty").addEventListener("click", function (e) {
+  document.querySelector(".info .qty").addEventListener("click", function (e) {
     var d = e.target.getAttribute("data-d"); if (!d) return;
     var q = $("qty"), n = (parseInt(q.value, 10) || 1) + parseInt(d, 10);
     q.value = Math.max(1, Math.min(n, parseInt(q.max, 10) || 10));
   });
-  $("s-add").addEventListener("click", function () {
-    if ($("add").disabled) {
-      $("note").textContent = "اختار المقاس الأول";
+  // من غير مقاس: منبّه بدل ما الطلب يتبعت
+  $("buy-form").addEventListener("submit", function (e) {
+    if (!$("variant").value) {
+      e.preventDefault(); e.stopImmediatePropagation();
+      var n = $("note"); n.textContent = "👆 اختار المقاس الأول"; n.classList.remove("shake"); void n.offsetWidth; n.classList.add("shake");
       $("sizes").scrollIntoView({behavior: "smooth", block: "center"});
-      return;
     }
-    $("add").click();
-  });
-  // لو مقاس واحد بس متاح، بيتختار لوحده
+  }, true);
+  $("s-add").addEventListener("click", function () { $("add").click(); });
   var only = V.filter(function (v) { return v.color === color && v.qty > 0; });
   if (only.length === 1) size = only[0].size;
-  drawColors(); drawSizes(); drawGallery();
-})();
+  drawColors(); drawSizes();
+});
 </script>
 {% endblock %}

@@ -62,7 +62,7 @@ _HR_READ = ["view_employeeprofile", "view_employeetxn", "view_leaverequest", "vi
 # الموقع: الطلبات (تأكيد/إلغاء) والصور. الإعدادات ومصاريف الشحن لمدير الحسابات بس
 _WEB_ORDERS = ["view_weborder", "change_weborder", "view_weborderitem"]
 _WEB_PRODUCTS = ["view_productimage", "add_productimage", "change_productimage", "delete_productimage",
-                 "view_shippingzone"]
+                 "view_shippingzone", "view_heroslide", "add_heroslide", "change_heroslide", "delete_heroslide"]
 
 # مصفوفة الصلاحيات: كل دور وقائمة أكواد الصلاحيات (app trade)
 ROLE_PERMISSIONS = {

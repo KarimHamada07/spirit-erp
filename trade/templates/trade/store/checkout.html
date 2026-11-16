@@ -30,7 +30,7 @@
       <div><span>الشحن <small id="days" style="color:var(--muted)"></small></span><span id="fee">اختار المحافظة</span></div>
       <div class="total"><span>الإجمالي</span><span id="grand">{{ total|floatformat:0 }} ج.م</span></div>
       <button class="btn btn-red btn-block"{% if not s.is_open %} disabled{% endif %}>تأكيد الطلب</button>
-      <a href="{% url 'store:cart' %}" class="btn btn-line btn-block">ارجع للسلة</a>
+      <a href="{% url 'store:cart' %}" class="btn btn-glass btn-block">ارجع للسلة</a>
     </div>
   </form>
 </div>

@@ -677,7 +677,13 @@ class StockCountAdmin(_ReadOnly):
 
 
 # ================= الموقع =================
-from .models import ProductImage, ShippingZone, StoreSettings, WebOrder, WebOrderItem  # noqa: E402
+from .models import HeroSlide, ProductImage, ShippingZone, StoreSettings, WebOrder, WebOrderItem  # noqa: E402
+
+
+@admin.register(HeroSlide)
+class HeroSlideAdmin(admin.ModelAdmin):
+    list_display = ("title", "subtitle", "sort", "is_active")
+    list_editable = ("sort", "is_active")
 
 
 @admin.register(ShippingZone)

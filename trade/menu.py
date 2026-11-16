@@ -42,6 +42,7 @@ MENU = [
     ("الموقع", [
         ("طلبات الموقع", "store_orders", "fas fa-globe", "trade.view_weborder"),
         ("منتجات الموقع", "store_products", "fas fa-images", "trade.view_productimage"),
+        ("سلايدر الرئيسية", "admin:trade.heroslide", "fas fa-panorama", "trade.change_heroslide"),
         ("مصاريف الشحن", "admin:trade.shippingzone", "fas fa-map-location-dot", "trade.change_shippingzone"),
         ("إعدادات الموقع", "admin:trade.storesettings", "fas fa-sliders", "trade.change_storesettings"),
     ]),

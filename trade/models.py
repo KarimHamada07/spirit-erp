@@ -1664,6 +1664,10 @@ class StoreSettings(models.Model):
                                    verbose_name="البائع اللي طلبات الموقع بتتسجل عليه")
     is_open = models.BooleanField("الموقع بياخد طلبات", default=True,
                                   help_text="اقفلها لو عايز توقف الطلبات مؤقتاً (الموقع بيفضل ظاهر)")
+    size_guide = models.TextField(
+        "دليل المقاسات", blank=True,
+        help_text="كل سطر: المقاس | الصدر | الطول | الوزن المناسب. مثال: M | 104 | 72 | 65-75 كجم. "
+                  "فاضي = جدول افتراضي")
 
     class Meta:
         verbose_name = "إعدادات الموقع"
@@ -1684,6 +1688,33 @@ class StoreSettings(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class HeroSlide(models.Model):
+    """شريحة في السلايدر الكبير أول الموقع (صورة عريضة + عنوان + زرار)"""
+    image = models.ImageField("الصورة (عريضة)", upload_to="store/slides/")
+    title = models.CharField("العنوان", max_length=80)
+    subtitle = models.CharField("الكلام تحت العنوان", max_length=160, blank=True)
+    button = models.CharField("كلام الزرار", max_length=30, default="تسوّق دلوقتي")
+    link = models.CharField("الزرار بيودّي على", max_length=200, blank=True,
+                            help_text="فاضي = كل المنتجات. أو رابط قسم زي /c/pants/ أو منتج زي /p/M-02/")
+    sort = models.PositiveSmallIntegerField("الترتيب", default=0)
+    is_active = models.BooleanField("ظاهرة", default=True)
+
+    class Meta:
+        verbose_name = "شريحة في الرئيسية"
+        verbose_name_plural = "سلايدر الرئيسية (الموقع)"
+        ordering = ["sort", "id"]
+
+    def __str__(self):
+        return self.title
+
+    def save(self, *args, **kwargs):
+        if self.image and not getattr(self.image, "_committed", True):
+            from .store_media import process_image
+            big, _small = process_image(self.image, max_side=2200)
+            self.image.save(big.name, big, save=False)
+        super().save(*args, **kwargs)
 
 
 def _order_token():

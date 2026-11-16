@@ -172,3 +172,31 @@ class StoreAdmin(StoreBase):
     def test_sales_cannot_manage_products(self):
         _u, sales = login("sales", ROLE_SALES)
         self.assertEqual(sales.get(reverse("store_products")).status_code, 403)
+
+
+class StoreV2(StoreBase):
+    """السلة من غير تحميل صفحة، المعاينة السريعة، كروت المفضلة، والسلايدر"""
+
+    def test_ajax_cart_drawer_quick_and_cards(self):
+        r = self.client.post(su("store:cart_add"), {"variant": self.v.pk, "qty": 1},
+                             HTTP_X_REQUESTED_WITH="fetch", **STORE)
+        self.assertEqual(r.json()["count"], 1)
+        r = self.client.post(su("store:cart_add"), {"variant": self.v2.pk}, HTTP_X_REQUESTED_WITH="fetch", **STORE)
+        self.assertEqual(r.status_code, 400)                       # المقاس خلص
+        self.assertContains(self.client.get(su("store:cart_drawer"), **STORE), "تيشرت أسود")
+        quick = self.client.get(su("store:quick", self.m.code), **STORE)
+        self.assertContains(quick, 'data-ajax-cart')
+        self.assertNotContains(quick, ">XL<")                       # الخلصان مش بيظهر في المعاينة
+        cards = self.client.get(su("store:cards") + f"?codes={self.m.code},NOPE", **STORE)
+        self.assertContains(cards, self.m.name)
+        self.assertEqual(self.client.get(su("store:wishlist"), **STORE).status_code, 200)
+
+    def test_home_slides_and_size_guide(self):
+        from trade.models import HeroSlide
+        self.assertContains(self.client.get("/", **STORE), "class=\"slide on\"")
+        HeroSlide(image=jpeg(2000, 1000), title="كولكشن الشتا").save()
+        self.assertContains(self.client.get("/", **STORE), "كولكشن الشتا")
+        s = StoreSettings.get()
+        s.size_guide = "M | 104 | 72 | 65-75"
+        s.save()
+        self.assertContains(self.client.get(f"/p/{self.m.code}/", **STORE), "65-75")

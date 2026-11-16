@@ -51,6 +51,9 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   ويخصم المخزون. الموديل بيظهر لو `show_online` وليه مخزون. الصور `ProductImage` بتتصغر وقت الرفع (`store_media.py`)
   وبتتحفظ في `MEDIA_ROOT` (`media/`). مصاريف الشحن `ShippingZone`، والإعدادات `StoreSettings.get()`.
   في الاختبارات استخدم `reverse(..., urlconf="config.store_urls")` مع `HTTP_HOST="spiritegy.org"`.
+  الشكل داكن مودرن بحركة: `static/trade/store/store.js` (ظهور العناصر `.rv`، سلايدر `HeroSlide`، سلة جانبية
+  بـ fetch على `cart_add` مع هيدر `X-Requested-With: fetch` و`cart_drawer`، معاينة سريعة `quick`، المفضلة وآخر
+  المشاهدات في localStorage وبيتعرضوا من `cards?codes=`). دليل المقاسات من `StoreSettings.size_guide`.
 - `help_texts.py` — شرح كل صفحة (`PAGE_HELP` بالـ url name، و`MODEL_HELP` لجداول لوحة الإدارة) بيظهر في صندوق
   "الصفحة دي بتعمل إيه؟"، و`MENU_TIPS` تلميحات القايمة. أي صفحة أو جدول جديد لازم يتضافله شرح (فيه اختبار).
 - `static/trade/js/ui.js` + `static/trade/css/ui.css` — التلميحات لكل زرار (data-tip ← title ← قاموس بالنص
