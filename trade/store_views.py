@@ -13,7 +13,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Min, Prefetch, Q, Sum
+from django.db.models import Count, Min, Prefetch, Q, Sum
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -49,7 +49,9 @@ def _visible_models():
     return (ClothingModel.objects.filter(show_online=True, is_active=True)
             .annotate(stock=Sum("variants__quantity"), min_price=Min("variants__sale_price"))
             .filter(stock__gt=0)
-            .prefetch_related(Prefetch("images", queryset=ProductImage.objects.order_by("sort", "id"))))
+            .prefetch_related(Prefetch("images", queryset=ProductImage.objects.order_by("sort", "id")),
+                              Prefetch("variants", queryset=Variant.objects.filter(quantity__gt=0),
+                                       to_attr="in_stock")))
 
 
 def _cover(m):
@@ -58,7 +60,29 @@ def _cover(m):
 
 
 def _cards(qs):
-    return [{"m": m, "cover": _cover(m), "second": (list(m.images.all())[1:2] or [None])[0]} for m in qs]
+    """كروت المنتجات. لو الموديل ليه مقاس/لون واحد متاح، زرار + بيضيفه للسلة على طول"""
+    out = []
+    for m in qs:
+        stock = getattr(m, "in_stock", None)
+        out.append({"m": m, "cover": _cover(m), "second": (list(m.images.all())[1:2] or [None])[0],
+                    "one": stock[0] if stock is not None and len(stock) == 1 else None,
+                    "colors": [color_hex(c) for c in dict.fromkeys(v.color for v in (stock or []) if v.color)][:4]})
+    return out
+
+
+# ألوان الهدوم الشائعة (للدواير الصغيرة جنب اللون). أي لون مش هنا بيظهر بالاسم بس
+COLOR_HEX = {
+    "أسود": "#121214", "اسود": "#121214", "أبيض": "#f4f4f2", "ابيض": "#f4f4f2", "أوف وايت": "#ece7dc",
+    "أحمر": "#d1121b", "احمر": "#d1121b", "نبيتي": "#6d1a2b", "كحلي": "#1f2a44", "أزرق": "#2f5fa8", "ازرق": "#2f5fa8",
+    "لبني": "#9cc3e6", "رمادي": "#8a8d93", "رصاصي": "#8a8d93", "فحمي": "#3a3b3f", "بيج": "#d8c8a8",
+    "جملي": "#b08350", "بني": "#6b4a2f", "زيتي": "#4a5a3a", "أخضر": "#2e7d4f", "اخضر": "#2e7d4f",
+    "منت": "#a8dcc8", "موف": "#8a6aa8", "بمبي": "#f2a7c3", "وردي": "#f2a7c3", "أصفر": "#f2c230", "اصفر": "#f2c230",
+    "برتقالي": "#ee7a22", "سيمون": "#f4a582", "دنيم": "#4f6f96",
+}
+
+
+def color_hex(name):
+    return COLOR_HEX.get((name or "").strip(), "")
 
 
 def _cart(request):
@@ -115,8 +139,19 @@ def home(request):
     models = _visible_models()
     featured = list(models.filter(featured=True).order_by("-id")[:8])
     latest = list(models.order_by("-id")[:12])
+    # البانر: صورة أحدث موديل مميز، وجنبه أكبر قسمين بصورة موديل من كل قسم وأقل سعر
+    labels = dict(ClothingModel.CATEGORIES)
+    tiles = []
+    top = (ClothingModel.objects.filter(show_online=True, is_active=True, variants__quantity__gt=0)
+           .exclude(category="").values("category").annotate(n=Count("id", distinct=True)).order_by("-n")[:2])
+    for cat in [r["category"] for r in top]:
+        m = models.filter(category=cat).order_by("-id").first()
+        low = models.filter(category=cat).aggregate(p=Min("min_price"))["p"]
+        tiles.append({"key": cat, "label": labels.get(cat, cat), "cover": _cover(m) if m else None, "low": low})
+    hero_model = (featured or latest or [None])[0]
     return render(request, "trade/store/home.html", _ctx(
-        request, featured=_cards(featured), latest=_cards(latest)))
+        request, featured=_cards(featured), latest=_cards(latest), tiles=tiles,
+        hero_cover=_cover(hero_model) if hero_model else None))
 
 
 SORTS = {"new": "-id", "low": "min_price", "high": "-min_price"}
@@ -166,7 +201,9 @@ def product(request, code):
         if m.category else []
     prices = [v.sale_price for v in variants if v.quantity > 0]
     return render(request, "trade/store/product.html", _ctx(
-        request, m=m, images=images, colors=[c for c in colors], variants_json=data, images_json=imgs,
+        request, m=m, images=images, colors=colors, variants_json=data, images_json=imgs,
+        color_hex={c: color_hex(c) for c in colors},
+        discount_pct=int(round((1 - min(prices) / m.old_price) * 100)) if m.old_price and m.old_price > min(prices) else 0,
         price=min(prices), max_price=max(prices), related=related,
         category_label=dict(ClothingModel.CATEGORIES).get(m.category, "")))
 

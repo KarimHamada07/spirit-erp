@@ -1,40 +1,44 @@
 {% extends "trade/store/base.html" %}
 {% block title %}SPIRIT — {{ s.hero_subtitle|default:"اطلب أونلاين والدفع عند الاستلام" }}{% endblock %}
 {% block main %}
-<section class="hero">
-  {% if s.hero_image %}<div class="bg" style="background-image:url('{{ s.hero_image.url }}')"></div>{% else %}<div class="stripe"></div>{% endif %}
-  <div class="wrap">
-    <h1>{{ s.hero_title|default:"SPIRIT" }}<b>.</b></h1>
-    {% if s.hero_subtitle %}<p>{{ s.hero_subtitle }}</p>{% endif %}
-    <a href="{% url 'store:all' %}" class="btn btn-red">تسوّق دلوقتي</a>
-  </div>
-</section>
-
 <div class="wrap">
-  {% if nav_cats %}
-  <section class="section">
-    <div class="section-head"><h2>الأقسام</h2></div>
-    <div class="cat-tiles">{% for key, label in nav_cats %}<a href="{% url 'store:category' key %}">{{ label }}</a>{% endfor %}</div>
+  <section class="hero">
+    <a class="hero-main" href="{% url 'store:all' %}">
+      <span class="ring" aria-hidden="true"></span>
+      <h1>{{ s.hero_title|default:"SPIRIT" }}</h1>
+      {% if s.hero_subtitle %}<p>{{ s.hero_subtitle }}</p>{% endif %}
+      <span class="btn btn-white">تسوّق دلوقتي ←</span>
+      {% if s.hero_image %}<span class="pic"><img src="{{ s.hero_image.url }}" alt=""></span>
+      {% elif hero_cover %}<span class="pic"><img src="{{ hero_cover.image.url }}" alt=""></span>{% endif %}
+    </a>
+    <div class="hero-side">
+      {% for t in tiles %}
+      <a class="tile{% if forloop.first %} dark{% endif %}" href="{% url 'store:category' t.key %}">
+        <small>{% if forloop.first %}الأكثر طلباً{% else %}أساسيات{% endif %}</small>
+        <h3>{{ t.label }}{% if t.low %}<br><span style="font-size:.7em">من {{ t.low|floatformat:0 }} ج.م</span>{% endif %}</h3>
+        <span class="go">تسوّق ←</span>
+        {% if t.cover %}<span class="pic"><img src="{{ t.cover.thumb_url }}" alt="" loading="lazy"></span>{% endif %}
+      </a>
+      {% empty %}
+      <a class="tile dark" href="{% url 'store:all' %}"><small>وصل جديد</small><h3>كل المنتجات</h3><span class="go">تسوّق ←</span></a>
+      <a class="tile" href="{% url 'store:track' %}"><small>طلبت قبل كده؟</small><h3>تابع طلبك</h3><span class="go">تابع ←</span></a>
+      {% endfor %}
+    </div>
   </section>
-  {% endif %}
 
   {% if featured %}
-  <section class="section">
-    <div class="section-head"><h2>مختارات</h2><a href="{% url 'store:all' %}">كل المنتجات ←</a></div>
-    <div class="grid">{% for c in featured %}{% include "trade/store/_card.html" %}{% endfor %}</div>
-  </section>
+  <div class="h2"><h2>مختارات ليك</h2><a href="{% url 'store:all' %}">شوف الكل</a></div>
+  <div class="grid">{% for c in featured %}{% include "trade/store/_card.html" %}{% endfor %}</div>
   {% endif %}
 
-  <section class="section">
-    <div class="section-head"><h2>وصل جديد</h2><a href="{% url 'store:all' %}">كل المنتجات ←</a></div>
-    {% if latest %}<div class="grid">{% for c in latest %}{% include "trade/store/_card.html" %}{% endfor %}</div>
-    {% else %}<div class="empty"><b>المنتجات جاية قريب</b>تابعنا على السوشيال عشان تعرف أول ما ننزّل.</div>{% endif %}
-  </section>
+  <div class="h2"><h2>وصل جديد</h2><a href="{% url 'store:all' %}">شوف الكل</a></div>
+  {% if latest %}<div class="grid">{% for c in latest %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+  {% else %}<div class="empty"><b>المنتجات جاية قريب</b>تابعنا على السوشيال عشان تعرف أول ما ننزّل.</div>{% endif %}
 
-  <div class="perks">
-    <div><b>الدفع عند الاستلام</b>افحص الأوردر وادفع</div>
-    <div><b>شحن لكل المحافظات</b>{% if s.free_shipping_over %}مجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% else %}لحد باب البيت{% endif %}</div>
-    <div><b>خدمة على واتساب</b>بنرد عليك بسرعة</div>
+  <div class="feat">
+    <div><i>💵</i><span>الدفع عند الاستلام<small>افحص الأوردر وبعدين ادفع</small></span></div>
+    <div><i>🚚</i><span>شحن لكل المحافظات<small>{% if s.free_shipping_over %}مجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% else %}لحد باب البيت{% endif %}</small></span></div>
+    <div><i>💬</i><span>خدمة على واتساب<small>بنرد عليك بسرعة</small></span></div>
   </div>
 </div>
 {% endblock %}

@@ -1,10 +1,17 @@
-<a class="card" href="{% url 'store:product' c.m.code %}">
+<div class="card">
+  <a class="cover-link" href="{% url 'store:product' c.m.code %}" aria-label="{{ c.m.name }}"></a>
   <div class="ph">
     {% if c.cover %}<img src="{{ c.cover.thumb_url }}" alt="{{ c.m.name }}" loading="lazy" width="600" height="750">
       {% if c.second %}<img class="second" src="{{ c.second.thumb_url }}" alt="" loading="lazy" width="600" height="750">{% endif %}
     {% else %}<div class="noimg">S</div>{% endif %}
-    {% if c.m.old_price and c.m.old_price > c.m.min_price %}<span class="tag">خصم</span>{% elif c.m.stock <= 5 %}<span class="tag">آخر قطع</span>{% endif %}
+    {% if c.m.old_price and c.m.old_price > c.m.min_price %}<span class="tag red">خصم</span>{% elif c.m.stock <= 5 %}<span class="tag">آخر قطع</span>{% elif c.m.featured %}<span class="tag">مميز</span>{% endif %}
   </div>
-  <div class="name">{{ c.m.name }}</div>
-  <div class="price"><b>{{ c.m.min_price|floatformat:0 }} ج.م</b>{% if c.m.old_price and c.m.old_price > c.m.min_price %}<s>{{ c.m.old_price|floatformat:0 }}</s>{% endif %}</div>
-</a>
+  <h3>{{ c.m.name }}</h3>
+  {% if c.colors|length > 1 %}<div class="dots" aria-hidden="true">{% for h in c.colors %}{% if h %}<i style="background:{{ h }}"></i>{% endif %}{% endfor %}</div>{% endif %}
+  <div class="row">
+    <div class="price"><b>{{ c.m.min_price|floatformat:0 }} ج.م</b>{% if c.m.old_price and c.m.old_price > c.m.min_price %}<s>{{ c.m.old_price|floatformat:0 }}</s>{% endif %}</div>
+    {% if c.one %}<form method="post" action="{% url 'store:cart_add' %}">{% csrf_token %}<input type="hidden" name="variant" value="{{ c.one.pk }}">
+      <button class="plus" aria-label="أضف {{ c.m.name }} للسلة" title="أضف للسلة">+</button></form>
+    {% else %}<a class="plus" href="{% url 'store:product' c.m.code %}" aria-label="اختار المقاس لـ {{ c.m.name }}" title="اختار المقاس">+</a>{% endif %}
+  </div>
+</div>

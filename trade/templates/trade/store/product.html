@@ -14,18 +14,19 @@
     {% if m.category %}<a href="{% url 'store:category' m.category %}">{{ category_label }}</a><span>/</span>{% endif %}<span>{{ m.name }}</span></nav>
   <div class="pd">
     <div class="gallery">
-      <div class="main" id="g-main">{% if images %}<img src="{{ images.0.image.url }}" alt="{{ m.name }}" width="1200" height="1500" id="g-img">{% else %}<div class="card"><div class="ph"><div class="noimg">S</div></div></div>{% endif %}</div>
+      <div class="main" id="g-main">{% if images %}<img src="{{ images.0.image.url }}" alt="{{ m.name }}" width="1200" height="1500" id="g-img">{% else %}<img id="g-img" alt="" hidden>{% endif %}</div>
       <div class="thumbs" id="g-thumbs" role="list"></div>
     </div>
     <form class="info" method="post" action="{% url 'store:cart_add' %}" id="buy-form">
       {% csrf_token %}
+      {% if m.old_price and m.old_price > price %}<span class="badge">خصم {{ discount_pct }}%</span>{% elif category_label %}<span class="badge">{{ category_label }}</span>{% endif %}
       <h1>{{ m.name }}</h1>
       <div class="code">كود: {{ m.code }}</div>
-      <div class="price" style="margin-top:10px"><b id="p-price">{{ price|floatformat:0 }} ج.م</b>
+      <div class="price"><b id="p-price">{{ price|floatformat:0 }} ج.م</b>
         {% if m.old_price and m.old_price > price %}<s>{{ m.old_price|floatformat:0 }} ج.م</s>{% endif %}</div>
 
-      <div class="opt" id="colors-box" hidden><h3>اللون: <span id="color-name"></span></h3><div class="chips" id="colors"></div></div>
-      <div class="opt"><h3>المقاس: <span id="size-name">اختار المقاس</span></h3><div class="chips" id="sizes"></div></div>
+      <div class="opt" id="colors-box" hidden><h3>اللون: <span id="color-name"></span></h3><div class="swatches" id="colors"></div></div>
+      <div class="opt"><h3>المقاس: <span id="size-name">اختار المقاس</span></h3><div class="sizes" id="sizes"></div></div>
       <div class="stock-note" id="note" aria-live="polite"></div>
 
       <input type="hidden" name="variant" id="variant">
@@ -35,12 +36,8 @@
         <button class="btn btn-red" id="add" disabled>أضف للسلة</button>
       </div>
       <button class="btn btn-dark btn-block" name="buy_now" value="1" id="buy-now" style="margin-top:10px" disabled>اطلب دلوقتي</button>
-
-      <div class="trust">
-        <div><i>✓</i> الدفع عند الاستلام</div>
-        <div><i>✓</i> شحن لكل محافظات مصر</div>
-        {% if wa %}<div><i>✓</i> عندك سؤال عن المقاس؟ <a href="{{ wa }}?text={{ m.name|urlencode }}%20-%20{{ m.code|urlencode }}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">كلمنا واتساب</a></div>{% endif %}
-      </div>
+      <div class="note">💵 الدفع عند الاستلام · 🚚 شحن لكل محافظات مصر
+        {% if wa %}<br>💬 سؤال عن المقاس؟ <a href="{{ wa }}?text={{ m.name|urlencode }}%20-%20{{ m.code|urlencode }}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">كلمنا واتساب</a>{% endif %}</div>
       {% if m.description %}<div class="desc">{{ m.description }}</div>{% endif %}
     </form>
   </div>
@@ -53,12 +50,13 @@
   {% endif %}
 </div>
 <div class="sticky-buy"><b id="s-price">{{ price|floatformat:0 }} ج.م</b><button type="button" class="btn btn-red" id="s-add">أضف للسلة</button></div>
-{{ variants_json|json_script:"V" }}{{ images_json|json_script:"I" }}
+{{ variants_json|json_script:"V" }}{{ images_json|json_script:"I" }}{{ color_hex|json_script:"H" }}
 {% endblock %}
 {% block scripts %}
 <script>
 (function () {
   var V = JSON.parse(document.getElementById("V").textContent), I = JSON.parse(document.getElementById("I").textContent);
+  var H = JSON.parse(document.getElementById("H").textContent);
   var colors = [], color = null, size = null;
   V.forEach(function (v) { if (colors.indexOf(v.color) === -1) colors.push(v.color); });
   var $ = function (id) { return document.getElementById(id); };
@@ -72,7 +70,7 @@
     $("colors").innerHTML = colors.map(function (c) {
       var ok = avail(c);
       return '<button type="button" data-c="' + esc(c) + '" class="' + (c === color ? "on" : "") + (ok ? "" : " out") + '"' +
-        (ok ? "" : " disabled") + ' aria-pressed="' + (c === color) + '">' + esc(c || "—") + "</button>";
+        (ok ? "" : " disabled") + ' aria-pressed="' + (c === color) + '">' + (H[c] ? '<i style="background:' + H[c] + '"></i>' : "") + esc(c || "—") + "</button>";
     }).join("");
     $("color-name").textContent = color || "";
   }
