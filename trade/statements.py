@@ -84,8 +84,9 @@ def customer_statement(customer, d1=None, d2=None):
 def supplier_statement(supplier, d1=None, d2=None):
     rows = []
     if supplier.opening_balance:
+        ob = supplier.opening_balance   # سالب = دفعنا مقدم قبل النظام (بيتحط في خانة السداد)
         rows.append((supplier.opening_date or timezone.localdate(), -1, 0, {
-            "kind": "رصيد افتتاحي", "ref": "", "debit": supplier.opening_balance, "credit": ZERO}))
+            "kind": "رصيد افتتاحي", "ref": "", "debit": max(ob, ZERO), "credit": max(-ob, ZERO)}))
     for inv in (PurchaseInvoice.objects.filter(supplier=supplier, is_confirmed=True)
                 .prefetch_related("items")):
         rows.append((inv.date, 0, inv.pk, {"kind": "فاتورة توريد", "ref": f"توريد #{inv.pk}",
@@ -99,13 +100,19 @@ def supplier_statement(supplier, d1=None, d2=None):
         rows.append((ret.date, 1, ret.pk, {"kind": "مرتجع للمورد", "ref": f"مرتجع #{ret.pk}",
                                            "debit": ZERO, "credit": ret.total}))
     for p in SupplierPayment.objects.filter(supplier=supplier).select_related("box"):
-        rows.append((p.date, 2, p.pk, {"kind": "سداد", "ref": f"سداد #{p.pk} من {p.box}",
-                                       "debit": ZERO, "credit": p.amount}))
+        if p.kind == SupplierPayment.REFUND:
+            rows.append((p.date, 2, p.pk, {"kind": "استرداد من المورد", "ref": f"استرداد #{p.pk} في {p.box}",
+                                           "debit": p.amount, "credit": ZERO}))
+        else:
+            rows.append((p.date, 2, p.pk, {"kind": "سداد / تحت الحساب", "ref": f"سداد #{p.pk} من {p.box}",
+                                           "debit": ZERO, "credit": p.amount}))
     entries, totals = _finish(rows, d1, d2)
+    bal = totals["balance"]
     return {"kind": "supplier", "title": f"كشف حساب مورد: {supplier.name}", "name": supplier.name,
             "phone": supplier.phone, "entries": entries, "totals": totals,
-            "debit_label": "مشتريات (لينا عليه)", "credit_label": "سداد ومرتجعات",
-            "balance_label": "المستحق للمورد"}
+            "debit_label": "مشتريات واسترداد", "credit_label": "سداد ومرتجعات",
+            "balance_label": ("الرصيد: ليه عندنا" if bal > 0 else "الرصيد: لينا عنده (دفعة مقدمة)" if bal < 0
+                              else "الرصيد: خالص") + " — موجب = ليه، سالب = لينا"}
 
 
 def statement_sheets(st):

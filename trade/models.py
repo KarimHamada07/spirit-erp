@@ -88,8 +88,8 @@ class Supplier(models.Model):
     phone = models.CharField("الهاتف", max_length=30, blank=True)
     address = models.CharField("العنوان", max_length=250, blank=True)
     opening_balance = models.DecimalField(
-        "رصيد افتتاحي (لينا عليه)", max_digits=14, decimal_places=2, default=0,
-        help_text="المستحق للمورد قبل ما نبدأ النظام")
+        "رصيد افتتاحي", max_digits=14, decimal_places=2, default=0,
+        help_text="قبل ما نبدأ النظام: موجب = ليه عندنا فلوس، سالب = لينا عنده فلوس (دفعنا مقدم تحت الحساب)")
     opening_date = models.DateField("تاريخ الرصيد الافتتاحي", null=True, blank=True)
 
     class Meta:
@@ -101,12 +101,22 @@ class Supplier(models.Model):
 
     @property
     def balance(self):
-        """المستحق للمورد = افتتاحي + فواتير التوريد + مشتريات الخامات المؤكدة - مرتجعات مؤكدة - مدفوعات"""
+        """رصيد المورد = افتتاحي + فواتير التوريد + مشتريات الخامات المؤكدة - مرتجعات مؤكدة - مدفوعات + مسترد منه.
+        موجب = ليه عندنا (مستحق له)، سالب = لينا عنده (دفعنا تحت الحساب أكتر من اللي سحبناه)."""
         bought = self.opening_balance + sum((inv.total for inv in self.purchaseinvoice_set.filter(is_confirmed=True)), ZERO)
         bought += sum((p.total for p in self.material_purchases.filter(is_confirmed=True)), ZERO)
         returned = sum((r.total for r in self.purchase_returns.filter(is_confirmed=True)), ZERO)
-        paid = sum((p.amount for p in self.supplier_payments.all()), ZERO)
+        paid = sum((p.signed for p in self.supplier_payments.all()), ZERO)
         return bought - returned - paid
+
+    @property
+    def balance_abs(self):
+        return abs(self.balance)
+
+    @property
+    def balance_label(self):
+        b = self.balance
+        return "ليه عندنا" if b > 0 else "لينا عنده" if b < 0 else "خالص"
 
 
 class CustomerQuerySet(models.QuerySet):
@@ -736,7 +746,7 @@ class CashEntry(models.Model):
              ("supplier_payment", "سداد مورد"), ("refund", "استرداد مرتجع عميل"),
              ("online", "تحصيل أونلاين"), ("online_return", "مرتجع أونلاين"),
              ("transfer", "تحويل بين الخزن"), ("adjust", "رصيد افتتاحي / تسوية"),
-             ("salary", "مرتبات وسلف")]
+             ("salary", "مرتبات وسلف"), ("supplier_refund", "استرداد من مورد")]
 
     box = models.ForeignKey(CashBox, on_delete=models.PROTECT, related_name="entries",
                             verbose_name="الخزنة")
@@ -798,7 +808,10 @@ class CashTransfer(models.Model):
 
 
 class SupplierPayment(models.Model):
-    """سداد لمورد من خزنة"""
+    """فلوس بينا وبين المورد: سداد/دفعة تحت الحساب (خارجة من الخزنة) أو استرداد منه (داخلة الخزنة)"""
+    PAY, REFUND = "pay", "refund"
+    KINDS = [(PAY, "سداد / دفعة تحت الحساب"), (REFUND, "استرداد من المورد")]
+    kind = models.CharField("النوع", max_length=10, choices=KINDS, default=PAY)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT,
                                  related_name="supplier_payments", verbose_name="المورد")
     box = models.ForeignKey(CashBox, on_delete=models.PROTECT, related_name="supplier_payments",
@@ -816,6 +829,11 @@ class SupplierPayment(models.Model):
 
     def __str__(self):
         return f"{self.supplier} - {self.amount}"
+
+    @property
+    def signed(self):
+        """اللي اتدفع للمورد (الاسترداد بالسالب)"""
+        return -self.amount if self.kind == self.REFUND else self.amount
 
 
 # ================= المرتجعات =================

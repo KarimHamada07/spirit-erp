@@ -83,16 +83,32 @@ def record_customer_payment(customer, box, amount, pay_date=None, invoice=None, 
 
 @transaction.atomic
 def record_supplier_payment(supplier, box, amount, pay_date=None, notes=""):
+    """سداد للمورد. ينفع يبقى أكتر من المستحق: الزيادة بتبقى دفعة مقدمة تحت الحساب (رصيده بيبقى سالب = لينا عنده)"""
     amount = Decimal(amount)
     if amount <= 0:
         raise ValidationError("المبلغ لازم يكون أكبر من صفر")
-    if amount > supplier.balance:
-        raise ValidationError(f"المبلغ أكبر من المستحق للمورد ({supplier.balance:.2f})")
     pay_date = pay_date or timezone.localdate()
     payment = SupplierPayment.objects.create(supplier=supplier, box=box, amount=amount,
                                              date=pay_date, notes=notes[:200])
     CashEntry.post(box, -amount, "supplier_payment", f"سداد {supplier.name}", date=pay_date,
                    supplier=supplier)
+    return payment
+
+
+@transaction.atomic
+def record_supplier_refund(supplier, box, amount, pay_date=None, notes=""):
+    """المورد رجّعلنا فلوس من اللي دفعناه مقدم (داخلة الخزنة). مينفعش أكتر من اللي لينا عنده"""
+    amount = Decimal(amount)
+    if amount <= 0:
+        raise ValidationError("المبلغ لازم يكون أكبر من صفر")
+    ours = -supplier.balance
+    if amount > ours:
+        raise ValidationError(f"لينا عند المورد {max(ours, ZERO):.2f} بس" if ours > 0
+                              else "مفيش فلوس لينا عند المورد ده عشان نستردها")
+    pay_date = pay_date or timezone.localdate()
+    payment = SupplierPayment.objects.create(supplier=supplier, box=box, amount=amount, kind=SupplierPayment.REFUND,
+                                             date=pay_date, notes=notes[:200])
+    CashEntry.post(box, amount, "supplier_refund", f"استرداد من {supplier.name}", date=pay_date, supplier=supplier)
     return payment
 
 

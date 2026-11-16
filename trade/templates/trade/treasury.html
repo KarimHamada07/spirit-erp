@@ -50,18 +50,23 @@
         </form>
       </div></div>
 
-    <div class="card card-outline card-secondary"><div class="card-header"><b>سداد مورد</b></div>
+    <div class="card card-outline card-secondary"><div class="card-header"><b>فلوس الموردين</b>
+      <small class="text-muted">— سداد، أو دفعة مقدمة تحت الحساب، أو استرداد</small></div>
       <div class="card-body">
         <form method="post" action="{% url 'treasury_action' %}" class="row">{% csrf_token %}
           <input type="hidden" name="action" value="supplier_pay">
+          <div class="col-12 mb-2">
+            <label class="mr-3 mb-0"><input type="radio" name="kind" value="pay" checked> دفعنا للمورد <small class="text-muted">(سداد أو تحت الحساب، من الخزنة)</small></label>
+            <label class="mb-0"><input type="radio" name="kind" value="refund"> المورد رجّعلنا فلوس <small class="text-muted">(داخلة الخزنة)</small></label>
+          </div>
           <div class="col-md-4 mb-2"><select name="supplier" class="form-control" required>
-            {% for s in suppliers %}<option value="{{ s.pk }}">{{ s.name }} (مستحق {{ s.balance|floatformat:2 }})</option>{% endfor %}</select></div>
+            {% for s in suppliers %}<option value="{{ s.pk }}">{{ s.name }} ({% with b=s.balance %}{% if b > 0 %}ليه {{ b|floatformat:2 }}{% elif b < 0 %}لينا عنده {{ s.balance_abs|floatformat:2 }}{% else %}خالص{% endif %}{% endwith %})</option>{% endfor %}</select></div>
           <div class="col-md-3 mb-2"><select name="box" class="form-control" required>
             {% for b in pay_boxes %}<option value="{{ b.pk }}">{{ b.name }}</option>{% endfor %}</select></div>
           <div class="col-md-2 mb-2"><input name="amount" type="number" step="0.01" min="0.01" class="form-control" placeholder="المبلغ" required></div>
           <div class="col-md-3 mb-2"><input name="date" type="date" value="{{ today }}" class="form-control"></div>
           <div class="col-md-10 mb-2"><input name="notes" class="form-control" placeholder="ملاحظة"></div>
-          <div class="col-md-2 mb-2"><button class="btn btn-secondary btn-block">سدّد</button></div>
+          <div class="col-md-2 mb-2"><button class="btn btn-secondary btn-block" data-tip="لو دفعت أكتر من المستحق، الزيادة بتتسجل دفعة مقدمة (لينا عنده)">سجّل</button></div>
         </form>
       </div></div>
 

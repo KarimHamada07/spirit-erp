@@ -288,8 +288,8 @@ class CashTransferAdmin(admin.ModelAdmin):
 
 @admin.register(SupplierPayment)
 class SupplierPaymentAdmin(admin.ModelAdmin):
-    list_display = ("date", "supplier", "amount", "box", "notes")
-    list_filter = ("supplier",)
+    list_display = ("date", "supplier", "kind", "amount", "box", "notes")
+    list_filter = ("kind", "supplier")
 
     def has_change_permission(self, request, obj=None):
         return False

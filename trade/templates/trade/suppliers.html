@@ -13,13 +13,17 @@
   .sup .name { font-weight: 700; font-size: 16px; }
   .sup .bal { font-weight: 700; font-size: 18px; direction: ltr; unicode-bidi: isolate; }
   .sup .bal.owe { color: #fe0000; }
+  .sup .bal.adv { color: #1a8a4a; }
+  .kpi.light { background: var(--erp-card,#fff); color: var(--erp-ink,#111); border: 1px solid var(--erp-line,#e2e2e4); }
   .sup details { margin-top: 8px; }
   .sup summary { cursor: pointer; color: var(--erp-muted,#666); font-size: 14px; }
 </style>
 
 <div class="row">
-  <div class="col-lg-4 col-12"><div class="kpi"><div class="label">إجمالي المستحق للموردين</div>
+  <div class="col-lg-4 col-6"><div class="kpi"><div class="label">ليهم عندنا (مستحق للموردين)</div>
     <div class="value">{{ payable|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-lg-4 col-6"><div class="kpi light" data-tip="فلوس دفعناها مقدم تحت الحساب ولسه ما سحبناش بيها شغل"><div class="label">لينا عندهم (دفعات مقدمة)</div>
+    <div class="value">{{ advances|floatformat:2|intcomma }}</div></div></div>
 </div>
 
 <form method="get" class="mb-3 d-flex flex-wrap" style="gap:8px">
@@ -35,8 +39,8 @@
   <div class="top">
     <div><div class="name">{{ r.supplier.name }}</div>
       <div class="text-muted" style="font-size:13px">{% if r.supplier.phone %}<a href="tel:{{ r.supplier.phone }}">{{ r.supplier.phone }}</a>{% else %}—{% endif %}{% if r.supplier.address %} · {{ r.supplier.address }}{% endif %}</div></div>
-    <div class="text-left"><div class="text-muted" style="font-size:12px">المستحق ليه</div>
-      <div class="bal {% if r.balance > 0 %}owe{% endif %}">{{ r.balance|floatformat:2|intcomma }}</div></div>
+    <div class="text-left"><div class="text-muted" style="font-size:12px">{% if r.balance > 0 %}ليه عندنا{% elif r.balance < 0 %}لينا عنده{% else %}خالص{% endif %}</div>
+      <div class="bal {% if r.balance > 0 %}owe{% elif r.balance < 0 %}adv{% endif %}">{{ r.supplier.balance_abs|floatformat:2|intcomma }}</div></div>
   </div>
   <details>
     <summary>كشف الحساب</summary>

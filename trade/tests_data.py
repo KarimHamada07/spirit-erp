@@ -119,6 +119,8 @@ class ImportTests(TestCase):
         self.confirm(self.upload("suppliers", xlsx(["اسم المورد *", "رصيد افتتاحي (لينا عليه)"],
                                                    [["مصنع النور", 5000]])))
         self.assertEqual(Supplier.objects.get().balance, D("5000"))
+        self.confirm(self.upload("suppliers", xlsx(["اسم المورد *", "رصيد افتتاحي"], [["ورشة الأمل", -1200]])))
+        self.assertEqual(Supplier.objects.get(name="ورشة الأمل").balance, D("-1200"))   # لينا عنده
         self.confirm(self.upload("materials", xlsx(["اسم الخامة *", "الوحدة *", "كمية افتتاحية", "تكلفة الوحدة"],
                                                    [["قماش", "متر", 100, 50]])))
         self.assertEqual(RawMaterial.objects.get().quantity, D("100"))

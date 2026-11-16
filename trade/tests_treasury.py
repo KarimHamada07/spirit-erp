@@ -112,8 +112,38 @@ class TreasuryFlows(TestCase):
         self.supplier.refresh_from_db()
         self.assertEqual(self.supplier.balance, D("500"))
         self.assertEqual(self.cash_shop.balance, D("-1500"))
+
+    def test_supplier_advance_and_refund(self):
+        """دفعنا أكتر من المستحق (تحت الحساب) فرصيده بقى سالب = لينا عنده، وبعدين رجّعلنا جزء"""
+        from trade.statements import supplier_statement
+        from trade.treasury import record_supplier_refund
+        record_supplier_payment(self.supplier, self.cash_shop, D("2600"))
+        self.assertEqual(self.supplier.balance, D("-600"))
+        self.assertEqual(self.supplier.balance_label, "لينا عنده")
         with self.assertRaises(ValidationError):
-            record_supplier_payment(self.supplier, self.cash_shop, D("600"))
+            record_supplier_refund(self.supplier, self.cash_shop, D("601"))
+        record_supplier_refund(self.supplier, self.cash_shop, D("250"))
+        self.assertEqual(self.supplier.balance, D("-350"))
+        self.assertEqual(self.cash_shop.balance, D("-2350"))
+        st = supplier_statement(self.supplier)
+        self.assertEqual(st["totals"]["balance"], D("-350"))
+        self.assertIn("لينا عنده", st["balance_label"])
+        # الصفحة والخزينة
+        page = self.client.get(reverse("suppliers")).content.decode()
+        self.assertIn("لينا عندهم", page)
+        self.assertIn("350.00", page)
+        r = self.client.post(reverse("treasury_action"), {
+            "action": "supplier_pay", "kind": "refund", "supplier": self.supplier.pk, "box": self.cash_shop.pk,
+            "amount": "100", "date": date.today().isoformat()}, follow=True)
+        self.assertContains(r, "لينا عنده 250.00")
+
+    def test_supplier_negative_opening_balance(self):
+        from trade.statements import supplier_statement
+        self.supplier.opening_balance = D("-3000")
+        self.supplier.save()
+        self.assertEqual(self.supplier.balance, D("-1000"))
+        first = supplier_statement(self.supplier)["entries"][0]
+        self.assertEqual((first["debit"], first["credit"]), (D("0"), D("3000")))
 
     # ---------- مرتجع مورد ----------
     def test_purchase_return_reduces_stock_and_payable(self):

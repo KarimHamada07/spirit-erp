@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from .models import (CashBox, CashEntry, Customer, SaleInvoice, Supplier)
 from .treasury import (box_rows, commission_report, create_transfer, daily_close,
-                       record_customer_payment, record_supplier_payment,
+                       record_customer_payment, record_supplier_payment, record_supplier_refund,
                        shipping_outstanding)
 
 
@@ -89,9 +89,17 @@ def treasury_action(request):
             if supplier is None or box is None:
                 raise ValidationError("اختار المورد والخزنة")
             amount = _money(request.POST.get("amount"))
-            record_supplier_payment(supplier, box, amount, _date(request.POST.get("date")),
-                                    notes=request.POST.get("notes", "")[:200])
-            messages.success(request, f"تم سداد {amount:.2f} لـ {supplier.name}")
+            if request.POST.get("kind") == "refund":
+                record_supplier_refund(supplier, box, amount, _date(request.POST.get("date")),
+                                       notes=request.POST.get("notes", "")[:200])
+                msg = f"اتسجل استرداد {amount:.2f} من {supplier.name}"
+            else:
+                record_supplier_payment(supplier, box, amount, _date(request.POST.get("date")),
+                                        notes=request.POST.get("notes", "")[:200])
+                msg = f"تم سداد {amount:.2f} لـ {supplier.name}"
+            b = supplier.balance
+            msg += f" — رصيده دلوقتي: {'ليه عندنا' if b > 0 else 'لينا عنده' if b < 0 else 'خالص'} {abs(b):,.2f}"
+            messages.success(request, msg)
 
         elif action == "transfer":
             if not request.user.has_perm("trade.add_cashtransfer"):

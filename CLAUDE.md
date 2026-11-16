@@ -23,6 +23,8 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `treasury.py` — كل حركة فلوس بتعدي من هنا وبتتسجل `CashEntry` (موجب داخل / سالب خارج).
 - مديونية العميل: `Customer.objects.with_balance()` (subqueries). المرتجع على الحساب بيتخصم بـ
   `SaleReturnItem.unit_refund` (سعر البيع بعد نصيبه من خصم الفاتورة، بيتثبت وقت التأكيد).
+- رصيد المورد (`Supplier.balance`) بالإشارة: موجب = ليه عندنا، سالب = لينا عنده (دفعة مقدمة تحت الحساب).
+  `SupplierPayment.kind`: `pay` (سداد، ينفع أكتر من المستحق) أو `refund` (استرداد، مش أكتر من اللي لينا).
 - `debts.py` + `debt_views.py` — أعمار المديونيات (FIFO) ومتابعة التحصيل للمحاسب (`DebtFollowUp`).
 - `profit.py` (تقرير الربحية)، `analytics_views.py` (رسوم)، `report_views.py` (تقارير + Excel).
 - `notify.py` — `log_event(text, audience="")` بيسجل `ActivityLog` وبيبعته تليجرام (مباشر أو عن طريق
