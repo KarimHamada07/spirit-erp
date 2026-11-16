@@ -1,44 +1,79 @@
 {% extends "trade/store/base.html" %}
 {% block title %}SPIRIT — {{ s.hero_subtitle|default:"اطلب أونلاين والدفع عند الاستلام" }}{% endblock %}
 {% block main %}
+<section class="hero" aria-label="العروض">
+  {% for sl in slides %}
+  <div class="slide{% if forloop.first %} on{% endif %}">
+    <div class="bg{% if not sl.img %} empty{% endif %}"{% if sl.img %} style="background-image:url('{{ sl.img }}')"{% endif %}></div>
+    <div class="txt">
+      <span class="kicker"><i></i>{% if forloop.first %}وصل جديد{% else %}SPIRIT{% endif %}</span>
+      <h1>{{ sl.title }}</h1>
+      {% if sl.subtitle %}<p>{{ sl.subtitle }}</p>{% else %}<p>لبس متصنّع عندنا بخامات تقيلة وأسعار مصنع. الدفع عند الاستلام.</p>{% endif %}
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><a href="{{ sl.link }}" class="btn btn-red">{{ sl.button }} ←</a>
+        <a href="{% url 'store:all' %}?sort=new" class="btn btn-glass">شوف الجديد</a></div>
+    </div>
+  </div>
+  {% endfor %}
+  {% if slides|length > 1 %}<div class="dots">{% for sl in slides %}<button type="button" aria-label="شريحة {{ forloop.counter }}"><i></i></button>{% endfor %}</div>{% endif %}
+  <span class="scroll-cue" aria-hidden="true"></span>
+</section>
+
+<div class="strip" aria-hidden="true"><div class="track">
+  {% for _ in "12" %}<span><b>💵</b> الدفع عند الاستلام</span><span><b>🚚</b> شحن لكل المحافظات</span><span><b>🔁</b> استبدال سهل</span>
+  <span><b>🏭</b> من المصنع لباب بيتك</span><span><b>💬</b> خدمة على واتساب</span>{% if s.free_shipping_over %}<span><b>🎁</b> شحن مجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م</span>{% endif %}{% endfor %}
+</div></div>
+
 <div class="wrap">
-  <section class="hero">
-    <a class="hero-main" href="{% url 'store:all' %}">
-      <span class="ring" aria-hidden="true"></span>
-      <h1>{{ s.hero_title|default:"SPIRIT" }}</h1>
-      {% if s.hero_subtitle %}<p>{{ s.hero_subtitle }}</p>{% endif %}
-      <span class="btn btn-white">تسوّق دلوقتي ←</span>
-      {% if s.hero_image %}<span class="pic"><img src="{{ s.hero_image.url }}" alt=""></span>
-      {% elif hero_cover %}<span class="pic"><img src="{{ hero_cover.image.url }}" alt=""></span>{% endif %}
-    </a>
-    <div class="hero-side">
-      {% for t in tiles %}
-      <a class="tile{% if forloop.first %} dark{% endif %}" href="{% url 'store:category' t.key %}">
-        <small>{% if forloop.first %}الأكثر طلباً{% else %}أساسيات{% endif %}</small>
-        <h3>{{ t.label }}{% if t.low %}<br><span style="font-size:.7em">من {{ t.low|floatformat:0 }} ج.م</span>{% endif %}</h3>
-        <span class="go">تسوّق ←</span>
-        {% if t.cover %}<span class="pic"><img src="{{ t.cover.thumb_url }}" alt="" loading="lazy"></span>{% endif %}
-      </a>
-      {% empty %}
-      <a class="tile dark" href="{% url 'store:all' %}"><small>وصل جديد</small><h3>كل المنتجات</h3><span class="go">تسوّق ←</span></a>
-      <a class="tile" href="{% url 'store:track' %}"><small>طلبت قبل كده؟</small><h3>تابع طلبك</h3><span class="go">تابع ←</span></a>
-      {% endfor %}
+  {% if cats %}
+  <section class="section">
+    <div class="h2 rv"><div><small>تسوّق بالقسم</small><h2>اختار ستايلك</h2></div>
+      <div class="rail-nav"><button type="button" data-rail="cats-rail" data-dir="prev" aria-label="اللي قبله">→</button><button type="button" data-rail="cats-rail" data-dir="next" aria-label="اللي بعده">←</button></div></div>
+    <div class="rail" id="cats-rail">
+      {% for c in cats %}<a class="cat rv" style="--i:{{ forloop.counter0 }}" href="{% url 'store:category' c.key %}">
+        {% if c.cover %}<img src="{{ c.cover.image.url }}" alt="" loading="lazy">{% endif %}
+        <div class="t"><b>{{ c.label }}</b><span>←</span></div></a>{% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if featured %}
+  <section class="section">
+    <div class="h2 rv"><div><small>مختارات SPIRIT</small><h2>الأكثر طلباً 🔥</h2></div>
+      <div class="rail-nav"><button type="button" data-rail="feat-rail" data-dir="prev" aria-label="اللي قبله">→</button><button type="button" data-rail="feat-rail" data-dir="next" aria-label="اللي بعده">←</button></div></div>
+    <div class="rail" id="feat-rail">{% for c in featured %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  <section class="section">
+    <div class="promo rv">
+      <div>
+        <h2>من المصنع<br>لباب بيتك.</h2>
+        <p>بنفصّل ونخيّط كل قطعة عندنا، عشان كده الجودة أعلى والسعر أقل.</p>
+        <a href="{% url 'store:all' %}" class="btn btn-white">تسوّق الكولكشن ←</a>
+      </div>
+      <div class="stats">
+        <div><b>💵</b><span>الدفع عند الاستلام</span></div>
+        <div><b>27</b><span>محافظة بنوصلها</span></div>
+        <div><b>24/7</b><span>طلبات أونلاين</span></div>
+      </div>
     </div>
   </section>
 
-  {% if featured %}
-  <div class="h2"><h2>مختارات ليك</h2><a href="{% url 'store:all' %}">شوف الكل</a></div>
-  <div class="grid">{% for c in featured %}{% include "trade/store/_card.html" %}{% endfor %}</div>
-  {% endif %}
+  <section class="section">
+    <div class="h2 rv"><div><small>وصل جديد</small><h2>آخر حاجة نزلت</h2></div><a class="link-more" href="{% url 'store:all' %}">كل المنتجات <span>←</span></a></div>
+    {% if latest %}<div class="grid">{% for c in latest %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+    {% else %}<div class="empty"><b>المنتجات جاية قريب</b>تابعنا على السوشيال عشان تعرف أول ما ننزّل.</div>{% endif %}
+  </section>
 
-  <div class="h2"><h2>وصل جديد</h2><a href="{% url 'store:all' %}">شوف الكل</a></div>
-  {% if latest %}<div class="grid">{% for c in latest %}{% include "trade/store/_card.html" %}{% endfor %}</div>
-  {% else %}<div class="empty"><b>المنتجات جاية قريب</b>تابعنا على السوشيال عشان تعرف أول ما ننزّل.</div>{% endif %}
+  <section class="section" data-hide-empty hidden>
+    <div class="h2"><div><small>كمّل من مكان ما وقفت</small><h2>اتفرجت عليهم قبل كده</h2></div></div>
+    <div class="rail" data-cards-from="spirit-viewed"></div>
+  </section>
 
   <div class="feat">
-    <div><i>💵</i><span>الدفع عند الاستلام<small>افحص الأوردر وبعدين ادفع</small></span></div>
-    <div><i>🚚</i><span>شحن لكل المحافظات<small>{% if s.free_shipping_over %}مجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% else %}لحد باب البيت{% endif %}</small></span></div>
-    <div><i>💬</i><span>خدمة على واتساب<small>بنرد عليك بسرعة</small></span></div>
+    <div class="rv"><i>💵</i><span><b>الدفع عند الاستلام</b><small>افحص الأوردر وبعدين ادفع</small></span></div>
+    <div class="rv" style="--i:1"><i>🚚</i><span><b>شحن لكل المحافظات</b><small>{% if s.free_shipping_over %}مجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% else %}لحد باب البيت{% endif %}</small></span></div>
+    <div class="rv" style="--i:2"><i>💬</i><span><b>خدمة على واتساب</b><small>بنرد عليك بسرعة</small></span></div>
   </div>
 </div>
 {% endblock %}

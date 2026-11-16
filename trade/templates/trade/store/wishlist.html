@@ -1,0 +1,9 @@
+{% extends "trade/store/base.html" %}
+{% block title %}المفضلة — SPIRIT{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="page-head rv"><h1>المفضلة <span class="grad-text">♥</span></h1><p>الحاجات اللي عجبتك محفوظة على الجهاز ده.</p></div>
+  <div class="grid" data-cards-from="spirit-favs"></div>
+  <div class="empty" data-empty hidden><b>لسه مفيش حاجة في المفضلة</b>دوس على القلب في أي منتج عشان تحفظه هنا.<br><br><a href="{% url 'store:all' %}" class="btn btn-red">تسوّق دلوقتي</a></div>
+</div>
+{% endblock %}

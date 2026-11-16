@@ -13,8 +13,8 @@
       <div><span>الشحن ({{ order.zone_name }})</span><span>{{ order.shipping_fee|floatformat:0 }}</span></div>
       <div class="total"><span>المطلوب عند الاستلام</span><span>{{ order.total|floatformat:0 }} ج.م</span></div>
     </div>
-    <a href="{% url 'store:track' %}?no={{ order.pk }}&phone={{ order.phone }}" class="btn btn-dark">تابع طلبك</a>
-    <a href="{% url 'store:home' %}" class="btn btn-line">ارجع للمتجر</a>
+    <a href="{% url 'store:track' %}?no={{ order.pk }}&phone={{ order.phone }}" class="btn btn-glass">تابع طلبك</a>
+    <a href="{% url 'store:home' %}" class="btn btn-glass">ارجع للمتجر</a>
   </div>
 </div>
 {% endblock %}

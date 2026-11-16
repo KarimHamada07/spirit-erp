@@ -1,0 +1,24 @@
+<div class="qv-grid">
+  <div class="gallery">
+    <div class="gal-track">{% for i in images %}<figure><img src="{{ i.image.url }}" alt="{{ m.name }}"></figure>{% empty %}<figure><div class="card"><div class="ph" style="border-radius:0"><div class="noimg">S</div></div></div></figure>{% endfor %}</div>
+    <div class="gal-dots"></div>
+  </div>
+  <div class="in">
+    {% if m.category %}<span class="badge">{{ m.get_category_display }}</span>{% endif %}
+    <h2 style="margin:10px 0 2px;font-size:28px;font-weight:900">{{ m.name }}</h2>
+    <div class="price"><b style="font-size:26px">{{ price|floatformat:0 }} ج.م</b>{% if m.old_price and m.old_price > price %}<s>{{ m.old_price|floatformat:0 }}</s>{% endif %}</div>
+    {% if groups|length > 1 or groups.0.0 %}
+    <div class="opt"><h3>اللون: <span class="qv-color">{{ groups.0.0 }}</span></h3>
+      <div class="swatches">{% for c, hex, vs in groups %}<button type="button" class="{% if forloop.first %}on{% endif %}" data-name="{{ c }}">{% if hex %}<i style="background:{{ hex }}"></i>{% endif %}{{ c|default:"—" }}</button>{% endfor %}</div></div>
+    {% endif %}
+    <div class="opt"><h3>اختار المقاس وهيتضاف على طول</h3>
+      {% for c, hex, vs in groups %}
+      <div data-color-group {% if not forloop.first %}hidden{% endif %} class="sizes">
+        {% for v in vs %}<form method="post" action="{% url 'store:cart_add' %}" data-ajax-cart>{% csrf_token %}<input type="hidden" name="variant" value="{{ v.pk }}">
+          <button title="{{ v.sale_price|floatformat:0 }} ج.م">{{ v.size }}</button></form>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+    <a href="{% url 'store:product' m.code %}" class="btn btn-glass btn-block" style="margin-top:24px">كل التفاصيل ←</a>
+  </div>
+</div>

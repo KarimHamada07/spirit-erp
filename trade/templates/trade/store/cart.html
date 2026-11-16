@@ -18,7 +18,7 @@
         <div class="r"><b>{{ l.total|floatformat:0 }} ج.م</b><button class="rm" name="remove" value="{{ l.v.pk }}">شيل</button></div>
       </div>
       {% endfor %}
-      <noscript><button class="btn btn-line" style="margin-top:10px">حدّث السلة</button></noscript>
+      <noscript><button class="btn btn-glass" style="margin-top:10px">حدّث السلة</button></noscript>
     </form>
     <div class="box sum">
       <div><span>المنتجات</span><b>{{ total|floatformat:0 }} ج.م</b></div>
@@ -26,7 +26,7 @@
       {% if s.free_shipping_over %}<div class="note">{% if total >= s.free_shipping_over %}🎉 طلبك عليه شحن مجاني{% else %}الشحن مجاني لو الطلب فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% endif %}</div>{% endif %}
       <div class="total"><span>الإجمالي</span><span>{{ total|floatformat:0 }} ج.م + الشحن</span></div>
       <a href="{% url 'store:checkout' %}" class="btn btn-red btn-block">كمّل الطلب</a>
-      <a href="{% url 'store:all' %}" class="btn btn-line btn-block">كمّل تسوّق</a>
+      <a href="{% url 'store:all' %}" class="btn btn-glass btn-block">كمّل تسوّق</a>
     </div>
   </div>
   {% else %}

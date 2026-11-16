@@ -13,7 +13,7 @@ from .models import (AuditLog, CashBox, CashTransfer, ClothingModel, CommissionR
                      CustodyDeposit, CustodyHolder, CustodySettlement, Customer, EmployeeProfile, EmployeeTxn,
                      Expense, LeaveRequest, MaterialPurchase, OnlineOrder, Payment, ProductImage,
                      ProductionOrder, PurchaseInvoice, PurchaseReturn, SaleInvoice, SaleReturn, Seller,
-                     ShippingZone, StockCount, StoreSettings, Supplier, SupplierPayment, Variant, WebOrder)
+                     HeroSlide, ShippingZone, StockCount, StoreSettings, Supplier, SupplierPayment, Variant, WebOrder)
 from .notify import client_ip, current_actor, log_event, model_ar
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ TRACKED = [ClothingModel, Variant, Customer, Supplier, PurchaseInvoice, SaleInvo
 # أو بيتعملوا من لوحة الإدارة (ليها رسالتها في signals._admin_action)
 AUDIT_ONLY = [SaleReturn, PurchaseReturn, SupplierPayment, CashTransfer, MaterialPurchase, ProductionOrder,
               CustodyHolder, CustodyClearance, LeaveRequest, EmployeeTxn, EmployeeProfile, StockCount,
-              WebOrder, ProductImage, ShippingZone, StoreSettings, Seller, CommissionRate, CashBox]
+              WebOrder, ProductImage, HeroSlide, ShippingZone, StoreSettings, Seller, CommissionRate, CashBox]
 TRACKED += AUDIT_ONLY
 # حقول مش بتتسجل: كلمات السر، أوقات تلقائية، وكميات المخزن (بتتغير مع كل بيع، وبيتسجل سببها في الفاتورة)
 SKIP = {"id", "password", "last_login", "date_joined", "created_at", "updated_at", "created_by"}

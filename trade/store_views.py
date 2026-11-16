@@ -14,13 +14,13 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Min, Prefetch, Q, Sum
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import (ClothingModel, ProductImage, ShippingZone, StoreSettings, Variant, WebOrder,
+from .models import (ClothingModel, HeroSlide, ProductImage, ShippingZone, StoreSettings, Variant, WebOrder,
                      WebOrderItem)
 from .notify import client_ip, fmt, log_event
 
@@ -123,7 +123,7 @@ def _ctx(request, **extra):
             .exclude(category="").values_list("category", flat=True).distinct())
     labels = dict(ClothingModel.CATEGORIES)
     from .middleware import _asset
-    return {"s": s, "cart_count": sum(cart.values()), "css": _asset("trade/store/store.css"),
+    return {"s": s, "cart_count": sum(cart.values()), "css": _asset("trade/store/store.css"), "js": _asset("trade/store/store.js"),
             "nav_cats": [(c, labels.get(c, c)) for c in sorted(set(cats), key=lambda c: list(labels).index(c)
                                                                    if c in labels else 99)],
             "wa": _wa(s.whatsapp), "year": timezone.localdate().year, **extra}
@@ -149,8 +149,24 @@ def home(request):
         low = models.filter(category=cat).aggregate(p=Min("min_price"))["p"]
         tiles.append({"key": cat, "label": labels.get(cat, cat), "cover": _cover(m) if m else None, "low": low})
     hero_model = (featured or latest or [None])[0]
+    slides = list(HeroSlide.objects.filter(is_active=True))
+    if not slides:   # لسه مفيش شرايح: شريحة من إعدادات الموقع وصورة أحدث موديل مميز
+        st = StoreSettings.get()
+        cover = _cover(hero_model) if hero_model else None
+        img = st.hero_image.url if st.hero_image else (cover.image.url if cover else "")
+        slides = [{"img": img, "title": st.hero_title or "SPIRIT", "subtitle": st.hero_subtitle,
+                   "button": "تسوّق دلوقتي", "link": reverse("store:all")}]
+    else:
+        slides = [{"img": sl.image.url, "title": sl.title, "subtitle": sl.subtitle, "button": sl.button,
+                   "link": sl.link or reverse("store:all")} for sl in slides]
+    # الأقسام كلها بصورة (للسلايدر الأفقي)
+    cats = []
+    for cat, label in ClothingModel.CATEGORIES:
+        m = models.filter(category=cat).order_by("-id").first()
+        if m:
+            cats.append({"key": cat, "label": label, "cover": _cover(m)})
     return render(request, "trade/store/home.html", _ctx(
-        request, featured=_cards(featured), latest=_cards(latest), tiles=tiles,
+        request, featured=_cards(featured), latest=_cards(latest), tiles=tiles, slides=slides, cats=cats,
         hero_cover=_cover(hero_model) if hero_model else None))
 
 
@@ -205,7 +221,24 @@ def product(request, code):
         color_hex={c: color_hex(c) for c in colors},
         discount_pct=int(round((1 - min(prices) / m.old_price) * 100)) if m.old_price and m.old_price > min(prices) else 0,
         price=min(prices), max_price=max(prices), related=related,
-        category_label=dict(ClothingModel.CATEGORIES).get(m.category, "")))
+        category_label=dict(ClothingModel.CATEGORIES).get(m.category, ""), size_guide=size_guide_rows()))
+
+
+DEFAULT_GUIDE = [("S", "96", "68", "55-65"), ("M", "102", "70", "65-75"), ("L", "108", "72", "75-85"),
+                 ("XL", "114", "74", "85-95"), ("XXL", "120", "76", "95-110")]
+
+
+def size_guide_rows():
+    rows = []
+    for line in (StoreSettings.get().size_guide or "").splitlines():
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) >= 2 and parts[0]:
+            rows.append((parts + ["", "", ""])[:4])
+    return rows or DEFAULT_GUIDE
+
+
+def _is_ajax(request):
+    return request.headers.get("x-requested-with") == "fetch"
 
 
 @require_POST
@@ -213,6 +246,8 @@ def cart_add(request):
     v = Variant.objects.filter(pk=request.POST.get("variant") or 0, model__show_online=True,
                                model__is_active=True).select_related("model").first()
     if v is None or v.quantity <= 0:
+        if _is_ajax(request):
+            return JsonResponse({"ok": False, "error": "المقاس ده خلص"}, status=400)
         return redirect(request.META.get("HTTP_REFERER") or reverse("store:home"))
     try:
         qty = max(1, min(int(request.POST.get("qty", 1)), MAX_QTY))
@@ -222,8 +257,50 @@ def cart_add(request):
     cart[str(v.pk)] = min(cart.get(str(v.pk), 0) + qty, v.quantity, MAX_QTY)
     _save_cart(request, cart)
     if request.POST.get("buy_now"):
+        if _is_ajax(request):
+            return JsonResponse({"ok": True, "go": reverse("store:checkout")})
         return redirect("store:checkout")
+    if _is_ajax(request):
+        return JsonResponse({"ok": True, "count": sum(cart.values()),
+                             "msg": f"اتضاف {v.model.name} ({v.size}{' · ' + v.color if v.color else ''})"})
     return redirect(f"{reverse('store:cart')}?added={v.pk}")
+
+
+def cart_drawer(request):
+    """محتوى السلة الجانبية (بيتحمّل من غير ما الصفحة تتغير)"""
+    lines, total = cart_lines(_cart(request))
+    s = StoreSettings.get()
+    left = (s.free_shipping_over - total) if s.free_shipping_over and total < s.free_shipping_over else None
+    pct = int(min(100, total / s.free_shipping_over * 100)) if s.free_shipping_over else 0
+    return render(request, "trade/store/_drawer.html", {"lines": lines, "total": total, "s": s,
+                                                         "free_left": left, "free_pct": pct})
+
+
+def quick_view(request, code):
+    """معاينة سريعة للمنتج (نافذة فوق الصفحة)"""
+    m = get_object_or_404(ClothingModel, code=code, show_online=True, is_active=True)
+    from .stock_views import _size_key
+    variants = [v for v in sorted(m.variants.all(), key=_size_key) if v.quantity > 0]
+    if not variants:
+        raise Http404
+    groups = {}
+    for v in variants:
+        groups.setdefault(v.color, []).append(v)
+    return render(request, "trade/store/_quick.html", {
+        "m": m, "images": list(m.images.all())[:6], "groups": [(c, color_hex(c), vs) for c, vs in groups.items()],
+        "price": min(v.sale_price for v in variants)})
+
+
+def cards(request):
+    """كروت منتجات بالأكواد (للمفضلة وآخر حاجات اتفرجت عليها). الترتيب زي ما اتبعت"""
+    codes = [c for c in request.GET.get("codes", "").split(",") if c][:24]
+    found = {m.code: m for m in _visible_models().filter(code__in=codes)}
+    return render(request, "trade/store/_cards.html",
+                  {"cards": _cards([found[c] for c in codes if c in found])})
+
+
+def wishlist(request):
+    return render(request, "trade/store/wishlist.html", _ctx(request))
 
 
 @require_POST
