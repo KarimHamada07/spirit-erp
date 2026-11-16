@@ -143,14 +143,31 @@ def payroll_approve(request):
 
 
 # ================= الإجازات والأذونات =================
+def leave_approver_qs(user):
+    """الطلبات اللي اليوزر ده يقدر يوافق عليها: كل الطلبات لمدير الحسابات، وطلبات فريقه للمدير المباشر"""
+    qs = LeaveRequest.objects.filter(status=LeaveRequest.PENDING).exclude(user=user)
+    if user.is_superuser or user.has_perm("trade.approve_leaverequest"):
+        return qs
+    return qs.filter(user__employee__manager=user)
+
+
+def can_review_leave(user, lv):
+    if lv.user_id == user.pk and not user.is_superuser:
+        return False
+    if user.is_superuser or user.has_perm("trade.approve_leaverequest"):
+        return True
+    prof = getattr(lv.user, "employee", None)
+    return prof is not None and prof.manager_id == user.pk
+
+
 @staff_member_required
 def leaves(request):
-    approver = request.user.has_perm("trade.approve_leaverequest")
+    pending = list(leave_approver_qs(request.user).select_related("user"))
+    approver = bool(pending) or request.user.has_perm("trade.approve_leaverequest") or request.user.team.exists()
     return render(request, "trade/leaves.html", {
         **admin.site.each_context(request), "title": "الإجازات والأذونات",
-        "mine": LeaveRequest.objects.filter(user=request.user)[:30],
-        "pending": (LeaveRequest.objects.filter(status=LeaveRequest.PENDING).select_related("user")
-                    if approver else []),
+        "mine": LeaveRequest.objects.filter(user=request.user).select_related("reviewed_by")[:30],
+        "pending": pending,
         "approver": approver, "kinds": LeaveRequest.KINDS, "today": timezone.localdate().isoformat()})
 
 
@@ -190,11 +207,12 @@ def leave_request(request):
 @staff_member_required
 @require_POST
 def leave_review(request, pk):
-    _need(request, "trade.approve_leaverequest")
-    lv = get_object_or_404(LeaveRequest, pk=pk, status=LeaveRequest.PENDING)
+    lv = get_object_or_404(LeaveRequest.objects.select_related("user"), pk=pk, status=LeaveRequest.PENDING)
     if lv.user_id == request.user.pk and not request.user.is_superuser:
         messages.error(request, "مينفعش توافق على طلبك انت")
         return redirect("leaves")
+    if not can_review_leave(request.user, lv):
+        raise PermissionDenied
     approve = request.POST.get("decision") == "approve"
     lv.status = LeaveRequest.APPROVED if approve else LeaveRequest.REJECTED
     lv.reviewed_by = request.user

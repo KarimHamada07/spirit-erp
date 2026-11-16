@@ -9,9 +9,11 @@ from django.db import models, transaction
 from django.db.models.signals import post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
 
-from .models import (AuditLog, ClothingModel, CustodyDeposit, CustodySettlement,
-                     Customer, Expense, OnlineOrder, Payment, PurchaseInvoice,
-                     SaleInvoice, Supplier, Variant)
+from .models import (AuditLog, CashBox, CashTransfer, ClothingModel, CommissionRate, CustodyClearance,
+                     CustodyDeposit, CustodyHolder, CustodySettlement, Customer, EmployeeProfile, EmployeeTxn,
+                     Expense, LeaveRequest, MaterialPurchase, OnlineOrder, Payment, ProductImage,
+                     ProductionOrder, PurchaseInvoice, PurchaseReturn, SaleInvoice, SaleReturn, Seller,
+                     ShippingZone, StockCount, StoreSettings, Supplier, SupplierPayment, Variant, WebOrder)
 from .notify import client_ip, current_actor, log_event, model_ar
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,12 @@ User = get_user_model()
 
 TRACKED = [ClothingModel, Variant, Customer, Supplier, PurchaseInvoice, SaleInvoice,
            Payment, OnlineOrder, Expense, CustodyDeposit, CustodySettlement, User]
+# بيتسجلوا في سجل المراجعة (مين عمل إيه ومتى) من غير رسالة تليجرام إضافية: ليهم رسالتهم الخاصة بالفعل،
+# أو بيتعملوا من لوحة الإدارة (ليها رسالتها في signals._admin_action)
+AUDIT_ONLY = [SaleReturn, PurchaseReturn, SupplierPayment, CashTransfer, MaterialPurchase, ProductionOrder,
+              CustodyHolder, CustodyClearance, LeaveRequest, EmployeeTxn, EmployeeProfile, StockCount,
+              WebOrder, ProductImage, ShippingZone, StoreSettings, Seller, CommissionRate, CashBox]
+TRACKED += AUDIT_ONLY
 # حقول مش بتتسجل: كلمات السر، أوقات تلقائية، وكميات المخزن (بتتغير مع كل بيع، وبيتسجل سببها في الفاتورة)
 SKIP = {"id", "password", "last_login", "date_joined", "created_at", "updated_at", "created_by"}
 SKIP_BY_MODEL = {"Variant": {"quantity", "avg_cost"}}
@@ -95,13 +103,14 @@ def _notify(action, sender, instance=None, label="", repr_="", changes=None):
     """رسالة تليجرام للإضافة والتعديل والحذف لكل الحاجات المتتبعة"""
     try:
         user, _ip = current_actor()
-        who = user.get_username() if user is not None and getattr(user, "is_authenticated", False) else "نظام"
+        if sender in AUDIT_ONLY:
+            return
         if action == "create" and sender.__name__ in NOTIFY_CREATE_SKIP:
             return
         if action == "update" and sender.__name__ in NOTIFY_UPDATE_SKIP:
             return
         head = {"create": "🆕 إضافة", "update": "✏️ تعديل", "delete": "🗑 حذف"}[action]
-        lines = [f"{head} {label}: {repr_}", f"بواسطة: {who}"]
+        lines = [f"{head} {label}: {repr_}"]   # مين عملها بيتكتب في آخر الرسالة (log_event)
         for k, v in list((changes or {}).items())[:6]:
             if isinstance(v, (list, tuple)) and len(v) == 2:
                 lines.append(f"• {k}: من «{v[0] or '—'}» إلى «{v[1] or '—'}»")

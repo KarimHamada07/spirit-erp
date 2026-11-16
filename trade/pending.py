@@ -38,10 +38,9 @@ def pending_items(user):
         add("store_orders", "طلبات جديدة من الموقع محتاجة تأكيد",
             WebOrder.objects.filter(status=WebOrder.NEW).count(),
             reverse("store_orders"), "fas fa-globe")
-    if user.has_perm("trade.approve_leaverequest"):
-        add("leaves", "طلبات إجازة مستنية موافقتك",
-            LeaveRequest.objects.filter(status=LeaveRequest.PENDING).count(),
-            reverse("leaves"), "fas fa-umbrella-beach")
+    from .employee_views import leave_approver_qs
+    add("leaves", "طلبات إجازة مستنية موافقتك", leave_approver_qs(user).count(),
+        reverse("leaves"), "fas fa-umbrella-beach")
     if user.has_perm("trade.approve_custodyclearance"):
         add("custody_approvals", "طلبات تصفية عهدة مستنية موافقتك",
             CustodyClearance.objects.filter(status=CustodyClearance.PENDING).count(),

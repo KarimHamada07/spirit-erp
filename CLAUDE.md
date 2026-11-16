@@ -30,7 +30,8 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `notify.py` — `log_event(text, audience="")` بيسجل `ActivityLog` وبيبعته تليجرام (مباشر أو عن طريق
   الناقل الخارجي اللي بيسحب `/activity/feed/`). `audience="accountant"` بيروح لشات المحاسب.
 - `signals.py` — أحداث تليجرام (تأكيد فواتير، دفعات، مخزون منخفض حسب `ClothingModel.low_stock_level`).
-- `audit.py` — سجل المراجعة (قبل/بعد) للموديلات في `TRACKED`.
+- `audit.py` — سجل المراجعة (قبل/بعد ومين عملها باليوزر) للموديلات في `TRACKED`؛ `AUDIT_ONLY` بيتسجلوا من غير
+  رسالة تليجرام إضافية. أي موديل جديد مهم ضيفه هنا. أكشن التأكيد في لوحة الإدارة لازم `allowed_permissions = ("change",)`.
 - `roles.py` — مصفوفة صلاحيات الأدوار (مجموعات Django بتتحدث بعد كل migrate). أي موديل جديد لازم
   صلاحياته تتضاف هنا للدور المناسب.
 - `middleware.py` — بيحقن الثيم (CSS/JS) ووسوم الـ PWA في صفحات القالب، وبيبدّل قايمة Jazzmin بقايمتنا.
@@ -65,13 +66,14 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   التسليم بيتسجل على `CustodyHolder` (موظف بيتختار بحسابه، أو اسم بيتكتب من بره؛ `resolve_holder`
   بيعمله لوحده أول مرة)، ورصيده = اللي استلمه − تصفيات
   `CustodyClearance` المعتمدة. التصفية بتتطلب من المحاسب أو صاحب العهدة نفسه، وبتتحسب بس بموافقة
-  `trade.approve_custodyclearance` (مدير الحسابات)، والصرف المعتمد بيعمل `Expense` مربوط بيها.
+  `trade.approve_custodyclearance` (المحاسب ومدير الحسابات، ومحدش يوافق على طلبه)، والصرف المعتمد بيعمل `Expense` مربوط بيها.
 - البصمة: `attendance.py` + `attendance_views.py`. صورة لايف من الكاميرا (getUserMedia، مفيش رفع ملف)
   مع كود مؤقت في الـ session (مرة واحدة، 3 دقايق)، والسيرفر بيتأكد من وجود وش بـ OpenCV
   (`opencv-python-headless`)، واللوكيشن بيتقارن بأماكن الشغل `Workplace`. الموظف اللي مالوش صلاحية
   `view_saleinvoice` بيتحوّل من لوحة التحكم لـ "بصمتي". التقرير بصلاحية `view_attendance`.
 - الموظفين: `payroll.py` (المرتب من البصمة والإجازات: اليوم = المرتب ÷ 30، والتأخير/الأوفر تايم بالدقيقة) +
-  `employee_views.py` (كشف حساب `EmployeeTxn`، الإجازات `LeaveRequest` بموافقة `approve_leaverequest`).
+  `employee_views.py` (كشف حساب `EmployeeTxn`، الإجازات `LeaveRequest` بموافقة المدير المباشر `EmployeeProfile.manager` أو
+  `approve_leaverequest`؛ `employee_views.leave_approver_qs`). اعتماد المرتبات `add_employeetxn` (مدير الحسابات/الأدمن).
   `EmployeeProfile.start_date`: اللي قبله مش غياب.
 - المأموريات: `mission_views.py` (بداية/وصول/نهاية باللوكيشن، وخط السير على خريطة جوجل).
 - الجرد واقتراحات الطلب: `stock_count_views.py` (`StockCount.apply` بصلاحية `apply_stockcount`).

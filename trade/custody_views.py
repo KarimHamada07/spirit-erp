@@ -359,7 +359,7 @@ def clearance_request(request, pk):
     c.save()
     log_event(f"🧾 طلب تصفية عهدة: {holder} — {c.get_kind_display()} {fmt(amount)}\n{desc}"
               f"\nمستني موافقة مدير الحسابات")
-    messages.success(request, "اتبعت الطلب. هيتخصم من العهدة بعد موافقة مدير الحسابات.")
+    messages.success(request, "اتبعت الطلب. هيتخصم من العهدة بعد موافقة المحاسب أو مدير الحسابات.")
     return redirect("custody_holder", pk=pk)
 
 

@@ -37,7 +37,7 @@ _CUSTODY = ["view_custodydeposit", "add_custodydeposit",
             "view_custodysettlement", "add_custodysettlement",
             "view_custodyholder", "add_custodyholder",
             "view_custodyclearance", "add_custodyclearance"]
-# الموافقة على تصفية العهد: مدير الحسابات بس (عنده كل الصلاحيات)
+# الموافقة على تصفية العهد: المحاسب ومدير الحسابات (ومحدش بيوافق على طلب هو اللي عامله)
 _EXPENSES = ["view_expense", "add_expense", "change_expense"]
 _TREASURY_READ = ["view_cashbox", "view_cashentry", "view_cashtransfer", "view_supplierpayment",
                   "view_seller", "view_commissionrate"]
@@ -70,14 +70,16 @@ ROLE_PERMISSIONS = {
     + _PURCHASE + _ONLINE + ["view_activitylog"]
     + ["view_clothingmodel", "view_variant"]
     + _TREASURY_READ + _TREASURY_ACT + _RETURNS_SALE + _RETURNS_PURCHASE + _PRODUCTION_READ
-    + _HR_READ + ["view_stockcount", "view_stockcountline"] + _WEB_ORDERS + ["view_productimage"],
+    + _HR_READ + ["view_stockcount", "view_stockcountline"] + _WEB_ORDERS + ["view_productimage"]
+    + ["approve_custodyclearance", "change_custodyclearance", "view_custodyclearance"],
 
     ROLE_WAREHOUSE_MANAGER: _STOCK_READ + _STOCK_WRITE + _PURCHASE + _ONLINE
     + ["view_activitylog"] + _RETURNS_PURCHASE + _PRODUCTION + _STOCKCOUNT + _WEB_ORDERS + _WEB_PRODUCTS,
 
     ROLE_SALES: _STOCK_READ + _CUSTOMERS + _PAYMENTS + _SALES + _ONLINE
     + ["add_onlineorder", "view_onlineorder", "change_onlineorder"]
-    + ["view_cashbox", "view_seller"] + _WEB_ORDERS,
+    + ["view_cashbox", "view_seller"] + _WEB_ORDERS
+    + ["view_salereturn", "add_salereturn", "view_salereturnitem", "add_salereturnitem"],   # مرتجع من نقطة البيع
 
     ROLE_WAREHOUSE_EMPLOYEE: _STOCKCOUNT + ["view_clothingmodel", "view_variant",
                               "view_purchaseinvoice", "view_onlineorder",

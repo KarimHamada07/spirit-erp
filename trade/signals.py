@@ -139,8 +139,9 @@ def _login_failed(sender, credentials, request=None, **kw):
 def _admin_action(sender, instance, created, **kw):
     if not created:
         return
-    from .audit import TRACKED  # الحاجات المتتبعة بتتبعت من سجل المراجعة، فمنكررهاش
-    if instance.content_type and instance.content_type.model_class() in TRACKED:
+    from .audit import AUDIT_ONLY, TRACKED  # الحاجات المتتبعة بتتبعت من سجل المراجعة، فمنكررهاش
+    cls = instance.content_type.model_class() if instance.content_type else None
+    if cls in TRACKED and cls not in AUDIT_ONLY:
         return
     verb = {ADDITION: "➕ إضافة", CHANGE: "✏️ تعديل",
             DELETION: "🗑 حذف"}.get(instance.action_flag, "⚙️ إجراء")

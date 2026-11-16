@@ -109,11 +109,31 @@ class PayrollTests(TestCase):
         self.emp_c.post(reverse("leave_request"), {"kind": "sick", "start_date": "2026-10-10", "end_date": "2026-10-11"})
         lv = LeaveRequest.objects.get()
         self.assertEqual((lv.status, lv.days), ("pending", 2))
-        self.assertEqual(self.emp_c.post(reverse("leave_review", args=[lv.pk]), {"decision": "approve"}).status_code, 403)
+        self.emp_c.post(reverse("leave_review", args=[lv.pk]), {"decision": "approve"})   # طلبه هو
+        lv.refresh_from_db()
+        self.assertEqual(lv.status, "pending")
+        _o, other_c = login("other")
+        self.assertEqual(other_c.post(reverse("leave_review", args=[lv.pk]), {"decision": "approve"}).status_code, 403)
         self.assertContains(self.mgr_c.get(reverse("leaves")), "إجازة مرضي")
         self.mgr_c.post(reverse("leave_review", args=[lv.pk]), {"decision": "approve"})
         lv.refresh_from_db()
         self.assertEqual((lv.status, lv.reviewed_by), ("approved", self.mgr))
+
+
+class DirectManagerLeaveTests(TestCase):
+    def test_direct_manager_approves_team_leave(self):
+        emp, emp_c = login("worker")
+        boss, boss_c = login("supervisor")          # مالوش صلاحية عامة، بس هو المدير المباشر
+        EmployeeProfile.objects.create(user=emp, monthly_salary=D("5000"), manager=boss)
+        emp_c.post(reverse("leave_request"), {"kind": "annual", "start_date": "2026-12-01"})
+        lv = LeaveRequest.objects.get()
+        page = boss_c.get(reverse("leaves")).content.decode()
+        self.assertIn("worker", page)
+        from trade.pending import pending_items
+        self.assertEqual([i["count"] for i in pending_items(boss) if i["key"] == "leaves"], [1])
+        boss_c.post(reverse("leave_review", args=[lv.pk]), {"decision": "approve"})
+        lv.refresh_from_db()
+        self.assertEqual((lv.status, lv.reviewed_by), ("approved", boss))
 
 
 class MissionTests(TestCase):

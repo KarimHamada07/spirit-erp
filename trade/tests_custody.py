@@ -72,8 +72,8 @@ class CustodyPerPersonTests(TestCase):
         self.assertEqual(self.driver_c.post(reverse("custody_clearance_review", args=[req.pk]),
                                             {"decision": "approve"}).status_code, 403)
         self.assertEqual(self.driver_c.get(reverse("custody_holder", args=[hassan.pk])).status_code, 403)
-        self.assertEqual(self.acc_c.post(reverse("custody_clearance_review", args=[req.pk]),
-                                         {"decision": "approve"}).status_code, 403)
+        # المحاسب كمان بيشوف الطلبات ويقدر يراجعها (هنا مدير الحسابات هو اللي هيوافق)
+        self.assertContains(self.acc_c.get(reverse("custody_approvals")), "بنزين")
 
         # مدير الحسابات يوافق: يتخصم من عهدة سيد ويتسجل مصروف مش بيتخصم من العامة تاني
         self.assertContains(self.mgr_c.get(reverse("custody_approvals")), "بنزين")
@@ -87,6 +87,10 @@ class CustodyPerPersonTests(TestCase):
         # المحاسب يطلب "رجّع فلوس" لعهدة سيد، والمدير يرفض واحد ويوافق على التاني
         self.acc_c.post(reverse("custody_clearance_request", args=[sayed.pk]),
                         {"kind": "returned", "amount": "200"})
+        own = CustodyClearance.objects.latest("id")
+        self.acc_c.post(reverse("custody_clearance_review", args=[own.pk]), {"decision": "approve"})
+        own.refresh_from_db()
+        self.assertEqual(own.status, "pending")   # المحاسب ميوافقش على طلب هو اللي عامله
         self.acc_c.post(reverse("custody_clearance_request", args=[sayed.pk]),
                         {"kind": "returned", "amount": "100"})
         r1, r2 = CustodyClearance.objects.filter(status="pending").order_by("id")
