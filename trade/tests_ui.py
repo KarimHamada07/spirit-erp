@@ -143,3 +143,22 @@ class CustomerPage(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r["Content-Type"], "application/pdf")
         self.assertEqual(self.client.get(reverse("statement_public", args=["bad"])).status_code, 404)
+
+
+class TelegramWho(TestCase):
+    """كل رسالة تليجرام فيها مين عمل الخطوة (الاسم والدور)، أو إنها من الموقع أو تلقائي"""
+
+    def test_message_names_user_role_site_and_system(self):
+        from trade.models import ActivityLog
+        from trade.notify import log_event
+        u, c = login("khaled", ROLE_SALES)
+        u.first_name, u.last_name = "خالد", "محمد"
+        u.save()
+        c.post(reverse("customer_add"), {"name": "عميل جديد", "phone": "01000000001",
+                                         "seller": Seller.objects.get(name="خالد فلكس").pk})
+        msg = ActivityLog.objects.filter(text__contains="عميل جديد").latest("id").message
+        self.assertIn("عملها: خالد محمد (khaled) — سيلز", msg)
+        log_event("ملخص الليل")
+        self.assertIn("عملها: السيستم (تلقائي)", ActivityLog.objects.latest("id").message)
+        log_event("طلب", actor="عميل من الموقع: أحمد")
+        self.assertIn("عملها: عميل من الموقع: أحمد", ActivityLog.objects.latest("id").message)
