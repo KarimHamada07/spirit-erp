@@ -325,7 +325,8 @@ def _place_order(request, lines, data, phone, phone2, zone, total, s):
             f"العنوان: {order.zone_name} - {order.city} - {order.address}"]
     text += [f"• {l['v']} × {l['qty']} @ {fmt(l['price'])}" for l in lines]
     text.append(f"الإجمالي بالشحن: {fmt(order.total)}")
-    transaction.on_commit(lambda: log_event("\n".join(text)))
+    who = f"عميل من الموقع: {order.customer_name} ({order.phone})"
+    transaction.on_commit(lambda: log_event("\n".join(text), actor=who))
     return order
 
 

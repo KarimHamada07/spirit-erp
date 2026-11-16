@@ -594,7 +594,7 @@ class ActivityLog(models.Model):
     def message(self):
         when = timezone.localtime(self.created_at).strftime("%Y-%m-%d %H:%M:%S")
         who = self.user_name or "—"
-        return f"{self.text}\n👤 {who}   🕒 {when}"
+        return f"{self.text}\n\n👤 عملها: {who}\n🕒 {when}"
 
 
 def private_storage():

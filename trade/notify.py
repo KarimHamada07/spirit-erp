@@ -177,18 +177,36 @@ class muted:
         _muted.reset(self._token)
 
 
-def log_event(text, user=None, audience=""):
-    """يسجل حدث. عمره ما يكسر العملية الأصلية. audience="accountant" = تذكير للمحاسب."""
+def actor_name(user):
+    """مين عمل الخطوة، بشكل يتقري: "خالد محمد (khaled) — سيلز" """
+    full = (user.get_full_name() or "").strip()
+    uname = user.get_username()
+    name = f"{full} ({uname})" if full and full != uname else uname
+    if user.is_superuser:
+        role = "الأدمن"
+    else:
+        role = "، ".join(user.groups.values_list("name", flat=True)[:2])
+    return f"{name} — {role}" if role else name
+
+
+def log_event(text, user=None, audience="", actor=""):
+    """يسجل حدث ومين عمله. عمره ما يكسر العملية الأصلية. audience="accountant" = تذكير للمحاسب.
+    actor: اسم بيتكتب بدل المستخدم (زي "عميل من الموقع"). من غير مستخدم ولا actor = "السيستم (تلقائي)"."""
     if _muted.get():
         return
     try:
         from .models import ActivityLog
         user = user or _current_user.get()
-        name = ""
-        if user is not None and getattr(user, "is_authenticated", False):
-            name = user.get_username()
+        if actor:
+            name = actor
+        elif user is not None and getattr(user, "is_authenticated", False):
+            name = actor_name(user)
+        elif user is not None:          # طلب من غير تسجيل دخول (الموقع أو رابط عميل)
+            name = "زائر / عميل"
+        else:                           # أمر مجدول (nightly وغيره) أو حاجة تلقائية
+            name = "السيستم (تلقائي)"
         with transaction.atomic():
-            ActivityLog.objects.create(text=text, user_name=name, audience=audience)
+            ActivityLog.objects.create(text=text, user_name=name[:150], audience=audience)
             if random.random() < 0.01:  # تنظيف الأحداث القديمة المرسلة
                 ActivityLog.objects.filter(
                     sent=True,
