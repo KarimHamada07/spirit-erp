@@ -70,7 +70,7 @@ Web > Reload. وبعد دقايق افتح https://erp.spiritegy.org/admin/ وس
 ## 9-أ) المهمة الأساسية كل ليلة الساعة 3 الفجر (الملخص + النسخة الاحتياطية)
 في Tasks > Scheduled tasks اعمل مهمة يومية الساعة **01:00 UTC** (= 3 الفجر في مصر شتاءً، و4 صيفاً):
 
-    cd ~/erp_spirit && DJANGO_SECRET_KEY=$(grep -oP "DJANGO_SECRET_KEY'\] = '\K[^']+" /var/www/*_wsgi.py) ~/.virtualenvs/spirit/bin/python manage.py nightly
+    cd ~/erp_spirit && DJANGO_SECRET_KEY=$(grep -ohP "DJANGO_SECRET_KEY'\] = '\K[^']+" /var/www/*_wsgi.py | head -1) ~/.virtualenvs/spirit/bin/python manage.py nightly
 
 بتعمل نسخة احتياطية، وبتبعت ملخص اليوم اللي فات على تليجرام (المبيعات، الربح، الخزن، النواقص، الحضور،
 الطلبات المستنية). عشان النسخة نفسها تتبعتلك كملف: زوّد في `~/.telegram_bot` السطر
@@ -122,6 +122,14 @@ Web > Reload. وبعد دقايق افتح https://erp.spiritegy.org/admin/ وس
   (بتبقى زي `webapp-123456.pythonanywhere.com`).
 - الدومين من غير www (`spiritegy.org`): من Namecheap اعمل **URL Redirect Record**: Host `@` →
   `https://www.spiritegy.org` (Permanent 301). PythonAnywhere ما بيشتغلش على الدومين من غير www مباشرة.
+
+### مهم: سطر المفتاح السري بعد ما يبقى فيه web app تاني
+بعد الـ web app التاني بيبقى فيه ملفين WSGI، فأي أمر بيجيب المفتاح من `/var/www/*_wsgi.py` لازم يبقى كده
+(`-h` و `head -1`)، وإلا هيطلع اسم الملف مع المفتاح:
+
+    export DJANGO_SECRET_KEY=$(grep -ohP "DJANGO_SECRET_KEY'\] = '\K[^']+" /var/www/*_wsgi.py | head -1)
+
+ونفس الكلام جوه `~/nightly.sh`.
 
 ### ج) بعد كل تحديث
 `git pull` و `migrate` و `collectstatic` مرة واحدة، وبعدين **Reload للاتنين** (السيستم والموقع).
