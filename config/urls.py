@@ -1,5 +1,7 @@
+from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from django.views.generic import RedirectView
 
 from trade.activity_views import activity, activity_ack, activity_feed
@@ -37,6 +39,9 @@ from trade.mission_views import (mission_photo, mission_point, mission_start, mi
 from trade.stock_count_views import (reorder, reorder_create, stock_count_action, stock_count_detail,
                                      stock_count_set, stock_counts)
 from trade.views import dashboard
+
+from trade import store_admin_views as store_admin
+from trade.store_views import robots as store_robots
 
 urlpatterns = [
     path("", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
@@ -137,9 +142,17 @@ urlpatterns = [
     path("online/create/", online_create, name="online_create"),
     path("online/<int:pk>/", online_detail, name="online_detail"),
     path("online/<int:pk>/status/", online_status, name="online_status"),
+    # الموقع: معاينة المتجر من دومين السيستم، وإدارته
+    path("shop/", include(("trade.store_urls", "store"))),
+    path("robots.txt", store_robots),
+    path("store/orders/", store_admin.orders, name="store_orders"),
+    path("store/orders/<int:pk>/", store_admin.order_detail, name="store_order"),
+    path("store/products/", store_admin.products, name="store_products"),
+    path("store/products/<int:pk>/", store_admin.product_edit, name="store_product"),
+    path("store/images/<int:pk>/delete/", store_admin.image_delete, name="store_image_delete"),
     # زر Dashboard في القائمة يفتح لوحة التحكم الجديدة
     path("admin/", RedirectView.as_view(pattern_name="dashboard", permanent=False)),
     path("admin/", admin.site.urls),
 ]
-
-
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

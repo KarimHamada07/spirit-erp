@@ -16,9 +16,13 @@ if not _secret:
     _secret = "dev-only-insecure-key"
 SECRET_KEY = _secret
 
+# الموقع (المتجر): أي طلب على الدومينات دي بيفتح صفحات المتجر بس (config/store_urls.py)
+STORE_HOSTS = [h.strip() for h in os.environ.get(
+    "STORE_HOSTS", "spiritegy.org,www.spiritegy.org").split(",") if h.strip()]
 ALLOWED_HOSTS = [
     "erp.spiritegy.org",
     "spiritegy.pythonanywhere.com",
+    *STORE_HOSTS,
 ]
 if DEBUG:
     ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
@@ -26,6 +30,7 @@ if DEBUG:
 CSRF_TRUSTED_ORIGINS = [
     "https://erp.spiritegy.org",
     "https://spiritegy.pythonanywhere.com",
+    *[f"https://{h}" for h in STORE_HOSTS],
 ]
 # وقت تشغيل الاختبارات (manage.py test) مفيش HTTPS، فمنحوّلش لـ https
 TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
@@ -52,6 +57,7 @@ INSTALLED_APPS = [
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "trade.store_views.StoreHostMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -85,6 +91,10 @@ USE_THOUSAND_SEPARATOR = True
 FORMAT_MODULE_PATH = ["config.formats"]
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# صور المنتجات والموقع (عامة). على PythonAnywhere: Static files: /media/ → المجلد ده
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGIN_URL = "/admin/login/"

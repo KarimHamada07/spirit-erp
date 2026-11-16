@@ -1,0 +1,40 @@
+{% extends "trade/store/base.html" %}
+{% block title %}SPIRIT — {{ s.hero_subtitle|default:"اطلب أونلاين والدفع عند الاستلام" }}{% endblock %}
+{% block main %}
+<section class="hero">
+  {% if s.hero_image %}<div class="bg" style="background-image:url('{{ s.hero_image.url }}')"></div>{% else %}<div class="stripe"></div>{% endif %}
+  <div class="wrap">
+    <h1>{{ s.hero_title|default:"SPIRIT" }}<b>.</b></h1>
+    {% if s.hero_subtitle %}<p>{{ s.hero_subtitle }}</p>{% endif %}
+    <a href="{% url 'store:all' %}" class="btn btn-red">تسوّق دلوقتي</a>
+  </div>
+</section>
+
+<div class="wrap">
+  {% if nav_cats %}
+  <section class="section">
+    <div class="section-head"><h2>الأقسام</h2></div>
+    <div class="cat-tiles">{% for key, label in nav_cats %}<a href="{% url 'store:category' key %}">{{ label }}</a>{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  {% if featured %}
+  <section class="section">
+    <div class="section-head"><h2>مختارات</h2><a href="{% url 'store:all' %}">كل المنتجات ←</a></div>
+    <div class="grid">{% for c in featured %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+  </section>
+  {% endif %}
+
+  <section class="section">
+    <div class="section-head"><h2>وصل جديد</h2><a href="{% url 'store:all' %}">كل المنتجات ←</a></div>
+    {% if latest %}<div class="grid">{% for c in latest %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+    {% else %}<div class="empty"><b>المنتجات جاية قريب</b>تابعنا على السوشيال عشان تعرف أول ما ننزّل.</div>{% endif %}
+  </section>
+
+  <div class="perks">
+    <div><b>الدفع عند الاستلام</b>افحص الأوردر وادفع</div>
+    <div><b>شحن لكل المحافظات</b>{% if s.free_shipping_over %}مجاني فوق {{ s.free_shipping_over|floatformat:0 }} ج.م{% else %}لحد باب البيت{% endif %}</div>
+    <div><b>خدمة على واتساب</b>بنرد عليك بسرعة</div>
+  </div>
+</div>
+{% endblock %}

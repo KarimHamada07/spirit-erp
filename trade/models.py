@@ -32,6 +32,12 @@ class ClothingModel(models.Model):
     low_stock_level = models.PositiveIntegerField(
         "حد التنبيه", default=5,
         help_text="لما كمية أي مقاس/لون توصل للرقم ده أو أقل يجيلك تنبيه إن المخزون قرب يخلص")
+    # الموقع (spiritegy.org)
+    show_online = models.BooleanField("يظهر في الموقع", default=False, db_index=True)
+    featured = models.BooleanField("مميز في الصفحة الرئيسية", default=False)
+    old_price = models.DecimalField("السعر قبل الخصم (للموقع)", max_digits=12, decimal_places=2,
+                                    null=True, blank=True,
+                                    help_text="اختياري: بيظهر مشطوب جنب السعر عشان يبان إن عليه خصم")
 
     class Meta:
         verbose_name = "موديل"
@@ -1568,3 +1574,180 @@ class StockCountLine(models.Model):
         verbose_name = "صنف في الجرد"
         verbose_name_plural = "أصناف الجرد"
         unique_together = ("count", "variant")
+
+
+
+# ================= الموقع (المتجر الأونلاين) =================
+class ProductImage(models.Model):
+    """صورة موديل في الموقع. الصورة بتتصغر لوحدها وقت الرفع (كبيرة + مصغرة) عشان الموقع يبقى سريع."""
+    model = models.ForeignKey(ClothingModel, on_delete=models.CASCADE, related_name="images",
+                              verbose_name="الموديل")
+    image = models.ImageField("الصورة", upload_to="products/")
+    thumb = models.ImageField("مصغرة", upload_to="products/thumbs/", blank=True, editable=False)
+    color = models.CharField("اللون", max_length=30, blank=True,
+                             help_text="اختياري: لو الصورة للون معين، بتظهر لما العميل يختاره")
+    sort = models.PositiveSmallIntegerField("الترتيب", default=0)
+
+    class Meta:
+        verbose_name = "صورة منتج"
+        verbose_name_plural = "صور المنتجات"
+        ordering = ["sort", "id"]
+
+    def __str__(self):
+        return f"صورة {self.model.name}"
+
+    @property
+    def thumb_url(self):
+        return self.thumb.url if self.thumb else self.image.url
+
+    def save(self, *args, **kwargs):
+        if self.image and not getattr(self.image, "_committed", True):
+            from .store_media import process_image
+            big, small = process_image(self.image)
+            self.image.save(big.name, big, save=False)
+            self.thumb.save(small.name, small, save=False)
+        super().save(*args, **kwargs)
+
+
+class ShippingZone(models.Model):
+    """مصاريف الشحن على العميل حسب المحافظة"""
+    name = models.CharField("المحافظة / المنطقة", max_length=60, unique=True)
+    fee = models.DecimalField("مصاريف الشحن", max_digits=10, decimal_places=2, default=0)
+    days = models.CharField("مدة التوصيل", max_length=40, blank=True, help_text="مثلاً: 2-3 أيام")
+    is_active = models.BooleanField("متاح", default=True)
+    sort = models.PositiveSmallIntegerField("الترتيب", default=0)
+
+    class Meta:
+        verbose_name = "منطقة شحن"
+        verbose_name_plural = "مصاريف الشحن (الموقع)"
+        ordering = ["sort", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class StoreSettings(models.Model):
+    """إعدادات الموقع (سجل واحد بس)"""
+    announcement = models.CharField("شريط الإعلان فوق", max_length=160, blank=True,
+                                    help_text="مثلاً: شحن مجاني فوق 1500 ج.م")
+    hero_title = models.CharField("العنوان الكبير في الرئيسية", max_length=80, default="SPIRIT")
+    hero_subtitle = models.CharField("الكلام تحت العنوان", max_length=200, blank=True)
+    hero_image = models.ImageField("صورة الرئيسية", upload_to="store/", blank=True)
+    whatsapp = models.CharField("رقم واتساب خدمة العملاء", max_length=20, blank=True)
+    facebook = models.URLField("فيسبوك", blank=True)
+    instagram = models.URLField("إنستجرام", blank=True)
+    tiktok = models.URLField("تيك توك", blank=True)
+    free_shipping_over = models.DecimalField("شحن مجاني لو الطلب فوق", max_digits=10, decimal_places=2,
+                                             null=True, blank=True, help_text="فاضي = مفيش شحن مجاني")
+    web_seller = models.ForeignKey("Seller", on_delete=models.SET_NULL, null=True, blank=True,
+                                   verbose_name="البائع اللي طلبات الموقع بتتسجل عليه")
+    is_open = models.BooleanField("الموقع بياخد طلبات", default=True,
+                                  help_text="اقفلها لو عايز توقف الطلبات مؤقتاً (الموقع بيفضل ظاهر)")
+
+    class Meta:
+        verbose_name = "إعدادات الموقع"
+        verbose_name_plural = "إعدادات الموقع"
+
+    def __str__(self):
+        return "إعدادات الموقع"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        if self.hero_image and not getattr(self.hero_image, "_committed", True):
+            from .store_media import process_image
+            big, _small = process_image(self.hero_image, max_side=2000)
+            self.hero_image.save(big.name, big, save=False)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+def _order_token():
+    import secrets
+    return secrets.token_urlsafe(12)
+
+
+class WebOrder(models.Model):
+    """طلب من الموقع: بيستنى تأكيد (مكالمة/واتساب)، والتأكيد بيعمل أوردر أونلاين ويخصم المخزون"""
+    NEW, CONFIRMED, CANCELLED = "new", "confirmed", "cancelled"
+    STATUSES = [(NEW, "جديد - محتاج تأكيد"), (CONFIRMED, "اتأكد واتحول أوردر"), (CANCELLED, "اتلغى")]
+
+    token = models.CharField(max_length=32, unique=True, default=_order_token, editable=False)
+    status = models.CharField("الحالة", max_length=10, choices=STATUSES, default=NEW, db_index=True)
+    customer_name = models.CharField("الاسم", max_length=150)
+    phone = models.CharField("الموبايل", max_length=20, db_index=True)
+    phone2 = models.CharField("موبايل تاني", max_length=20, blank=True)
+    zone = models.ForeignKey(ShippingZone, on_delete=models.SET_NULL, null=True, verbose_name="المحافظة")
+    zone_name = models.CharField("المحافظة", max_length=60)
+    city = models.CharField("المدينة / المنطقة", max_length=80)
+    address = models.CharField("العنوان بالتفصيل", max_length=300)
+    notes = models.CharField("ملاحظات العميل", max_length=300, blank=True)
+    shipping_fee = models.DecimalField("مصاريف الشحن", max_digits=10, decimal_places=2, default=0)
+    online_order = models.OneToOneField(OnlineOrder, on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name="web_order", verbose_name="الأوردر الأونلاين")
+    cancel_reason = models.CharField("سبب الإلغاء", max_length=200, blank=True)
+    handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   editable=False, verbose_name="اتعامل معاه")
+    handled_at = models.DateTimeField("وقت التأكيد/الإلغاء", null=True, blank=True, editable=False)
+    ip = models.GenericIPAddressField(null=True, blank=True, editable=False)
+    created_at = models.DateTimeField("وقت الطلب", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "طلب من الموقع"
+        verbose_name_plural = "طلبات الموقع"
+        ordering = ["-id"]
+
+    def __str__(self):
+        return f"طلب موقع #{self.pk} - {self.customer_name}"
+
+    @property
+    def items_total(self):
+        return sum((i.quantity * i.unit_price for i in self.items.all()), ZERO)
+
+    @property
+    def total(self):
+        return self.items_total + self.shipping_fee
+
+    @property
+    def pieces(self):
+        return sum((i.quantity for i in self.items.all()), 0)
+
+    @transaction.atomic
+    def confirm(self, user, seller, shipping_cost=ZERO, discount=ZERO):
+        """يحوّل الطلب لأوردر أونلاين (حالة: تم التجهيز) ويخصم المخزون"""
+        order = WebOrder.objects.select_for_update().get(pk=self.pk)
+        if order.status != self.NEW:
+            raise ValidationError("الطلب ده اتعامل معاه قبل كده")
+        items = [{"id": i.variant_id, "qty": i.quantity, "price": i.unit_price} for i in self.items.all()]
+        phones = self.phone + (f" / {self.phone2}" if self.phone2 else "")
+        online = OnlineOrder.create_order(
+            customer_name=self.customer_name, phone=phones,
+            address=f"{self.zone_name} - {self.city} - {self.address}",
+            notes=f"طلب الموقع #{self.pk}" + (f" — {self.notes}" if self.notes else ""),
+            items=items, shipping_fee=self.shipping_fee, shipping_cost=shipping_cost,
+            discount=discount, seller=seller)
+        self.status, self.online_order = self.CONFIRMED, online
+        self.handled_by, self.handled_at = user, timezone.now()
+        self.save()
+        return online
+
+    def cancel(self, user, reason=""):
+        if self.status != self.NEW:
+            raise ValidationError("الطلب ده اتعامل معاه قبل كده")
+        self.status, self.cancel_reason = self.CANCELLED, reason[:200]
+        self.handled_by, self.handled_at = user, timezone.now()
+        self.save()
+
+
+class WebOrderItem(models.Model):
+    order = models.ForeignKey(WebOrder, on_delete=models.CASCADE, related_name="items")
+    variant = models.ForeignKey(Variant, on_delete=models.PROTECT, verbose_name="الصنف")
+    quantity = models.PositiveIntegerField("الكمية")
+    unit_price = models.DecimalField("السعر", max_digits=12, decimal_places=2)
+
+    class Meta:
+        verbose_name = "صنف في طلب الموقع"
+        verbose_name_plural = "أصناف طلبات الموقع"

@@ -39,6 +39,12 @@ MENU = [
         ("فواتير التوريد", "admin:trade.purchaseinvoice", "fas fa-dolly", "trade.view_purchaseinvoice"),
         ("الموردين", "suppliers", "fas fa-industry", "trade.view_supplier"),
     ]),
+    ("الموقع", [
+        ("طلبات الموقع", "store_orders", "fas fa-globe", "trade.view_weborder"),
+        ("منتجات الموقع", "store_products", "fas fa-images", "trade.view_productimage"),
+        ("مصاريف الشحن", "admin:trade.shippingzone", "fas fa-map-location-dot", "trade.change_shippingzone"),
+        ("إعدادات الموقع", "admin:trade.storesettings", "fas fa-sliders", "trade.change_storesettings"),
+    ]),
     ("الإنتاج", [
         ("أوامر التشغيل", "admin:trade.productionorder", "fas fa-gears", "trade.view_productionorder"),
         ("الخامات", "admin:trade.rawmaterial", "fas fa-scroll", "trade.view_rawmaterial"),

@@ -1,0 +1,31 @@
+{% extends "trade/store/base.html" %}
+{% block title %}تتبع طلبك — SPIRIT{% endblock %}
+{% block main %}
+<div class="wrap" style="max-width:640px">
+  <h1 class="page-title">تتبع طلبك</h1>
+  <form class="box" method="get">
+    <div class="row2">
+      <div class="field"><label for="t-no">رقم الطلب</label><input id="t-no" name="no" value="{{ no }}" inputmode="numeric" required dir="ltr"></div>
+      <div class="field"><label for="t-phone">الموبايل</label><input id="t-phone" name="phone" value="{{ phone }}" inputmode="tel" required dir="ltr" placeholder="01xxxxxxxxx"></div>
+    </div>
+    <button class="btn btn-red btn-block">اعرض حالة الطلب</button>
+  </form>
+  {% if error %}<div class="errs" role="alert" style="margin-top:14px">{{ error }}</div>{% endif %}
+  {% if result %}
+  <div class="box" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><b>طلب #{{ result.order.pk }}</b><span style="color:var(--muted)">{{ result.order.created_at|date:"d/m/Y" }}</span></div>
+    <div style="font-size:20px;font-weight:900;margin-top:6px">{{ result.label }}</div>
+    {% if result.key != "cancelled" %}
+    <div class="steps">
+      <div class="on">استلمنا الطلب</div>
+      <div class="{% if result.key != 'new' %}on{% endif %}">اتأكد</div>
+      <div class="{% if result.key == 'shipped' or result.key == 'done' %}on{% endif %}">اتشحن</div>
+      <div class="{% if result.key == 'done' %}on{% endif %}">اتسلّم</div>
+    </div>
+    {% endif %}
+    <div>المطلوب عند الاستلام: <b>{{ result.order.total|floatformat:0 }} ج.م</b></div>
+  </div>
+  {% endif %}
+  {% if wa %}<p style="margin-top:16px;color:var(--muted)">محتاج مساعدة؟ <a href="{{ wa }}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">كلمنا على واتساب</a></p>{% endif %}
+</div>
+{% endblock %}

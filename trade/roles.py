@@ -59,20 +59,25 @@ _STOCKCOUNT = ["view_stockcount", "add_stockcount", "change_stockcount",
 _HR_READ = ["view_employeeprofile", "view_employeetxn", "view_leaverequest", "view_mission",
             "view_missionpoint", "view_attendance"]
 
+# الموقع: الطلبات (تأكيد/إلغاء) والصور. الإعدادات ومصاريف الشحن لمدير الحسابات بس
+_WEB_ORDERS = ["view_weborder", "change_weborder", "view_weborderitem"]
+_WEB_PRODUCTS = ["view_productimage", "add_productimage", "change_productimage", "delete_productimage",
+                 "view_shippingzone"]
+
 # مصفوفة الصلاحيات: كل دور وقائمة أكواد الصلاحيات (app trade)
 ROLE_PERMISSIONS = {
     ROLE_ACCOUNTANT: _CUSTOMERS + _PAYMENTS + _DEBT_FOLLOWUP + _CUSTODY + _EXPENSES + _SALES
     + _PURCHASE + _ONLINE + ["view_activitylog"]
     + ["view_clothingmodel", "view_variant"]
     + _TREASURY_READ + _TREASURY_ACT + _RETURNS_SALE + _RETURNS_PURCHASE + _PRODUCTION_READ
-    + _HR_READ + ["view_stockcount", "view_stockcountline"],
+    + _HR_READ + ["view_stockcount", "view_stockcountline"] + _WEB_ORDERS + ["view_productimage"],
 
     ROLE_WAREHOUSE_MANAGER: _STOCK_READ + _STOCK_WRITE + _PURCHASE + _ONLINE
-    + ["view_activitylog"] + _RETURNS_PURCHASE + _PRODUCTION + _STOCKCOUNT,
+    + ["view_activitylog"] + _RETURNS_PURCHASE + _PRODUCTION + _STOCKCOUNT + _WEB_ORDERS + _WEB_PRODUCTS,
 
     ROLE_SALES: _STOCK_READ + _CUSTOMERS + _PAYMENTS + _SALES + _ONLINE
     + ["add_onlineorder", "view_onlineorder", "change_onlineorder"]
-    + ["view_cashbox", "view_seller"],
+    + ["view_cashbox", "view_seller"] + _WEB_ORDERS,
 
     ROLE_WAREHOUSE_EMPLOYEE: _STOCKCOUNT + ["view_clothingmodel", "view_variant",
                               "view_purchaseinvoice", "view_onlineorder",

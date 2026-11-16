@@ -1,0 +1,54 @@
+{% extends "trade/store/base.html" %}
+{% block title %}إتمام الطلب — SPIRIT{% endblock %}
+{% block main %}
+<div class="wrap">
+  <h1 class="page-title">إتمام الطلب</h1>
+  {% if errors %}<div class="errs" role="alert"><ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}
+  {% if not s.is_open %}<div class="errs">الطلبات واقفة مؤقتاً. {% if wa %}<a href="{{ wa }}" style="text-decoration:underline">كلمنا على واتساب</a>{% endif %}</div>{% endif %}
+  <form method="post" class="two" novalidate>
+    {% csrf_token %}
+    <div class="box">
+      <div class="field"><label for="f-name">الاسم</label><input id="f-name" name="name" value="{{ data.name }}" autocomplete="name" required maxlength="150"></div>
+      <div class="row2">
+        <div class="field"><label for="f-phone">الموبايل</label><input id="f-phone" name="phone" value="{{ data.phone }}" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx" required maxlength="20" dir="ltr"></div>
+        <div class="field"><label for="f-phone2">موبايل تاني <small>(اختياري)</small></label><input id="f-phone2" name="phone2" value="{{ data.phone2 }}" inputmode="tel" maxlength="20" dir="ltr"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label for="f-zone">المحافظة</label>
+          <select id="f-zone" name="zone" required><option value="">اختار المحافظة</option>
+            {% for z in zones %}<option value="{{ z.pk }}"{% if data.zone == z.pk|stringformat:"s" %} selected{% endif %}>{{ z.name }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="f-city">المدينة / المنطقة</label><input id="f-city" name="city" value="{{ data.city }}" required maxlength="80"></div>
+      </div>
+      <div class="field"><label for="f-address">العنوان بالتفصيل</label><input id="f-address" name="address" value="{{ data.address }}" autocomplete="street-address" placeholder="الشارع، رقم العمارة، الدور، علامة مميزة" required maxlength="300"></div>
+      <div class="field"><label for="f-notes">ملاحظات <small>(اختياري)</small></label><textarea id="f-notes" name="notes" maxlength="300">{{ data.notes }}</textarea></div>
+      <div class="hp" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+      <div class="note">💵 الدفع عند الاستلام. هنكلمك نأكد الطلب قبل الشحن.</div>
+    </div>
+    <div class="box sum">
+      {% for l in lines %}<div><span>{{ l.v.model.name }} <small style="color:var(--muted)">({{ l.v.size }}{% if l.v.color %} · {{ l.v.color }}{% endif %}) × {{ l.qty }}</small></span><span>{{ l.total|floatformat:0 }}</span></div>{% endfor %}
+      <div style="border-top:1px solid var(--line);padding-top:10px"><span>المنتجات</span><b>{{ total|floatformat:0 }} ج.م</b></div>
+      <div><span>الشحن <small id="days" style="color:var(--muted)"></small></span><span id="fee">اختار المحافظة</span></div>
+      <div class="total"><span>الإجمالي</span><span id="grand">{{ total|floatformat:0 }} ج.م</span></div>
+      <button class="btn btn-red btn-block"{% if not s.is_open %} disabled{% endif %}>تأكيد الطلب</button>
+      <a href="{% url 'store:cart' %}" class="btn btn-line btn-block">ارجع للسلة</a>
+    </div>
+  </form>
+</div>
+{{ zones_json|json_script:"Z" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var Z = JSON.parse(document.getElementById("Z").textContent), total = {{ total|stringformat:".2f" }};
+  var sel = document.getElementById("f-zone");
+  function money(n) { return Math.round(n).toLocaleString("en-US") + " ج.م"; }
+  function upd() {
+    var z = Z.filter(function (x) { return String(x.id) === sel.value; })[0];
+    document.getElementById("fee").textContent = z ? (z.fee ? money(z.fee) : "مجاني") : "اختار المحافظة";
+    document.getElementById("days").textContent = z && z.days ? "(" + z.days + ")" : "";
+    document.getElementById("grand").textContent = money(total + (z ? z.fee : 0));
+  }
+  sel.addEventListener("change", upd); upd();
+})();
+</script>
+{% endblock %}

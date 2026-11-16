@@ -666,3 +666,59 @@ class MissionAdmin(_ReadOnly):
 @admin.register(StockCount)
 class StockCountAdmin(_ReadOnly):
     list_display = ("name", "status", "created_by", "created_at", "applied_at")
+
+
+
+# ================= الموقع =================
+from .models import ProductImage, ShippingZone, StoreSettings, WebOrder, WebOrderItem  # noqa: E402
+
+
+@admin.register(ShippingZone)
+class ShippingZoneAdmin(admin.ModelAdmin):
+    list_display = ("name", "fee", "days", "is_active", "sort")
+    list_editable = ("fee", "days", "is_active", "sort")
+    search_fields = ("name",)
+
+
+@admin.register(StoreSettings)
+class StoreSettingsAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return not StoreSettings.objects.exists() and super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        from django.shortcuts import redirect
+        obj = StoreSettings.get()
+        return redirect("admin:trade_storesettings_change", obj.pk)
+
+
+class WebOrderItemInline(admin.TabularInline):
+    model = WebOrderItem
+    extra = 0
+    can_delete = False
+    readonly_fields = ("variant", "quantity", "unit_price")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(WebOrder)
+class WebOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "customer_name", "phone", "zone_name", "status", "created_at")
+    list_filter = ("status",)
+    search_fields = ("customer_name", "phone")
+    inlines = [WebOrderItemInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ProductImage)
+class ProductImageAdmin(admin.ModelAdmin):
+    list_display = ("model", "color", "sort")
+    list_filter = ("model",)

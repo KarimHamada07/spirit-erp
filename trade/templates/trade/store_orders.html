@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}طلبات الموقع{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tabs a { padding: 8px 16px; border-radius: 999px; border: 1px solid var(--erp-line,#ddd); font-weight: 700; color: var(--erp-ink,#111); text-decoration: none; }
+  .tabs a.on { background: #000; color: #fff; border-color: #000; }
+  .tabs a b { background: #fe0000; color: #fff; border-radius: 999px; padding: 0 7px; font-size: 12px; margin-right: 4px; }
+</style>
+<div class="tabs">
+  {% for k, label, n in tabs %}<a href="?status={{ k }}" class="{% if status == k %}on{% endif %}">{{ label }}{% if n %} <b>{{ n }}</b>{% endif %}</a>{% endfor %}
+  <a href="?status=all" class="{% if status == 'all' %}on{% endif %}">الكل</a>
+  <a href="{% url 'store:home' %}" target="_blank" rel="noopener" class="mr-auto" data-tip="يفتح الموقع زي ما العميل شايفه"><i class="fas fa-up-right-from-square"></i> افتح الموقع</a>
+</div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table mb-0">
+    <thead><tr><th>#</th><th>العميل</th><th>المحافظة</th><th>القطع</th><th>الإجمالي</th><th>الوقت</th><th>الحالة</th><th></th></tr></thead>
+    {% for o in orders %}
+    <tr>
+      <td><b>{{ o.pk }}</b></td>
+      <td>{{ o.customer_name }}<div class="text-muted" dir="ltr" style="text-align:right">{{ o.phone }}</div></td>
+      <td>{{ o.zone_name }}<div class="text-muted">{{ o.city }}</div></td>
+      <td>{{ o.pieces }}</td>
+      <td><b>{{ o.total|floatformat:2|intcomma }}</b></td>
+      <td>{{ o.created_at|date:"d/m H:i" }}</td>
+      <td>{% if o.status == "new" %}<span class="badge badge-danger">محتاج تأكيد</span>{% elif o.status == "confirmed" %}<a href="{% url 'online_detail' o.online_order_id %}" class="badge badge-dark">أوردر #{{ o.online_order_id }}</a>{% else %}<span class="badge badge-secondary">اتلغى</span>{% endif %}</td>
+      <td><a href="{% url 'store_order' o.pk %}" class="btn btn-sm {% if o.status == 'new' %}btn-primary{% else %}btn-outline-secondary{% endif %}">{% if o.status == "new" %}راجع وأكد{% else %}عرض{% endif %}</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="text-muted p-4 text-center">مفيش طلبات هنا.</td></tr>
+    {% endfor %}
+  </table>
+</div></div></div>
+{% endblock %}

@@ -148,3 +148,16 @@ def _admin_action(sender, instance, created, **kw):
     mname = instance.content_type.model if instance.content_type else ""
     log_event(f"{verb} من لوحة الإدارة\n{model_ar(mname, mname)}: {instance.object_repr}",
               user=instance.user)
+
+
+
+# ---- صور الموقع: لما الصورة تتمسح، الملفات تتمسح من السيرفر ----
+from django.db.models.signals import post_delete  # noqa: E402
+
+from .models import ProductImage  # noqa: E402
+
+
+@receiver(post_delete, sender=ProductImage)
+def _image_files(sender, instance, **kw):
+    from .store_media import delete_files
+    delete_files(instance.image, instance.thumb)

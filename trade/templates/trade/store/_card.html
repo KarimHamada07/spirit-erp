@@ -1,0 +1,10 @@
+<a class="card" href="{% url 'store:product' c.m.code %}">
+  <div class="ph">
+    {% if c.cover %}<img src="{{ c.cover.thumb_url }}" alt="{{ c.m.name }}" loading="lazy" width="600" height="750">
+      {% if c.second %}<img class="second" src="{{ c.second.thumb_url }}" alt="" loading="lazy" width="600" height="750">{% endif %}
+    {% else %}<div class="noimg">S</div>{% endif %}
+    {% if c.m.old_price and c.m.old_price > c.m.min_price %}<span class="tag">خصم</span>{% elif c.m.stock <= 5 %}<span class="tag">آخر قطع</span>{% endif %}
+  </div>
+  <div class="name">{{ c.m.name }}</div>
+  <div class="price"><b>{{ c.m.min_price|floatformat:0 }} ج.م</b>{% if c.m.old_price and c.m.old_price > c.m.min_price %}<s>{{ c.m.old_price|floatformat:0 }}</s>{% endif %}</div>
+</a>

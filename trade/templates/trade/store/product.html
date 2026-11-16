@@ -1,0 +1,136 @@
+{% extends "trade/store/base.html" %}
+{% block title %}{{ m.name }} — SPIRIT{% endblock %}
+{% block desc %}{{ m.description|default:m.name|truncatechars:150 }}{% endblock %}
+{% block og_type %}product{% endblock %}
+{% block og_title %}{{ m.name }} — {{ price|floatformat:0 }} ج.م{% endblock %}
+{% block og_image %}{% if images %}<meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{{ images.0.image.url }}">{% endif %}{% endblock %}
+{% block body_class %}has-sticky{% endblock %}
+{% block head %}
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","name":"{{ m.name|escapejs }}","sku":"{{ m.code|escapejs }}",{% if images %}"image":"{{ request.scheme }}://{{ request.get_host }}{{ images.0.image.url }}",{% endif %}"description":"{{ m.description|default:m.name|escapejs }}","brand":{"@type":"Brand","name":"SPIRIT"},"offers":{"@type":"Offer","priceCurrency":"EGP","price":"{{ price|stringformat:'.2f' }}","availability":"https://schema.org/InStock"}}</script>
+{% endblock %}
+{% block main %}
+<div class="wrap">
+  <nav class="crumbs" aria-label="مكانك"><a href="{% url 'store:home' %}">الرئيسية</a><span>/</span>
+    {% if m.category %}<a href="{% url 'store:category' m.category %}">{{ category_label }}</a><span>/</span>{% endif %}<span>{{ m.name }}</span></nav>
+  <div class="pd">
+    <div class="gallery">
+      <div class="main" id="g-main">{% if images %}<img src="{{ images.0.image.url }}" alt="{{ m.name }}" width="1200" height="1500" id="g-img">{% else %}<div class="card"><div class="ph"><div class="noimg">S</div></div></div>{% endif %}</div>
+      <div class="thumbs" id="g-thumbs" role="list"></div>
+    </div>
+    <form class="info" method="post" action="{% url 'store:cart_add' %}" id="buy-form">
+      {% csrf_token %}
+      <h1>{{ m.name }}</h1>
+      <div class="code">كود: {{ m.code }}</div>
+      <div class="price" style="margin-top:10px"><b id="p-price">{{ price|floatformat:0 }} ج.م</b>
+        {% if m.old_price and m.old_price > price %}<s>{{ m.old_price|floatformat:0 }} ج.م</s>{% endif %}</div>
+
+      <div class="opt" id="colors-box" hidden><h3>اللون: <span id="color-name"></span></h3><div class="chips" id="colors"></div></div>
+      <div class="opt"><h3>المقاس: <span id="size-name">اختار المقاس</span></h3><div class="chips" id="sizes"></div></div>
+      <div class="stock-note" id="note" aria-live="polite"></div>
+
+      <input type="hidden" name="variant" id="variant">
+      <div class="buy">
+        <div class="qty"><button type="button" data-d="-1" aria-label="أقل">−</button>
+          <input type="number" name="qty" id="qty" value="1" min="1" max="10" aria-label="الكمية"><button type="button" data-d="1" aria-label="أكتر">+</button></div>
+        <button class="btn btn-red" id="add" disabled>أضف للسلة</button>
+      </div>
+      <button class="btn btn-dark btn-block" name="buy_now" value="1" id="buy-now" style="margin-top:10px" disabled>اطلب دلوقتي</button>
+
+      <div class="trust">
+        <div><i>✓</i> الدفع عند الاستلام</div>
+        <div><i>✓</i> شحن لكل محافظات مصر</div>
+        {% if wa %}<div><i>✓</i> عندك سؤال عن المقاس؟ <a href="{{ wa }}?text={{ m.name|urlencode }}%20-%20{{ m.code|urlencode }}" target="_blank" rel="noopener" style="color:var(--red);font-weight:800">كلمنا واتساب</a></div>{% endif %}
+      </div>
+      {% if m.description %}<div class="desc">{{ m.description }}</div>{% endif %}
+    </form>
+  </div>
+
+  {% if related %}
+  <section class="section">
+    <div class="section-head"><h2>ممكن يعجبك كمان</h2></div>
+    <div class="grid">{% for c in related %}{% include "trade/store/_card.html" %}{% endfor %}</div>
+  </section>
+  {% endif %}
+</div>
+<div class="sticky-buy"><b id="s-price">{{ price|floatformat:0 }} ج.م</b><button type="button" class="btn btn-red" id="s-add">أضف للسلة</button></div>
+{{ variants_json|json_script:"V" }}{{ images_json|json_script:"I" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var V = JSON.parse(document.getElementById("V").textContent), I = JSON.parse(document.getElementById("I").textContent);
+  var colors = [], color = null, size = null;
+  V.forEach(function (v) { if (colors.indexOf(v.color) === -1) colors.push(v.color); });
+  var $ = function (id) { return document.getElementById(id); };
+  function money(n) { return Math.round(n).toLocaleString("en-US") + " ج.م"; }
+  function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+  function avail(c) { return V.some(function (v) { return v.color === c && v.qty > 0; }); }
+  color = colors.filter(avail)[0];
+  if (colors.length > 1 || (colors[0] || "")) $("colors-box").hidden = false;
+
+  function drawColors() {
+    $("colors").innerHTML = colors.map(function (c) {
+      var ok = avail(c);
+      return '<button type="button" data-c="' + esc(c) + '" class="' + (c === color ? "on" : "") + (ok ? "" : " out") + '"' +
+        (ok ? "" : " disabled") + ' aria-pressed="' + (c === color) + '">' + esc(c || "—") + "</button>";
+    }).join("");
+    $("color-name").textContent = color || "";
+  }
+  function drawSizes() {
+    var list = V.filter(function (v) { return v.color === color; });
+    if (size && !list.some(function (v) { return v.size === size && v.qty > 0; })) size = null;
+    $("sizes").innerHTML = list.map(function (v) {
+      var ok = v.qty > 0;
+      return '<button type="button" data-s="' + esc(v.size) + '" class="' + (v.size === size ? "on" : "") + (ok ? "" : " out") + '"' +
+        (ok ? "" : ' disabled title="خلص"') + ' aria-pressed="' + (v.size === size) + '">' + esc(v.size) + "</button>";
+    }).join("");
+    var cur = list.filter(function (v) { return v.size === size; })[0];
+    $("variant").value = cur ? cur.id : "";
+    $("size-name").textContent = cur ? cur.size : "اختار المقاس";
+    $("add").disabled = $("buy-now").disabled = !cur;
+    $("note").textContent = cur && cur.left ? "فاضل " + cur.left + " بس من المقاس ده" : "";
+    $("qty").max = cur ? cur.qty : 10;
+    if (cur) { $("p-price").textContent = money(cur.price); $("s-price").textContent = money(cur.price); }
+  }
+  function drawGallery() {
+    var imgs = I.filter(function (i) { return i.color && i.color === color; });
+    if (!imgs.length) imgs = I;
+    if (!imgs.length) return;
+    $("g-img").src = imgs[0].src;
+    $("g-thumbs").innerHTML = imgs.length < 2 ? "" : imgs.map(function (i, n) {
+      return '<button type="button" role="listitem" data-src="' + i.src + '" class="' + (n ? "" : "on") + '" aria-label="صورة ' + (n + 1) + '"><img src="' + i.thumb + '" alt="" loading="lazy"></button>';
+    }).join("");
+  }
+  $("colors").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-c]"); if (!b || b.disabled) return;
+    color = b.getAttribute("data-c"); drawColors(); drawSizes(); drawGallery();
+  });
+  $("sizes").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-s]"); if (!b || b.disabled) return;
+    size = b.getAttribute("data-s"); drawSizes();
+  });
+  $("g-thumbs").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-src]"); if (!b) return;
+    $("g-img").src = b.getAttribute("data-src");
+    [].forEach.call(this.children, function (x) { x.classList.toggle("on", x === b); });
+  });
+  document.querySelector(".qty").addEventListener("click", function (e) {
+    var d = e.target.getAttribute("data-d"); if (!d) return;
+    var q = $("qty"), n = (parseInt(q.value, 10) || 1) + parseInt(d, 10);
+    q.value = Math.max(1, Math.min(n, parseInt(q.max, 10) || 10));
+  });
+  $("s-add").addEventListener("click", function () {
+    if ($("add").disabled) {
+      $("note").textContent = "اختار المقاس الأول";
+      $("sizes").scrollIntoView({behavior: "smooth", block: "center"});
+      return;
+    }
+    $("add").click();
+  });
+  // لو مقاس واحد بس متاح، بيتختار لوحده
+  var only = V.filter(function (v) { return v.color === color && v.qty > 0; });
+  if (only.length === 1) size = only[0].size;
+  drawColors(); drawSizes(); drawGallery();
+})();
+</script>
+{% endblock %}
