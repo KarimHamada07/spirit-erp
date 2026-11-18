@@ -648,7 +648,8 @@ def return_print(request, group):
         "gross": sum((r["total"] for r in rows), Decimal("0")) + sum((r.discount for r in rets), Decimal("0")),
         "discount": sum((r.discount for r in rets), Decimal("0")),
         "total": sum((r.total for r in rets), Decimal("0")), "pieces": sum(r["qty"] for r in rows),
-        "plan": list(plan.items()), "channels": "، ".join(channels), "shop_name": SHOP_NAME})
+        "plan": list(plan.items()), "channels": "، ".join(channels), "shop_name": SHOP_NAME,
+        "wholesale": any(r.invoice.channel == "wholesale" for r in rets)})
 
 
 # ---------------------------------------------------------------- موافقات مدير الحسابات
