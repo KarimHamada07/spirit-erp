@@ -10,9 +10,13 @@
     <div class="col-md-8 mb-3"><label class="l" for="i-name">اسم الصنف <span class="req">*</span></label>
       <input id="i-name" name="name" value="{{ data.name }}" class="form-control" required maxlength="100"></div>
   </div>
-  <div class="mb-3"><label class="l" for="i-sizes">مقاسات السيري <span class="req">*</span> <span class="badge badge-dark" id="series">عدد السيري: 0</span></label>
-    <input id="i-sizes" name="sizes" value="{{ data.sizes }}" class="form-control" required dir="ltr" placeholder="M, L, XL, XXL, XXXL">
-    <div class="hint">اكتب المقاسات مفصولة بفاصلة. عدد السيري = عدد مقاسات اللون الواحد.</div><div class="tags" id="size-tags"></div></div>
+  <div class="mb-3"><label class="l" for="i-sizes">المقاسات <span class="req">*</span></label>
+    <input id="i-sizes" name="sizes" value="{{ data.sizes }}" class="form-control" required dir="ltr" placeholder="S, M, L, XL, XXL, XXXL">
+    <div class="hint">كل المقاسات اللي الصنف نازل بيها، مفصولة بفاصلة.</div><div class="tags" id="size-tags"></div></div>
+  <div class="mb-3"><label class="l" for="i-series">السيري (للجملة) <span class="badge badge-dark" id="series">عدد قطع السيري: 0</span></label>
+    <input id="i-series" name="series" value="{{ data.series }}" class="form-control" dir="ltr" placeholder="M, L, XL, XXL, XXXL">
+    <div class="hint">مقاسات السيري الواحد للون. لو مقاس بيتكرر اكتبه مرتين (M, L, L, XL = 4 قطع). فاضي = كل المقاسات. السيري بيظهر في فواتير الجملة بس.</div>
+    <div class="tags" id="series-tags"></div></div>
   <div class="mb-3"><label class="l" for="i-colors">الألوان <span class="req">*</span></label>
     <input id="i-colors" name="colors" value="{{ data.colors }}" class="form-control" required placeholder="أسود، أبيض، أحمر، كحلي">
     <div class="hint">كل لون بيتعمل بكل مقاسات السيري.</div><div class="tags" id="color-tags"></div></div>
@@ -31,16 +35,18 @@
 {% endif %}
 <script>
 (function () {
-  function tags(inp, box, upper, badge) {
+  function tags(inp, box, upper, badge, keepRepeats, fallback) {
     function draw() {
-      var list = inp.value.split(/[,،\/\n]+/).map(function (x) { x = x.trim(); return upper ? x.toUpperCase() : x; }).filter(Boolean);
-      list = list.filter(function (x, i) { return list.indexOf(x) === i; });
+      var src = inp.value.trim() || (fallback ? fallback.value : "");
+      var list = src.split(/[,،\/\n]+/).map(function (x) { x = x.trim(); return upper ? x.toUpperCase() : x; }).filter(Boolean);
+      if (!keepRepeats) list = list.filter(function (x, i) { return list.indexOf(x) === i; });
       box.innerHTML = list.map(function (x) { var b = document.createElement("b"); b.textContent = x; return b.outerHTML; }).join("");
-      if (badge) badge.textContent = "عدد السيري: " + list.length;
+      if (badge) badge.textContent = "عدد قطع السيري: " + list.length;
     }
-    inp.addEventListener("input", draw); draw();
+    inp.addEventListener("input", draw); if (fallback) fallback.addEventListener("input", draw); draw();
   }
-  tags(document.getElementById("i-sizes"), document.getElementById("size-tags"), true, document.getElementById("series"));
+  tags(document.getElementById("i-sizes"), document.getElementById("size-tags"), true);
+  tags(document.getElementById("i-series"), document.getElementById("series-tags"), true, document.getElementById("series"), true, document.getElementById("i-sizes"));
   tags(document.getElementById("i-colors"), document.getElementById("color-tags"), false);
 })();
 </script>

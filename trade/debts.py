@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.db.models import F, Max, Sum
 from django.utils import timezone
 
-from .models import Customer, DebtFollowUp, SaleInvoice, SaleItem, SaleReturnItem
+from .models import Customer, DebtFollowUp, SaleInvoice, SaleItem, SaleReturn
 
 ZERO = Decimal("0")
 BUCKETS = [(30, "لحد 30 يوم"), (60, "31 - 60 يوم"), (90, "61 - 90 يوم"), (None, "أكتر من 90 يوم")]
@@ -29,12 +29,10 @@ def _invoice_nets(customer_ids):
                  .filter(invoice__customer_id__in=customer_ids, invoice__is_confirmed=True,
                          invoice__payment_type="credit")
                  .values_list("invoice").annotate(s=Sum(F("quantity") * F("unit_price"))))
-    returned = dict(SaleReturnItem.objects
-                    .filter(return_doc__invoice__customer_id__in=customer_ids,
-                            return_doc__is_confirmed=True, return_doc__refund_mode="account",
-                            return_doc__invoice__payment_type="credit")
-                    .values_list("return_doc__invoice")
-                    .annotate(s=Sum(F("quantity") * F("unit_refund"))))
+    returned = dict(SaleReturn.objects
+                    .filter(invoice__customer_id__in=customer_ids, is_confirmed=True,
+                            invoice__payment_type="credit")
+                    .values_list("invoice").annotate(s=Sum("account_amount")))
     per_customer = defaultdict(list)
     for inv in (SaleInvoice.objects
                 .filter(customer_id__in=customer_ids, is_confirmed=True, payment_type="credit")

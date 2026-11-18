@@ -28,6 +28,7 @@ MENU = [
     ("البيع", [
         ("نقطة البيع", "pos", "fas fa-cash-register", "trade.add_saleinvoice"),
         ("فواتير البيع", "admin:trade.saleinvoice", "fas fa-file-invoice-dollar", "trade.view_saleinvoice"),
+        ("فواتير مستنية موافقة", "sale_approvals", "fas fa-stamp", "trade.approve_saleinvoice"),
         ("الأونلاين", "online_list", "fas fa-truck-fast", "trade.view_onlineorder"),
         ("مرتجعات العملاء", "admin:trade.salereturn", "fas fa-rotate-left", "trade.view_salereturn"),
     ]),

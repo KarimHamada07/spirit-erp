@@ -159,11 +159,14 @@ def statement_pdf(st):
         data.append(["-", "مفيش حركات في الفترة دي", "", "", "", ""])
     story.append(_table(data, [27 * mm, 31 * mm, 36 * mm, 27 * mm, 27 * mm, 28 * mm]))
     story.append(Spacer(1, 6 * mm))
-    summary = [
-        [st["debit_label"], _money(t["debit"])],
-        [st["credit_label"], _money(t["credit"])],
-        [st["balance_label"], _money(t["balance"])],
-    ]
+    if st.get("summary"):
+        summary = [[label, _money(v)] for label, v in st["summary"]] + [[st["balance_label"], _money(t["balance"])]]
+    else:
+        summary = [
+            [st["debit_label"], _money(t["debit"])],
+            [st["credit_label"], _money(t["credit"])],
+            [st["balance_label"], _money(t["balance"])],
+        ]
     if t["previous"]:
         summary.insert(0, ["رصيد سابق", _money(t["previous"])])
     tbl = Table([[_p(b), _p(a)] for a, b in summary], colWidths=[40 * mm, 60 * mm], hAlign="RIGHT")

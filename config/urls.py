@@ -24,7 +24,7 @@ from trade.customer_views import (customer_add, customer_detail, customer_pay, c
 from trade.online_views import (online_create, online_detail, online_list,
                                 online_new, online_status)
 from trade.pwa_views import manifest, offline, service_worker
-from trade.pos_views import (invoice_public, pos, pos_checkout, pos_customer_prices, pos_return,
+from trade.pos_views import (invoice_public, sale_approvals, pos_return_customer, return_print, pos, pos_checkout, pos_customer_prices, pos_return,
                              pos_return_lookup, sale_pdf, sale_print)
 from trade.stock_views import inventory, inventory_detail, purchase_confirm
 from trade.treasury_views import (commissions_view, daily_close_view,
@@ -127,6 +127,9 @@ urlpatterns = [
     path("coding/supplier/<int:pk>/", coding_views.code_supplier, name="code_supplier_edit"),
     path("coding/item/", coding_views.code_item, name="code_item"),
     path("coding/item/<int:pk>/", coding_views.code_item, name="code_item_edit"),
+    path("sales/approvals/", sale_approvals, name="sale_approvals"),
+    path("pos/return/customer/", pos_return_customer, name="pos_return_customer"),
+    path("returns/<str:group>/print/", return_print, name="return_print"),
     path("customers/", customers, name="customers"),
     path("customers/debts/", debts, name="debts"),
     path("customers/<int:pk>/followup/", debt_followup_add, name="debt_followup_add"),

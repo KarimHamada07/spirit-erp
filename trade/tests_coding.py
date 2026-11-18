@@ -52,13 +52,22 @@ class CodingTests(TestCase):
                                           "sizes": "m, L, XL, XXL, XXXL", "colors": "أبيض، أحمر، أسود، أزرق"})
         m = ClothingModel.objects.get(code="TS-50")
         self.assertRedirects(r, reverse("code_item_edit", args=[m.pk]))
-        self.assertEqual(m.series_size, 5)
+        self.assertEqual((m.series_size, m.series_list), (5, ["M", "L", "XL", "XXL", "XXXL"]))
         self.assertEqual(m.variants.count(), 20)
         self.assertTrue(m.variants.filter(size="M", color="أحمر").exists())
         # تعديل: لون جديد بيتعمل بكل المقاسات، والقديم ما بيتكررش
         c.post(reverse("code_item_edit", args=[m.pk]), {"code": "TS-50", "name": "تيشرت بيسك", "category": "tshirt",
                                                          "sizes": "M, L, XL, XXL, XXXL", "colors": "أبيض، أحمر، أسود، أزرق، كحلي"})
         self.assertEqual(m.variants.count(), 25)
+        # سيري الجملة: مقاس متكرر، ومقاس مش من مقاسات الصنف مرفوض
+        c.post(reverse("code_item_edit", args=[m.pk]), {"code": "TS-50", "name": "تيشرت بيسك", "category": "tshirt",
+                                                         "sizes": "M, L, XL, XXL, XXXL", "colors": "أبيض",
+                                                         "series": "M, L, L, XL, XL, XXL"})
+        m.refresh_from_db()
+        self.assertEqual(m.series_size, 6)
+        r = c.post(reverse("code_item_edit", args=[m.pk]), {"code": "TS-50", "name": "x", "category": "tshirt",
+                                                             "sizes": "M, L", "colors": "أبيض", "series": "M, S"})
+        self.assertContains(r, "مش من مقاسات الصنف")
         r = c.post(reverse("code_item"), {"code": "ts-50", "name": "x", "category": "tshirt", "sizes": "M", "colors": "أسود"})
         self.assertContains(r, "متسجل لصنف تاني")
         _s, sales = login("sales", ROLE_SALES)

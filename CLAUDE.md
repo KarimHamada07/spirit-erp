@@ -84,6 +84,12 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   `EmployeeProfile.start_date`: اللي قبله مش غياب.
 - المأموريات: `mission_views.py` (بداية/وصول/نهاية باللوكيشن، وخط السير على خريطة جوجل).
 - الجرد واقتراحات الطلب: `stock_count_views.py` (`StockCount.apply` بصلاحية `apply_stockcount`).
+- المبيعات: `SaleInvoice.channel` (قطاعي/جملة/تسويق/أون لاين؛ الجملة بسعر الجملة والباقي قطاعي)، `delivery`،
+  `payment_plan` (خزن + "account" = من الحساب، و`account_amount`). حد ائتمان العميل أو تاريخ غير النهارده (من غير
+  `change_invoice_date`) = `approval="pending"` ومش بتتأكد غير من `sale_approvals` (`approve_saleinvoice`).
+  المرتجع `pos_return`: بالعميل والصنف (FIFO على بنود البيع، مرتجع لكل فاتورة بنفس `group`) أو برقم الفاتورة،
+  ورد الفلوس سطور خزن و/أو حساب (`SaleReturn.account_amount` هو اللي بيقلل المديونية). السيري للجملة بس
+  (`ClothingModel.series_sizes`، المقاس ممكن يتكرر). كشف العميل فيه `summary` (فواتير/مرتجعات/دفعات).
 - نقطة البيع: سعر الجملة `Variant.wholesale_price` حسب القناة، وتعديل السعر بصلاحية `change_sale_price` بس
   (السيرفر بيتحقق). المرتجع من نفس الشاشة برقم الفاتورة (`pos_return_lookup` / `pos_return`).
   الفاتورة ليها رابط موقّع للعميل `/i/<token>/` بيتبعت واتساب.

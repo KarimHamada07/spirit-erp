@@ -167,7 +167,8 @@ def code_item(request, pk=None):
         data = {k: request.POST.get(k, "").strip() for k in ("code", "name", "category", "notes")}
         sizes = list(dict.fromkeys(s.upper() for s in _list(request.POST.get("sizes"))))
         colors = list(dict.fromkeys(_list(request.POST.get("colors"))))
-        data.update(sizes=", ".join(sizes), colors=", ".join(colors))
+        series = [s.upper() for s in _list(request.POST.get("series"))] or list(sizes)
+        data.update(sizes=", ".join(sizes), colors=", ".join(colors), series=", ".join(series))
         if not data["code"]:
             errors.append("كود الصنف مطلوب")
         elif ClothingModel.objects.filter(code__iexact=data["code"]).exclude(pk=getattr(obj, "pk", None)).exists():
@@ -180,11 +181,14 @@ def code_item(request, pk=None):
             errors.append("اكتب لون واحد على الأقل")
         if data["category"] not in dict(ClothingModel.CATEGORIES):
             errors.append("اختار التصنيف")
+        extra = [x for x in series if x not in sizes]
+        if extra:
+            errors.append(f"مقاس في السيري مش من مقاسات الصنف: {extra[0]}")
         if not errors:
             with transaction.atomic():
                 m = obj or ClothingModel()
                 m.code, m.name, m.category, m.notes = data["code"], data["name"], data["category"], data["notes"]
-                m.series_size = len(sizes)
+                m.series_sizes, m.series_size = ", ".join(series), len(series)
                 m.save()
                 have = {(v.size.upper(), v.color) for v in m.variants.all()}
                 added = 0
@@ -204,7 +208,7 @@ def code_item(request, pk=None):
             if v.size not in sizes:
                 sizes.append(v.size)
         data = {"code": obj.code, "name": obj.name, "category": obj.category, "notes": obj.notes,
-                "sizes": ", ".join(sizes), "colors": ", ".join(dict.fromkeys(v.color for v in existing if v.color))}
+                "sizes": ", ".join(sizes), "series": obj.series_sizes, "colors": ", ".join(dict.fromkeys(v.color for v in existing if v.color))}
     return render(request, "trade/coding_item.html", _ctx(
         request, "تعديل صنف" if obj else "تكويد صنف", obj=obj, data=data, errors=errors,
         categories=ClothingModel.CATEGORIES, variants=sorted(existing, key=_size_key)))

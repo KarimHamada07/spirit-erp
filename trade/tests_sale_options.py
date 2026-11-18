@@ -72,7 +72,7 @@ class SaleOptionsTests(TestCase):
         ClothingModel.objects.create(name="بنطلون", code="P1", category="pants")
         page = self.c.get(reverse("inventory") + "?cat=jacket").content.decode()
         self.assertIn("جاكيت", page)
-        self.assertNotIn("P1", page)
+        self.assertNotRegex(page, r"\bP1\b")   # مش جوه رمز عشوائي زي csrf
         wb = Workbook()
         ws = wb.active
         ws.title = "البيانات"
@@ -104,7 +104,7 @@ class PosReturnTests(SaleOptionsTests):
         item = d["items"][0]
         self.assertEqual((item["returnable"], item["unit_refund"]), (3, 299.7))
         r = self.c.post(reverse("pos_return"), json.dumps({
-            "invoice": inv.pk, "mode": "box", "box": self.box.pk,
+            "invoice": inv.pk, "mode": "box", "box": self.box.pk, "reason": "مقاس",
             "items": [{"sale_item": item["sale_item"], "qty": 2}]}), content_type="application/json")
         self.assertEqual(r.status_code, 200, r.content)
         self.v.refresh_from_db()
@@ -114,11 +114,11 @@ class PosReturnTests(SaleOptionsTests):
         self.assertEqual(d["items"][0]["returnable"], 1)
         # أكتر من المتاح يترفض، والخصم من المديونية للآجل بس
         r = self.c.post(reverse("pos_return"), json.dumps({
-            "invoice": inv.pk, "mode": "box", "box": self.box.pk,
+            "invoice": inv.pk, "mode": "box", "box": self.box.pk, "reason": "مقاس",
             "items": [{"sale_item": item["sale_item"], "qty": 2}]}), content_type="application/json")
         self.assertEqual(r.status_code, 400)
         r = self.c.post(reverse("pos_return"), json.dumps({
-            "invoice": inv.pk, "mode": "account", "items": [{"sale_item": item["sale_item"], "qty": 1}]}),
+            "invoice": inv.pk, "mode": "account", "reason": "مقاس", "items": [{"sale_item": item["sale_item"], "qty": 1}]}),
             content_type="application/json")
         self.assertEqual(r.status_code, 400)
         self.assertEqual(self.c.get(reverse("pos_return_lookup"), {"invoice": 999}).status_code, 404)
