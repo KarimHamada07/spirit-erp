@@ -1,0 +1,135 @@
+{% load static humanize %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>بوالص الأونلاين ({{ count }})</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4 portrait; margin: 0; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Cairo", Tahoma, sans-serif; color: #000; background: #e9e9ec;
+           -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .bar { position: sticky; top: 0; z-index: 5; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+           justify-content: center; padding: 10px 16px; background: #111; color: #fff; font-size: 14px; }
+    .bar button, .bar a { font: inherit; font-weight: 700; border: 0; border-radius: 8px; padding: 8px 18px;
+           cursor: pointer; text-decoration: none; }
+    .bar button { background: #fe0000; color: #fff; }
+    .bar a { background: #fff; color: #111; }
+    .empty { text-align: center; padding: 60px 16px; font-size: 18px; color: #555; }
+
+    .page { width: 210mm; height: 297mm; margin: 14px auto; background: #fff; overflow: hidden;
+            box-shadow: 0 4px 18px rgba(0,0,0,.15); page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+    .slip { height: 99mm; padding: 5mm 9mm 4mm; position: relative; overflow: hidden;
+            display: grid; grid-template-columns: 1fr 1.15fr; grid-template-rows: auto 1fr auto; gap: 2mm 7mm; }
+    .slip > * { min-height: 0; }
+    .slip + .slip { border-top: 1px dashed #888; }
+    .slip + .slip::before { content: "✂"; position: absolute; top: -9px; left: 6mm; font-size: 14px;
+            background: #fff; padding: 0 4px; color: #666; }
+
+    .head { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 2px solid #fe0000; padding-bottom: 1.5mm; }
+    .head .logo { display: flex; align-items: center; gap: 8px; }
+    .head img { height: 9mm; }
+    .head .shop { font-size: 17px; font-weight: 800; letter-spacing: 2px; direction: ltr; }
+    .head .no { text-align: left; font-size: 11px; color: #555; line-height: 1.3; }
+    .head .no b { display: block; font-size: 18px; color: #000; }
+
+    .to { border: 1.5px solid #000; border-radius: 3mm; padding: 2.5mm 3.5mm; font-size: 12px; line-height: 1.6; }
+    .to .lbl { font-size: 10px; color: #666; }
+    .to .name { font-size: 16px; font-weight: 800; }
+    .to .phone { font-size: 18px; font-weight: 800; direction: ltr; text-align: right; letter-spacing: .5px; }
+    .to .addr { font-size: 13px; font-weight: 600; }
+    .note { font-size: 11px; color: #333; margin-top: 1.5mm; }
+
+    .items { width: 100%; border-collapse: collapse; font-size: 10.5px; line-height: 1.35; }
+    .items th { background: #000; color: #fff; font-weight: 600; padding: 1mm 1.5mm; text-align: right; }
+    .items td { padding: .4mm 1.5mm; border-bottom: 1px solid #ddd; }
+    .items .n { text-align: left; white-space: nowrap; }
+    .sum { font-size: 10.5px; margin-top: .5mm; line-height: 1.35; }
+    .sum div { display: flex; justify-content: space-between; padding: 0 1.5mm; }
+
+    .foot { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 4mm; }
+    .cod { display: flex; align-items: center; gap: 4mm; border: 2px solid #000; border-radius: 3mm;
+           padding: 1.5mm 4mm; background: #fff; }
+    .cod .lbl { font-size: 11px; font-weight: 700; line-height: 1.2; }
+    .cod .v { font-size: 22px; font-weight: 800; direction: ltr; }
+    .cod.paid { border-color: #888; }
+    .meta { font-size: 10px; color: #555; line-height: 1.5; }
+    .meta b { color: #000; }
+
+    @media print {
+      body { background: #fff; }
+      .bar { display: none; }
+      .page { margin: 0; box-shadow: none; }
+    }
+    @media screen and (max-width: 840px) {
+      .page { zoom: .45; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <span>{{ count }} أوردر — {{ pages|length }} ورقة A4 (كل ورقة 3 بوالص)</span>
+    {% if count %}<button type="button" onclick="window.print()" data-tip="اطبع على ورق A4 عادي، وفي إعدادات الطباعة خلي الهوامش None">طباعة</button>{% endif %}
+    <a href="{% url 'online_list' %}">رجوع للأونلاين</a>
+  </div>
+
+  {% for page in pages %}
+  <div class="page">
+    {% for s in page %}{% with o=s.order %}
+    <div class="slip">
+      <div class="head">
+        <div class="logo">
+          <img src="{% static 'trade/img/invoice_logo.png' %}" alt="" onerror="this.style.display='none'">
+          <span class="shop">{{ shop_name }}</span>
+        </div>
+        <div class="no">أوردر رقم<b>#{{ o.pk }}</b>{{ o.created_at|date:"d/m/Y" }}</div>
+      </div>
+
+      <div>
+        <div class="to">
+          <div class="lbl">إلى:</div>
+          <div class="name">{{ o.customer_name }}</div>
+          <div class="phone">{{ o.phone }}</div>
+          {% if o.address %}<div class="addr">{{ o.address }}</div>{% endif %}
+        </div>
+        {% if o.notes %}<div class="note"><b>ملاحظات:</b> {{ o.notes|truncatechars:140 }}</div>{% endif %}
+      </div>
+
+      <div>
+        <table class="items">
+          <thead><tr><th>الصنف</th><th>المقاس/اللون</th><th class="n">العدد</th><th class="n">السعر</th></tr></thead>
+          <tbody>
+            {% for i in s.items %}<tr><td>{{ i.variant.model.name|truncatechars:28 }}</td>
+              <td>{{ i.variant.size }}{% if i.variant.color %} / {{ i.variant.color }}{% endif %}</td>
+              <td class="n">{{ i.quantity }}</td><td class="n">{{ i.unit_price|floatformat:0|intcomma }}</td></tr>{% endfor %}
+            {% if s.more %}<tr><td colspan="4">+ {{ s.more }} أصناف تانية ({{ s.more_qty }} قطعة)</td></tr>{% endif %}
+          </tbody>
+        </table>
+        <div class="sum">
+          <div><span>الأصناف ({{ o.pieces }} قطعة)</span><span>{{ o.items_total|floatformat:2|intcomma }}</span></div>
+          {% if o.discount %}<div><span>خصم</span><span>- {{ o.discount|floatformat:2|intcomma }}</span></div>{% endif %}
+          {% if o.shipping_fee %}<div><span>شحن</span><span>+ {{ o.shipping_fee|floatformat:2|intcomma }}</span></div>{% endif %}
+        </div>
+      </div>
+
+      <div class="foot">
+        <div class="meta">
+          {% if store_phone %}خدمة العملاء: <b dir="ltr">{{ store_phone }}</b><br>{% endif %}
+          من فضلك افحص الأوردر قدام المندوب. شكراً لاختيارك {{ shop_name }}
+        </div>
+        <div class="cod">
+          <div class="lbl">المطلوب<br>تحصيله</div>
+          <div class="v">{{ o.total_to_collect|floatformat:2|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+    {% endwith %}{% endfor %}
+  </div>
+  {% empty %}
+  <div class="empty">مفيش أوردرات متجهزة مستنية الشحن.</div>
+  {% endfor %}
+</body>
+</html>

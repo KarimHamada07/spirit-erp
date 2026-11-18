@@ -22,7 +22,7 @@ from trade.quick_views import quick_expense, quick_payment
 from trade.customer_views import (customer_add, customer_detail, customer_pay, customer_set_seller,
                                   customer_statement_pdf, customers, statement_public)
 from trade.online_views import (online_create, online_detail, online_list,
-                                online_new, online_status)
+                                online_new, online_print, online_status)
 from trade.pwa_views import manifest, offline, service_worker
 from trade.pos_views import (invoice_public, sale_approvals, pos_return_customer, return_print, pos, pos_checkout, pos_customer_prices, pos_return,
                              pos_return_lookup, sale_pdf, sale_print)
@@ -149,6 +149,7 @@ urlpatterns = [
     path("treasury/commissions/", commissions_view, name="commissions"),
     path("online/", online_list, name="online_list"),
     path("online/new/", online_new, name="online_new"),
+    path("online/print/", online_print, name="online_print"),
     path("online/create/", online_create, name="online_create"),
     path("online/<int:pk>/", online_detail, name="online_detail"),
     path("online/<int:pk>/status/", online_status, name="online_status"),

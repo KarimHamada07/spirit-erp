@@ -168,3 +168,20 @@ class WholesaleSeriesTests(SalesBase):
         self.assertIn("L×2", page)
         pdf = self.boss.get(reverse("sale_pdf", args=[r.json()["id"]]))
         self.assertEqual(pdf.status_code, 200)
+
+
+class OnlineSlipsTests(SalesBase):
+    def test_three_slips_per_a4_page(self):
+        from trade.models import OnlineOrder
+        orders = [OnlineOrder.create_order(customer_name=f"عميل {n}", phone=f"0100000000{n}", address="القاهرة - مدينة نصر",
+                                           notes="", discount=D("0"), shipping_fee=D("60"), shipping_cost=D("45"),
+                                           items=[{"id": self.v.pk, "qty": 1, "price": 500}], seller=self.seller)
+                  for n in range(4)]
+        orders[3].set_status(OnlineOrder.SHIPPED)
+        page = self.sales.get(reverse("online_print")).content.decode()      # المتجهز بس
+        self.assertEqual((page.count('class="page"'), page.count('class="slip"')), (1, 3))
+        self.assertIn("560.00", page)
+        self.assertNotIn("عميل 3", page)
+        page = self.sales.get(reverse("online_print"), {"ids": ",".join(str(o.pk) for o in orders)}).content.decode()
+        self.assertEqual((page.count('class="page"'), page.count('class="slip"')), (2, 4))
+        self.assertContains(self.sales.get(reverse("online_list")), "اطبع بوالص المتجهز (3)")
