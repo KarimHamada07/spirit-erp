@@ -261,6 +261,7 @@
   var canEditPrice = {{ can_edit_price|yesno:"true,false" }};  // تعديل السعر عموماً: مدير الحسابات والأدمن
   var priceToken = 0;
   var custInfo = null;   // رصيد العميل ونوعه وحد الائتمان
+  var bundles = {};      // الجملة: السيريهات {code|color: {code, color, count, need: {size: n}, vids: {size: id}, label}}
 
   function channel() { return document.getElementById("channel").value; }
   function chanPrice(v) { return channel() === "wholesale" && v.wprice ? v.wprice : v.price; }
@@ -425,8 +426,26 @@
   function renderCart() {
     var ids = Object.keys(cart);
     var html = "";
+    Object.keys(bundles).forEach(function (key) {
+      var b = bundles[key], its = bundleItems(b), first = its[0];
+      if (!first) return;
+      var pcs = 0, tot = 0;
+      its.forEach(function (c) { pcs += c.qty; tot += c.qty * c.price; });
+      var sizes = Object.keys(b.need).map(function (sz) { return sz + (b.need[sz] > 1 ? "×" + b.need[sz] : ""); }).join(" ");
+      var locked = its.some(function (c) { return lockedPrice(c); });
+      html += '<tr data-b="' + esc(key) + '"><td><b>' + esc(b.label) + '</b><div class="pos-hint">' + esc(b.code) + " · سيري: <span dir=\"ltr\">" + esc(sizes) + "</span>" +
+        " (" + (pcs / b.count) + " قطع)</div>" + (first.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>' : "") + "</td>" +
+        '<td><div class="qty-ctl"><button type="button" data-bstep="-1" aria-label="سيري أقل">−</button>' +
+        '<input type="number" min="1" value="' + b.count + '" class="form-control" data-f="bqty" aria-label="عدد السيريهات">' +
+        '<button type="button" data-bstep="1" aria-label="سيري زيادة">+</button></div><div class="pos-hint">' + pcs + " قطعة</div></td>" +
+        '<td><input type="number" min="0" step="0.01" value="' + first.price + '" class="form-control" data-f="bprice"' +
+        (locked ? ' readonly data-tip="تعديل السعر لمدير الحسابات بس"' : ' data-tip="سعر القطعة"') + "></td>" +
+        '<td id="bline-' + esc(key) + '">' + money(tot) + "</td>" +
+        '<td><button type="button" class="btn btn-sm btn-outline-danger" data-bdel="' + esc(key) + '">×</button></td></tr>';
+    });
     ids.forEach(function (id) {
       var c = cart[id];
+      if (c.bundle && bundles[c.bundle]) return;
       html += '<tr data-id="' + id + '"><td>' + esc(c.label) + (c.meta ? '<div class="pos-hint">' + esc(c.meta) + "</div>" : "") +
         (c.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>'
                   : (hasCustomer() ? ' <span class="badge badge-info" data-tip="أول مرة العميل ده ياخد الصنف: اكتب السعر المتفق عليه، وهيتثبت له في الفواتير الجاية">أول مرة</span>' : "")) + "</td>" +
@@ -451,6 +470,10 @@
       var cell = document.getElementById("line-" + id);
       if (cell) cell.textContent = money(c.qty * c.price);
     });
+    Object.keys(bundles).forEach(function (key) {
+      var cell = document.getElementById("bline-" + key);
+      if (cell) cell.textContent = money(bundleItems(bundles[key]).reduce(function (t, c) { return t + c.qty * c.price; }, 0));
+    });
     var d = discountAmount(sum);
     if (discType === "percent") elDiscount.value = money(d);
     elTotal.textContent = money(sum - d);
@@ -465,6 +488,36 @@
   document.getElementById("goto-cart").addEventListener("click", function () {
     document.getElementById("cart-card").scrollIntoView({behavior: "smooth", block: "start"});
   });
+
+  // السيري: count سيري = count × عدد كل مقاس. بيتأكد من المخزن قبل ما يزوّد
+  function changeSeries(code, color, delta, setTo) {
+    var key = code + "|" + color, sr = seriesFor(code, color);
+    var b = bundles[key] || {code: code, color: color, count: 0, need: sr.need, vids: {}};
+    var n = setTo !== undefined ? setTo : b.count + delta;
+    if (n < 0) n = 0;
+    var short = [];
+    Object.keys(sr.need).forEach(function (sz) {
+      var v = sr.vs.filter(function (x) { return x.size === sz; })[0];
+      if (!v || v.qty < sr.need[sz] * n) short.push(sz);
+      else b.vids[sz] = v.id;
+    });
+    if (short.length) { toast("مفيش كمية كفاية لـ " + n + " سيري: " + short.join("، ")); renderCart(); return; }
+    b.count = n;
+    var any = sr.vs[0];
+    b.label = (any ? any.name : code) + (color ? " — " + color : "");
+    Object.keys(sr.need).forEach(function (sz) {
+      var id = b.vids[sz], v = V.find(function (x) { return x.id === id; });
+      if (!n) { delete cart[id]; return; }
+      var known = custPrices.hasOwnProperty(id), c = cart[id];
+      if (!c) c = cart[id] = {id: id, label: label(v), meta: v.code, listPrice: chanPrice(v),
+                              price: known ? custPrices[id] : chanPrice(v), locked: known, max: v.qty};
+      c.qty = sr.need[sz] * n; c.bundle = key;
+    });
+    if (n) bundles[key] = b; else delete bundles[key];
+    renderCart();
+    if (delta > 0) toast("اتضاف سيري " + b.label + " (" + n + ")");
+  }
+  function bundleItems(b) { return Object.keys(b.vids).map(function (sz) { return cart[b.vids[sz]]; }).filter(Boolean); }
 
   function add(id) {
     var v = V.find(function (x) { return x.id === id; });
@@ -486,18 +539,13 @@
     var sb = e.target.closest("[data-series]");
     if (sb) {
       e.stopPropagation();
-      var sr = seriesFor(sb.getAttribute("data-series"), sb.getAttribute("data-color")), short = [];
-      Object.keys(sr.need).forEach(function (sz) {
-        var v = sr.vs.filter(function (x) { return x.size === sz; })[0];
-        var have = v ? v.qty - (cart[v.id] ? cart[v.id].qty : 0) : 0;
-        if (!v || have < sr.need[sz]) short.push(sz);
-      });
-      if (short.length) { toast("مفيش كمية كفاية لسيري كامل: " + short.join("، ")); return; }
-      Object.keys(sr.need).forEach(function (sz) {
-        var v = sr.vs.filter(function (x) { return x.size === sz; })[0];
-        for (var n = 0; n < sr.need[sz]; n++) add(v.id);
-      });
+      changeSeries(sb.getAttribute("data-series"), sb.getAttribute("data-color"), 1);
       return;
+    }
+    var chip = e.target.closest("[data-id]");
+    if (chip && channel() === "wholesale") {
+      var cv = V.find(function (x) { return x.id === parseInt(chip.getAttribute("data-id"), 10); });
+      if (cv && seriesFor(cv.code, cv.color).count > 1) { toast("الجملة بالسيري: دوس \"+ سيري\""); return; }
     }
     var row = e.target.closest("[data-id]");
     if (row) add(parseInt(row.getAttribute("data-id"), 10));
@@ -506,6 +554,16 @@
   elBody.addEventListener("input", function (e) {
     var tr = e.target.closest("tr");
     if (!tr) return;
+    var bkey = tr.getAttribute("data-b");
+    if (bkey) {
+      var b = bundles[bkey], f0 = e.target.getAttribute("data-f");
+      if (f0 === "bprice") {
+        var pv = Math.max(0, parseFloat(e.target.value) || 0);
+        bundleItems(b).forEach(function (c) { if (!lockedPrice(c)) c.price = pv; });
+        updateTotals();
+      }
+      return;
+    }
     var c = cart[tr.getAttribute("data-id")];
     var f = e.target.getAttribute("data-f");
     var val = parseFloat(e.target.value) || 0;
@@ -518,7 +576,18 @@
     updateTotals();
   });
 
+  elBody.addEventListener("change", function (e) {
+    var tr = e.target.closest("tr[data-b]");
+    if (tr && e.target.getAttribute("data-f") === "bqty") {
+      var b = bundles[tr.getAttribute("data-b")];
+      changeSeries(b.code, b.color, 0, Math.max(1, parseInt(e.target.value, 10) || 1));
+    }
+  });
   elBody.addEventListener("click", function (e) {
+    var bd = e.target.getAttribute("data-bdel");
+    if (bd) { var bb = bundles[bd]; changeSeries(bb.code, bb.color, 0, 0); return; }
+    var bs = e.target.closest("[data-bstep]");
+    if (bs) { var tb = bundles[bs.closest("tr").getAttribute("data-b")]; changeSeries(tb.code, tb.color, parseInt(bs.getAttribute("data-bstep"), 10)); return; }
     var id = e.target.getAttribute("data-del");
     if (id) { delete cart[id]; renderCart(); return; }
     var step = e.target.closest("[data-step]");
@@ -659,7 +728,10 @@
     renderCart();
   }
   // الجملة والقطاعي: الأسعار بتتغير لوحدها لما تغيّر نوع البيع
-  document.getElementById("channel").addEventListener("change", function () { applyPrices(); renderProducts(); });
+  document.getElementById("channel").addEventListener("change", function () {
+    if (channel() !== "wholesale") { bundles = {}; Object.keys(cart).forEach(function (id) { delete cart[id].bundle; }); }
+    applyPrices(); renderProducts();
+  });
   function loadCustomerPrices() {
     var cid = document.getElementById("customer").value;
     var token = ++priceToken;
@@ -679,7 +751,7 @@
       .catch(function () { /* لو الطلب فشل، السيرفر بيتحقق وقت الحفظ */ });
   }
   document.getElementById("customer").addEventListener("change", loadCustomerPrices);
-  document.getElementById("clear").addEventListener("click", function () { cart = {}; renderCart(); });
+  document.getElementById("clear").addEventListener("click", function () { cart = {}; bundles = {}; renderCart(); });
 
   elCheckout.addEventListener("click", function () {
     elMsg.classList.add("d-none");
@@ -716,7 +788,7 @@
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (d.ok && d.pending) {   // مستنية موافقة مدير الحسابات
         elMsg.className = "alert alert-warning mt-3"; elMsg.textContent = "⏳ " + d.message;
-        cart = {}; renderCart(); elCheckout.disabled = false; return;
+        cart = {}; bundles = {}; renderCart(); elCheckout.disabled = false; return;
       }
       if (d.ok) { window.location.href = d.print_url; return; }
       elMsg.textContent = d.error || "حدث خطأ";

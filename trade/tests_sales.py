@@ -143,3 +143,28 @@ class CustomerReturnFifoTests(SalesBase):
         self.assertEqual((summary["إجمالي الفواتير"], summary["إجمالي المرتجعات"], summary["إجمالي الدفعات"]),
                          (D("1000"), D("450"), D("400")))
         self.assertEqual(st["totals"]["balance"], D("150"))
+
+
+class WholesaleSeriesTests(SalesBase):
+    def test_wholesale_invoice_shows_series(self):
+        m = ClothingModel.objects.create(name="تيشرت", code="T-7", category="tshirt", series_sizes="M, L, L, XL", series_size=4)
+        vs = {}
+        for sz in ("M", "L", "XL"):
+            v = Variant.objects.create(model=m, size=sz, color="أبيض", sale_price=D("200"), wholesale_price=D("120"))
+            Variant.objects.filter(pk=v.pk).update(quantity=30)
+            vs[sz] = v
+        # 2 سيري (M×2, L×4, XL×2) + قطعة M زيادة
+        items = [{"id": vs["M"].pk, "qty": 3, "price": 120}, {"id": vs["L"].pk, "qty": 4, "price": 120},
+                 {"id": vs["XL"].pk, "qty": 2, "price": 120}]
+        body = {"items": items, "customer": None, "seller": self.seller.pk, "channel": "wholesale",
+                "payments": [{"box": self.box.pk, "amount": 1080}]}
+        r = self.boss.post(reverse("pos_checkout"), json.dumps(body), content_type="application/json")
+        self.assertTrue(r.json()["ok"], r.content)
+        page = self.boss.get(r.json()["print_url"]).content.decode()
+        self.assertIn("مقاسات السيري", page)
+        self.assertIn("<b>2</b> سيري", page)
+        self.assertIn("<b>1</b> قطعة", page)
+        self.assertIn("إجمالي السيريهات", page)
+        self.assertIn("L×2", page)
+        pdf = self.boss.get(reverse("sale_pdf", args=[r.json()["id"]]))
+        self.assertEqual(pdf.status_code, 200)

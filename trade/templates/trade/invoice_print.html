@@ -41,6 +41,19 @@
       {% else %}<div>العميل: <b>عميل نقدي</b></div>{% endif %}
     </div>
 
+    {% if wholesale %}
+    <table class="items">
+      <thead><tr><th>الكود</th><th>الصنف</th><th>اللون</th><th>مقاسات السيري</th><th>العدد</th><th>سعر القطعة</th><th>سعر السيري</th><th>الإجمالي</th></tr></thead>
+      <tbody>
+        {% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td>
+          <td><span dir="ltr">{{ r.size }}</span>{% if r.series_pieces %} <small>({{ r.series_pieces }} قطع)</small>{% endif %}</td>
+          <td><b>{{ r.qty }}</b> {{ r.unit }}</td>
+          <td class="num">{% if r.piece_price is not None %}{{ r.piece_price|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="num">{% if r.series_pieces %}{{ r.price|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="num">{{ r.total|floatformat:2 }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% else %}
     <table class="items">
       <thead><tr><th>الكود</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>التصنيف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
       <tbody>
@@ -48,9 +61,11 @@
           <td>{{ r.qty }}</td><td class="num">{{ r.price|floatformat:2 }}</td><td class="num">{{ r.total|floatformat:2 }}</td></tr>{% endfor %}
       </tbody>
     </table>
+    {% endif %}
 
     <div class="bottom">
       <div class="totals">
+        {% if wholesale %}<div><span>إجمالي السيريهات</span><b>{{ series_count }}</b></div>{% endif %}
         <div><span>إجمالي القطع</span><b>{{ pieces }}</b></div>
         <div><span>إجمالي الفاتورة</span><span class="num">{{ gross|floatformat:2 }}</span></div>
         <div><span>الخصم{% if invoice.discount_percent %} ({{ invoice.discount_percent|floatformat:"-2" }}%){% endif %}</span><span class="num">{{ invoice.discount|floatformat:2 }}</span></div>

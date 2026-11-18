@@ -264,6 +264,45 @@ def pos_checkout(request):
     })
 
 
+def series_rows(items):
+    """بنود الجملة بالسيري: لكل موديل ولون، عدد السيريهات الكاملة (حسب مقاسات السيري في التكويد).
+    اللي فاضل ومش مكمّل سيري بيظهر قطع. بيرجّع (السطور، إجمالي السيريهات)"""
+    from collections import Counter, OrderedDict
+    groups = OrderedDict()
+    for i in items:
+        groups.setdefault((i.variant.model_id, i.variant.color), []).append(i)
+    rows, total_series = [], 0
+    for (_mid, color), its in groups.items():
+        m = its[0].variant.model
+        need = Counter(m.series_list or sorted({i.variant.size.upper() for i in its}))
+        have = Counter()
+        price = {}
+        for i in its:
+            have[i.variant.size.upper()] += i.quantity
+            price[i.variant.size.upper()] = i.unit_price
+        n = min((have[sz] // c for sz, c in need.items()), default=0) if len(need) > 1 or sum(need.values()) > 1 else 0
+        if n:
+            per = sum((price[sz] * c for sz, c in need.items()), Decimal("0"))
+            unit_prices = {price[sz] for sz in need}
+            rows.append({"code": m.code, "name": m.name, "color": color, "category": m.get_category_display(),
+                         "size": " ".join(f"{sz}×{c}" if c > 1 else sz for sz, c in need.items()),
+                         "qty": n, "unit": "سيري", "series_pieces": sum(need.values()),
+                         "piece_price": unit_prices.pop() if len(unit_prices) == 1 else None,
+                         "price": per, "total": per * n})
+            total_series += n
+            for sz, c in need.items():
+                have[sz] -= c * n
+        for i in its:      # القطع الزيادة اللي مش مكمّلة سيري
+            left = have[i.variant.size.upper()]
+            if left > 0:
+                take = min(left, i.quantity)
+                have[i.variant.size.upper()] -= take
+                rows.append({"code": m.code, "name": m.name, "color": color, "category": m.get_category_display(),
+                             "size": i.variant.size, "qty": take, "unit": "قطعة", "series_pieces": None,
+                             "piece_price": i.unit_price, "price": i.unit_price, "total": take * i.unit_price})
+    return rows, total_series
+
+
 def _invoice_context(invoice):
     rows = [{
         "code": i.variant.model.code,
@@ -276,6 +315,9 @@ def _invoice_context(invoice):
         "total": i.quantity * i.unit_price,
     } for i in invoice.items.select_related("variant", "variant__model")]
     gross = sum((r["total"] for r in rows), Decimal("0"))
+    series_count = 0
+    if invoice.channel == "wholesale":
+        rows, series_count = series_rows(invoice.items.select_related("variant", "variant__model"))
     if invoice.payment_plan:      # طرق السداد اللي اتختارت وقت البيع (ومنها "من الحساب")
         payments = [{"box": p["name"], "amount": Decimal(p["amount"])} for p in invoice.payment_plan]
     else:
@@ -291,6 +333,8 @@ def _invoice_context(invoice):
         "paid": invoice.paid_total,
         "remaining": invoice.remaining,
         "pieces": invoice.pieces,
+        "series_count": series_count,
+        "wholesale": invoice.channel == "wholesale",
         "payments": payments,
         "shop_name": SHOP_NAME,
     }

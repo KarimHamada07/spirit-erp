@@ -114,10 +114,14 @@ def invoice_pdf(invoice, ctx):
     story.append(Spacer(1, 6 * mm))
     data = [["الكود", "الصنف", "الكمية", "السعر", "الإجمالي"]]
     for r in ctx["rows"]:
-        data.append([r["code"], r["name"], str(r["qty"]), _money(r["price"]), _money(r["total"])])
+        name = r["name"] + (f" - {r['color']}" if r.get("color") else "") + (f" ({r['size']})" if r.get("size") else "")
+        qty = f"{r['qty']} {r['unit']}" if r.get("unit") else str(r["qty"])
+        data.append([r["code"], name, qty, _money(r["price"]), _money(r["total"])])
+    if ctx.get("wholesale"):
+        data.append(["", "إجمالي السيريهات", str(ctx["series_count"]), "", ""])
     data.append(["", "عدد القطع", str(ctx["pieces"]), "", ""])
     story.append(_table(data, [24 * mm, 70 * mm, 20 * mm, 28 * mm, 28 * mm],
-                        total_rows=(len(data) - 1,)))
+                        total_rows=tuple(range(len(data) - (2 if ctx.get("wholesale") else 1), len(data)))))
     story.append(Spacer(1, 6 * mm))
     summary = [
         ["الإجمالي قبل الخصم", _money(ctx["gross"])],
