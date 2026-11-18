@@ -7,6 +7,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from . import barcodes
+from .security import safe_back
 from .labels import SIZES, labels_pdf
 from .models import ClothingModel, OnlineOrder, PurchaseItem, SaleInvoice, Variant
 
@@ -88,9 +89,11 @@ def scan_open(request):
             return redirect("online_detail", pk=pk)
     v = Variant.objects.filter(barcode=code).select_related("model").first()
     m = v.model if v else ClothingModel.objects.filter(code__iexact=code).first() if code else None
+    if m and not request.user.has_perm("trade.view_variant"):
+        raise PermissionDenied
     if m:
         if request.user.has_perm("trade.change_clothingmodel"):
             return redirect("code_item_edit", pk=m.pk)
         return redirect(reverse("admin:trade_variant_changelist") + "?q=" + (v.barcode if v else m.code))
     messages.error(request, f"مفيش فاتورة أو صنف بالباركود {code or '—'}")
-    return redirect(request.META.get("HTTP_REFERER") or "dashboard")
+    return redirect(safe_back(request, reverse("dashboard")))

@@ -9,6 +9,9 @@ from .models import (AuditLog, CashBox, CashEntry, CashTransfer, ClothingModel,
                      SaleInvoice, SaleItem, SaleReturn, SaleReturnItem, Seller,
                      SupplierPayment, Supplier, Variant)
 from .treasury import create_transfer
+from .security import LockoutLoginForm
+
+admin.site.login_form = LockoutLoginForm   # قفل بعد المحاولات الغلط (security.py)
 
 
 class VariantInline(admin.TabularInline):

@@ -372,6 +372,8 @@ def whatsapp_url(request, invoice):
 
 @staff_member_required
 def sale_print(request, pk):
+    if not (request.user.has_perm("trade.view_saleinvoice") or request.user.has_perm("trade.add_saleinvoice")):
+        raise PermissionDenied
     invoice = get_object_or_404(
         SaleInvoice.objects.select_related("customer", "seller"), pk=pk)
     return render(request, "trade/invoice_print.html",

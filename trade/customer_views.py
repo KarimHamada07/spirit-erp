@@ -19,6 +19,8 @@ ZERO = Decimal("0")
 
 @staff_member_required
 def customers(request):
+    if not request.user.has_perm("trade.view_customer"):
+        raise PermissionDenied
     q = request.GET.get("q", "").strip()
     only_debt = request.GET.get("debt") == "1"
 
@@ -51,6 +53,8 @@ def customers(request):
 
 @staff_member_required
 def customer_detail(request, pk):
+    if not request.user.has_perm("trade.view_customer"):
+        raise PermissionDenied
     customer = get_object_or_404(Customer.objects.with_balance(), pk=pk)
 
     invoices = (SaleInvoice.objects

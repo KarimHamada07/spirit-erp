@@ -63,6 +63,9 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - `static/trade/js/ui.js` + `static/trade/css/ui.css` — التلميحات لكل زرار (data-tip ← title ← قاموس بالنص
   ← الأيقونة)، والحركات (ظهور، عدّاد الأرقام، ripple، شريط تحميل)، والشكل المودرن. بيتحمّلوا من الـ middleware
   برقم إصدار. لأي زرار جديد مهم: حط `data-tip="..."` بالشرح.
+- `security.py` — قفل الدخول (5 غلط لنفس اليوزر/الجهاز أو 20 للجهاز = 15 دقيقة، `admin.site.login_form`)، و`safe_back`
+  للرجوع بالـ Referer (نفس الموقع بس)، و`hit()` لتحديد عدد الطلبات من الموقع. الكاش ملفات في `cache/`.
+  كل صفحة فيها بيانات لازم `has_perm` (مش `staff_member_required` لوحده، لأن كل الموظفين staff عشان البصمة).
 - `pwa_views.py` — manifest و service worker (الصفحات دايماً من السيرفر؛ الكاش للملفات الثابتة بس).
 - `statements.py` — كشوف حساب العملاء والموردين (PDF و Excel، بفترة). الرصيد الافتتاحي
   `opening_balance` على العميل والمورد داخل في الأرصدة والكشوف وأعمار المديونيات.

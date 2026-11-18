@@ -22,14 +22,15 @@ def search_api(request):
         return JsonResponse({"groups": []})
     num = _digits(q)
     groups = []
+    can = request.user.has_perm
 
-    products = (ClothingModel.objects.filter(Q(name__icontains=q) | Q(code__icontains=q))
+    products = [] if not can("trade.view_variant") else (ClothingModel.objects.filter(Q(name__icontains=q) | Q(code__icontains=q))
                 .annotate(stock=Coalesce(Sum("variants__quantity"), 0)).order_by("name")[:LIMIT])
     groups.append(("الموديلات", [
         {"label": m.name, "sub": f"{m.code} · {m.stock} قطعة",
          "url": reverse("inventory_detail", args=[m.pk])} for m in products]))
 
-    customers = Customer.objects.filter(Q(name__icontains=q) | Q(phone__icontains=q)).order_by("name")[:LIMIT]
+    customers = [] if not can("trade.view_customer") else Customer.objects.filter(Q(name__icontains=q) | Q(phone__icontains=q)).order_by("name")[:LIMIT]
     groups.append(("العملاء", [
         {"label": c.name, "sub": c.phone or "", "url": reverse("customer_detail", args=[c.pk])}
         for c in customers]))
@@ -37,7 +38,7 @@ def search_api(request):
     cond = Q(customer__name__icontains=q)
     if num is not None:
         cond |= Q(pk=num)
-    invoices = (SaleInvoice.objects.filter(cond).select_related("customer")
+    invoices = [] if not can("trade.view_saleinvoice") else (SaleInvoice.objects.filter(cond).select_related("customer")
                 .prefetch_related("items").order_by("-id")[:LIMIT])
     groups.append(("فواتير البيع", [{
         "label": f"فاتورة بيع #{i.pk}" + (f" — {i.customer.name}" if i.customer_id else ""),
@@ -48,7 +49,7 @@ def search_api(request):
     cond = Q(supplier__name__icontains=q)
     if num is not None:
         cond |= Q(pk=num)
-    purchases = PurchaseInvoice.objects.filter(cond).select_related("supplier").order_by("-id")[:LIMIT]
+    purchases = [] if not can("trade.view_purchaseinvoice") else PurchaseInvoice.objects.filter(cond).select_related("supplier").order_by("-id")[:LIMIT]
     groups.append(("فواتير التوريد", [{
         "label": f"توريد #{p.pk} — {p.supplier}",
         "sub": f"{p.date:%d/%m/%Y}" + ("" if p.is_confirmed else " · بانتظار التأكيد"),
@@ -57,7 +58,7 @@ def search_api(request):
     cond = Q(customer_name__icontains=q) | Q(phone__icontains=q)
     if num is not None:
         cond |= Q(pk=num)
-    orders = OnlineOrder.objects.filter(cond).order_by("-id")[:LIMIT]
+    orders = [] if not can("trade.view_onlineorder") else OnlineOrder.objects.filter(cond).order_by("-id")[:LIMIT]
     groups.append(("الأونلاين", [{
         "label": f"أوردر #{o.pk} — {o.customer_name}",
         "sub": f"{o.phone} · {o.get_status_display()}",
