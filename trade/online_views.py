@@ -62,6 +62,7 @@ def online_list(request):
         "tabs": tabs,
         "q": q,
         "status": status,
+        "prepared_count": OnlineOrder.objects.filter(status=OnlineOrder.PREPARED).count(),
     }
     return render(request, "trade/online_list.html", context)
 
@@ -150,3 +151,31 @@ def online_status(request, pk):
     except ValidationError as e:
         messages.error(request, " ".join(e.messages))
     return redirect("online_detail", pk=pk)
+
+
+SLIPS_PER_PAGE = 3
+SLIP_MAX_LINES = 5     # أكتر من كده بيتلم في سطر "+ N أصناف تانية" عشان البوليصة ما تطلعش بره التلت
+
+
+@staff_member_required
+def online_print(request):
+    """بوالص الأونلاين: كل 3 أوردرات في ورقة A4 بخط قص، تتقطع وتتحط في فلاير الشحن.
+    ?ids=1,2,3 للأوردرات المحددة، ومن غيرها = كل الأوردرات المتجهزة اللي لسه ما اتشحنتش."""
+    if not request.user.has_perm("trade.view_onlineorder"):
+        raise PermissionDenied
+    from .models import StoreSettings
+    from .pos_views import SHOP_NAME
+    ids = [int(x) for x in request.GET.get("ids", "").split(",") if x.strip().isdigit()]
+    qs = OnlineOrder.objects.prefetch_related("items__variant__model")
+    qs = qs.filter(pk__in=ids) if ids else qs.filter(status=OnlineOrder.PREPARED)
+    slips = []
+    for o in qs.order_by("id"):
+        items = list(o.items.all())
+        shown = items if len(items) <= SLIP_MAX_LINES else items[:SLIP_MAX_LINES - 1]
+        slips.append({"order": o, "items": shown, "more": len(items) - len(shown),
+                      "more_qty": sum(i.quantity for i in items[len(shown):])})
+    pages = [slips[i:i + SLIPS_PER_PAGE] for i in range(0, len(slips), SLIPS_PER_PAGE)]
+    return render(request, "trade/online_print.html", {
+        "pages": pages, "count": len(slips), "shop_name": SHOP_NAME,
+        "store_phone": StoreSettings.get().whatsapp
+    })

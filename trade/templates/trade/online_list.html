@@ -26,6 +26,12 @@
 
 <div class="mb-3">
   <a href="{% url 'online_new' %}" class="btn btn-success">+ أوردر جديد</a>
+  {% if prepared_count %}<a href="{% url 'online_print' %}" target="_blank" class="btn btn-dark"
+     data-tip="بيطبع كل الأوردرات المتجهزة اللي لسه ما اتشحنتش: كل 3 في ورقة A4 تتقص وتتحط في فلاير الشحن">
+     <i class="fas fa-print"></i> اطبع بوالص المتجهز ({{ prepared_count }})</a>{% endif %}
+  <button type="button" id="print-picked" class="btn btn-outline-dark" style="display:none"
+     data-tip="اطبع الأوردرات اللي علّمت عليها بس (كل 3 في ورقة A4)">
+     <i class="fas fa-print"></i> اطبع المحدد (<span>0</span>)</button>
 </div>
 
 <form method="get" class="mb-3 d-flex flex-wrap" style="gap:10px">
@@ -50,6 +56,8 @@
     <div class="order">
       <div class="head">
         <div>
+          <input type="checkbox" class="pick" value="{{ o.order.pk }}" style="width:18px;height:18px;vertical-align:middle"
+                 data-tip="علّم عشان تطبع بوليصته مع غيره" aria-label="اختار للطباعة">
           <a href="{% url 'online_detail' o.order.pk %}"><b>#{{ o.order.pk }} — {{ o.order.customer_name }}</b></a>
           <div><a href="tel:{{ o.order.phone }}">{{ o.order.phone }}</a>
             · <small class="text-muted">{{ o.order.created_at|date:"d/m/Y H:i" }}</small></div>
@@ -80,4 +88,19 @@
     href="?page={{ page.next_page_number }}{% if status %}&status={{ status }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}">التالي</a>{% endif %}
 </div>
 {% endif %}
+<script>
+(function () {
+  var btn = document.getElementById("print-picked");
+  function picked() { return [].map.call(document.querySelectorAll(".pick:checked"), function (c) { return c.value; }); }
+  document.addEventListener("change", function (e) {
+    if (!e.target.classList.contains("pick")) return;
+    var n = picked().length;
+    btn.style.display = n ? "" : "none";
+    btn.querySelector("span").textContent = n;
+  });
+  btn.addEventListener("click", function () {
+    window.open("{% url 'online_print' %}?ids=" + picked().join(","), "_blank");
+  });
+})();
+</script>
 {% endblock %}

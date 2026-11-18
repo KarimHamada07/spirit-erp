@@ -17,6 +17,8 @@
 
 <div class="mb-3">
   <a href="{% url 'online_list' %}" class="btn btn-outline-secondary">&rarr; كل الأوردرات</a>
+  <a href="{% url 'online_print' %}?ids={{ order.pk }}" target="_blank" class="btn btn-dark"
+     data-tip="بوليصة الأوردر ده للفلاير (تلت ورقة A4)"><i class="fas fa-print"></i> طباعة البوليصة</a>
   <span class="badge badge-{{ style }}" style="font-size:15px;padding:8px 14px">{{ order.get_status_display }}</span>
 </div>
 
