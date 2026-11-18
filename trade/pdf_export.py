@@ -103,6 +103,12 @@ def invoice_pdf(invoice, ctx):
     """فاتورة بيع. ctx = {rows[code,name,qty,price,total], gross, total, paid, remaining,
     pieces, payments[box,amount]} وبيانات الفاتورة نفسها"""
     story = _header(f"فاتورة بيع رقم {invoice.pk}")
+    from reportlab.graphics.barcode import createBarcodeDrawing
+    from .barcodes import sale_code
+    bc = createBarcodeDrawing("Code128", value=sale_code(invoice.pk), barWidth=0.3 * mm, barHeight=9 * mm,
+                              humanReadable=True, fontSize=7)
+    bc.hAlign = "LEFT"
+    story.append(bc)
     kind = "آجل" if invoice.payment_type == "credit" else "نقدي"
     customer = invoice.customer.name if invoice.customer else "عميل نقدي"
     seller = invoice.seller.name if invoice.seller else "—"

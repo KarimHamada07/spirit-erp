@@ -185,3 +185,40 @@ class OnlineSlipsTests(SalesBase):
         page = self.sales.get(reverse("online_print"), {"ids": ",".join(str(o.pk) for o in orders)}).content.decode()
         self.assertEqual((page.count('class="page"'), page.count('class="slip"')), (2, 4))
         self.assertContains(self.sales.get(reverse("online_list")), "اطبع بوالص المتجهز (3)")
+
+
+class BarcodeTests(SalesBase):
+    def test_variant_barcode_labels_and_scan(self):
+        from trade.barcodes import barcode_error, online_code, sale_code
+        self.assertEqual(self.v.barcode, f"20{self.v.pk:06d}")
+        # باركود المصنع
+        item = reverse("code_item_edit", args=[self.v.model_id])
+        self.boss.post(item, {"what": "barcodes", f"barcode_{self.v.pk}": "6221234567890"})
+        self.v.refresh_from_db()
+        self.assertEqual(self.v.barcode, "6221234567890")
+        self.assertIn("31", barcode_error("31000005"))                   # شبه باركود الفواتير
+        self.assertIn("محجوز", barcode_error("20999999", self.v.pk))
+        self.assertIn('"barcode": "6221234567890"', self.sales.get(reverse("pos")).content.decode())
+        # الملصقات
+        page = self.boss.get(reverse("barcode_labels"), {"models": self.v.model_id})
+        self.assertContains(page, "6221234567890")
+        pdf = self.boss.post(reverse("barcode_labels"), {"v": self.v.pk, f"n_{self.v.pk}": 3, "size": "50x30", "price": 1})
+        self.assertEqual(pdf["Content-Type"], "application/pdf")
+        # باركود الفاتورة بيفتحها
+        r = self.sell(self.boss, 1, [{"box": self.box.pk, "amount": 500}])
+        inv = r.json()["id"]
+        page = self.boss.get(reverse("sale_print", args=[inv])).content.decode()
+        self.assertIn("<svg", page)
+        self.assertRedirects(self.boss.get(reverse("scan_open"), {"c": sale_code(inv)}),
+                             reverse("sale_print", args=[inv]), fetch_redirect_response=False)
+        self.assertRedirects(self.boss.get(reverse("scan_open"), {"c": "٦٢٢١٢٣٤٥٦٧٨٩٠"}),
+                             item, fetch_redirect_response=False)
+        lookup = self.sales.get(reverse("pos_return_lookup"), {"invoice": sale_code(inv)}).json()
+        self.assertEqual(lookup["invoice"]["id"], inv)
+        from trade.models import OnlineOrder
+        o = OnlineOrder.create_order(customer_name="ع", phone="01000000000", address="", notes="", discount=D("0"),
+                                     shipping_fee=D("0"), shipping_cost=D("0"),
+                                     items=[{"id": self.v.pk, "qty": 1, "price": 500}], seller=self.seller)
+        self.assertRedirects(self.boss.get(reverse("scan_open"), {"c": online_code(o.pk)}),
+                             reverse("online_detail", args=[o.pk]), fetch_redirect_response=False)
+        self.assertIn("<svg", self.boss.get(reverse("online_print")).content.decode())
