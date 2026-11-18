@@ -29,7 +29,7 @@
 <form method="get" class="mb-3 d-flex flex-wrap" style="gap:8px">
   <input type="search" name="q" value="{{ q }}" class="form-control" style="max-width:320px" placeholder="ابحث بالاسم أو الموبايل...">
   <button class="btn btn-primary">بحث</button>
-  {% if perms.trade.add_supplier %}<a class="btn btn-outline-secondary" href="{% url 'admin:trade_supplier_add' %}">+ مورد جديد</a>{% endif %}
+  {% if perms.trade.add_supplier %}<a class="btn btn-outline-secondary" href="{% url 'code_supplier' %}">+ مورد جديد</a>{% endif %}
   {% if can_pay %}<a class="btn btn-outline-secondary" href="{% url 'treasury' %}">سداد لمورد</a>{% endif %}
   {% if perms.trade.import_data %}<a class="btn btn-outline-secondary" href="{% url 'data_center' %}#suppliers">استيراد من Excel</a>{% endif %}
 </form>
@@ -38,7 +38,8 @@
 <div class="sup">
   <div class="top">
     <div><div class="name">{{ r.supplier.name }}</div>
-      <div class="text-muted" style="font-size:13px">{% if r.supplier.phone %}<a href="tel:{{ r.supplier.phone }}">{{ r.supplier.phone }}</a>{% else %}—{% endif %}{% if r.supplier.address %} · {{ r.supplier.address }}{% endif %}</div></div>
+      <div class="text-muted" style="font-size:13px">{% if r.supplier.phone %}<a href="tel:{{ r.supplier.phone }}">{{ r.supplier.phone }}</a>{% else %}—{% endif %}{% if r.supplier.address %} · {{ r.supplier.address }}{% endif %}</div>
+      <div class="text-muted" style="font-size:12.5px">{{ r.supplier.get_supplier_type_display }}{% if r.supplier.categories_display %} · {{ r.supplier.categories_display }}{% endif %}</div></div>
     <div class="text-left"><div class="text-muted" style="font-size:12px">{% if r.balance > 0 %}ليه عندنا{% elif r.balance < 0 %}لينا عنده{% else %}خالص{% endif %}</div>
       <div class="bal {% if r.balance > 0 %}owe{% elif r.balance < 0 %}adv{% endif %}">{{ r.supplier.balance_abs|floatformat:2|intcomma }}</div></div>
   </div>
@@ -46,7 +47,7 @@
     <summary>كشف الحساب</summary>
     {% url 'supplier_statement' r.supplier.pk 'pdf' as pdf_url %}{% url 'supplier_statement' r.supplier.pk 'xlsx' as xlsx_url %}
     {% include "trade/_statement_box.html" with pdf_url=pdf_url xlsx_url=xlsx_url %}
-    {% if perms.trade.change_supplier %}<a href="{% url 'admin:trade_supplier_change' r.supplier.pk %}">تعديل بيانات المورد</a>{% endif %}
+    {% if perms.trade.change_supplier %}<a href="{% url 'code_supplier_edit' r.supplier.pk %}">تعديل بيانات المورد</a>{% endif %}
   </details>
 </div>
 {% empty %}

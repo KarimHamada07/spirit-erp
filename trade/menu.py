@@ -20,6 +20,11 @@ MENU = [
         ("حسابي", "my_statement", "fas fa-id-card", "employee"),
         ("عهدتي", "my_custody", "fas fa-wallet", "custody_holder"),
     ]),
+    ("التكويد", [
+        ("تكويد عميل", "code_customer", "fas fa-user-plus", "trade.add_customer"),
+        ("تكويد مورد", "code_supplier", "fas fa-truck-field", "trade.add_supplier"),
+        ("تكويد صنف", "code_item", "fas fa-barcode", "trade.add_clothingmodel"),
+    ]),
     ("البيع", [
         ("نقطة البيع", "pos", "fas fa-cash-register", "trade.add_saleinvoice"),
         ("فواتير البيع", "admin:trade.saleinvoice", "fas fa-file-invoice-dollar", "trade.view_saleinvoice"),

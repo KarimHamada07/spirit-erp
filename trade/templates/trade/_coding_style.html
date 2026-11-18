@@ -1,0 +1,28 @@
+<style>
+  .cf { max-width: 760px; }
+  .cf .card-body { padding: 22px; }
+  .cf label.l { font-weight: 800; margin-bottom: 5px; display: block; }
+  .cf label.l .req { color: #fe0000; }
+  .cf .form-control { height: 46px; font-size: 15.5px; }
+  .cf textarea.form-control { height: 90px; }
+  .cf .hint { font-size: 12.5px; color: var(--erp-muted,#777); margin-top: 4px; }
+  .cf .phones .input-group { margin-bottom: 6px; }
+  .cf .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cf .opts label { margin: 0; }
+  .cf .opts input { position: absolute; opacity: 0; }
+  .cf .opts span { display: inline-block; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--erp-line,#ddd); cursor: pointer; font-weight: 700; }
+  .cf .opts input:checked + span { background: #000; color: #fff; border-color: #000; }
+  .cf .opts input:focus-visible + span { outline: 2px solid #fe0000; outline-offset: 2px; }
+  [data-bs-theme=dark] .cf .opts input:checked + span { background: #fe0000; border-color: #fe0000; }
+  .cf .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .cf .tags b { background: var(--erp-soft,#f1f1f2); border-radius: 999px; padding: 3px 12px; font-size: 13.5px; }
+  .code-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .code-tabs a { padding: 9px 18px; border-radius: 999px; border: 1px solid var(--erp-line,#ddd); font-weight: 800; color: var(--erp-ink,#111); text-decoration: none; }
+  .code-tabs a.on { background: #fe0000; border-color: #fe0000; color: #fff; }
+</style>
+<nav class="code-tabs" aria-label="التكويد">
+  {% if perms.trade.add_customer %}<a href="{% url 'code_customer' %}" class="{% if request.resolver_match.url_name|slice:':13' == 'code_customer' %}on{% endif %}"><i class="fas fa-user-plus"></i> عميل</a>{% endif %}
+  {% if perms.trade.add_supplier %}<a href="{% url 'code_supplier' %}" class="{% if request.resolver_match.url_name|slice:':13' == 'code_supplier' %}on{% endif %}"><i class="fas fa-industry"></i> مورد</a>{% endif %}
+  {% if perms.trade.add_clothingmodel %}<a href="{% url 'code_item' %}" class="{% if request.resolver_match.url_name|slice:':9' == 'code_item' %}on{% endif %}"><i class="fas fa-shirt"></i> صنف</a>{% endif %}
+</nav>
+{% if errors %}<div class="alert alert-danger cf"><ul class="mb-0">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul></div>{% endif %}

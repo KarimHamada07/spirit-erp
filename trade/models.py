@@ -32,6 +32,10 @@ class ClothingModel(models.Model):
     low_stock_level = models.PositiveIntegerField(
         "حد التنبيه", default=5,
         help_text="لما كمية أي مقاس/لون توصل للرقم ده أو أقل يجيلك تنبيه إن المخزون قرب يخلص")
+    series_size = models.PositiveSmallIntegerField(
+        "عدد السيري", null=True, blank=True,
+        help_text="عدد قطع السيري = عدد مقاسات اللون الواحد (مثلاً M L XL XXL XXXL = 5)")
+    notes = models.TextField("ملاحظات", blank=True)
     # الموقع (spiritegy.org)
     show_online = models.BooleanField("يظهر في الموقع", default=False, db_index=True)
     featured = models.BooleanField("مميز في الصفحة الرئيسية", default=False)
@@ -56,7 +60,8 @@ class Variant(models.Model):
     quantity = models.IntegerField("الكمية بالمخزن", default=0, editable=False)
     avg_cost = models.DecimalField("متوسط التكلفة", max_digits=12,
                                    decimal_places=2, default=0, editable=False)
-    sale_price = models.DecimalField("سعر القطاعي", max_digits=12, decimal_places=2)
+    sale_price = models.DecimalField("سعر القطاعي", max_digits=12, decimal_places=2, default=0,
+                                     help_text="بيتحدّث لوحده من سعر البيع في فاتورة التوريد")
     wholesale_price = models.DecimalField("سعر الجملة", max_digits=12, decimal_places=2, null=True,
                                           blank=True, help_text="فاضي = نفس سعر القطاعي")
 
@@ -83,10 +88,32 @@ class Variant(models.Model):
         self.quantity = new_qty
 
 
+PARTY_TYPES = [("cash", "نقدي"), ("credit", "آجل"), ("installments", "دفعات")]
+
+
+def split_phones(*values):
+    """أرقام الموبايل من خانة أو أكتر (مفصولة بـ / أو , أو سطر جديد) من غير تكرار"""
+    import re
+    out = []
+    for v in values:
+        for p in re.split(r"[/,،\n]+", v or ""):
+            p = p.strip()
+            if p and p not in out:
+                out.append(p)
+    return out
+
+
 class Supplier(models.Model):
+    OTHER = "other"
     name = models.CharField("اسم المورد", max_length=150)
-    phone = models.CharField("الهاتف", max_length=30, blank=True)
+    phone = models.CharField("الموبايل", max_length=30, blank=True)
+    other_phones = models.CharField("أرقام تانية", max_length=200, blank=True, help_text="مفصولة بـ /")
     address = models.CharField("العنوان", max_length=250, blank=True)
+    supplier_type = models.CharField("نوع المورد", max_length=12, choices=PARTY_TYPES, default="credit")
+    categories = models.CharField("التصنيف (بيورّد إيه)", max_length=200, blank=True,
+                                  help_text="أكواد التصنيفات مفصولة بفاصلة، و other = أخرى")
+    categories_other = models.CharField("أخرى (اكتبها)", max_length=120, blank=True)
+    notes = models.TextField("ملاحظات", blank=True)
     opening_balance = models.DecimalField(
         "رصيد افتتاحي", max_digits=14, decimal_places=2, default=0,
         help_text="قبل ما نبدأ النظام: موجب = ليه عندنا فلوس، سالب = لينا عنده فلوس (دفعنا مقدم تحت الحساب)")
@@ -98,6 +125,22 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def phones(self):
+        return split_phones(self.phone, self.other_phones)
+
+    @property
+    def category_keys(self):
+        return [c for c in (self.categories or "").split(",") if c]
+
+    @property
+    def categories_display(self):
+        labels = dict(ClothingModel.CATEGORIES)
+        out = [labels.get(c, c) for c in self.category_keys if c != self.OTHER]
+        if self.OTHER in self.category_keys:
+            out.append(self.categories_other or "أخرى")
+        return "، ".join(out)
 
     @property
     def balance(self):
@@ -167,7 +210,17 @@ class CustomerQuerySet(models.QuerySet):
 
 class Customer(models.Model):
     name = models.CharField("اسم العميل", max_length=150)
-    phone = models.CharField("الهاتف", max_length=30, blank=True)
+    shop_name = models.CharField("اسم المحل", max_length=150, blank=True)
+    phone = models.CharField("الموبايل", max_length=30, blank=True)
+    other_phones = models.CharField("أرقام تانية", max_length=200, blank=True, help_text="مفصولة بـ /")
+    governorate = models.CharField("المحافظة", max_length=60, blank=True)
+    area = models.CharField("المنطقة", max_length=100, blank=True)
+    customer_type = models.CharField("نوع العميل", max_length=12, choices=PARTY_TYPES, default="credit",
+                                     help_text="نقدي = مينفعش يتسجل عليه آجل. آجل ودفعات = بيتسجل على حسابه")
+    credit_limit = models.DecimalField("حد الائتمان", max_digits=14, decimal_places=2, null=True, blank=True,
+                                       help_text="أقصى مديونية. الفاتورة اللي تعدّيه بتستنى موافقة مدير الحسابات. "
+                                                 "فاضي = من غير حد")
+    notes = models.TextField("ملاحظات", blank=True)
     seller = models.ForeignKey("Seller", on_delete=models.PROTECT, null=True, blank=True,
                                related_name="customers", verbose_name="البائع المرتبط")
     opening_balance = models.DecimalField(
@@ -185,6 +238,14 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def phones(self):
+        return split_phones(self.phone, self.other_phones)
+
+    @property
+    def place(self):
+        return " - ".join(p for p in (self.governorate, self.area) if p)
 
 
 class PurchaseInvoice(models.Model):
@@ -213,7 +274,13 @@ class PurchaseInvoice(models.Model):
             raise ValidationError("الفاتورة بدون أصناف")
         for item in self.items.select_related("variant"):
             v = Variant.objects.select_for_update().get(pk=item.variant_id)
+            if not v.sale_price and not item.sale_price:
+                raise ValidationError(f"حدد سعر بيع القطاعي لـ {v} (صنف جديد لسه مالوش سعر)")
             v.add_stock(item.quantity, item.unit_cost)
+            if item.sale_price:
+                v.sale_price = item.sale_price
+            if item.wholesale_price:
+                v.wholesale_price = item.wholesale_price
             v.save()
         self.is_confirmed = True
         self.save()
@@ -225,6 +292,9 @@ class PurchaseItem(models.Model):
     variant = models.ForeignKey(Variant, on_delete=models.PROTECT, verbose_name="الصنف")
     quantity = models.PositiveIntegerField("الكمية")
     unit_cost = models.DecimalField("سعر الشراء للقطعة", max_digits=12, decimal_places=2)
+    # سعر البيع بيتحدد من فاتورة التوريد: وقت تأكيد الفاتورة بيتحدّث على الصنف (فاضي = سعره زي ما هو)
+    sale_price = models.DecimalField("سعر بيع القطاعي", max_digits=12, decimal_places=2, null=True, blank=True)
+    wholesale_price = models.DecimalField("سعر بيع الجملة", max_digits=12, decimal_places=2, null=True, blank=True)
 
     class Meta:
         verbose_name = "بند توريد"

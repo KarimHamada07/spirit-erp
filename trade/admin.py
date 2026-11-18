@@ -35,7 +35,7 @@ class ClothingModelAdmin(admin.ModelAdmin):
     list_editable = ("category", "low_stock_level")
     list_filter = ("category", "is_active")
     search_fields = ("name", "code")
-    fieldsets = (("بيانات الموديل", {"fields": ("name", "code", "category", "description",
+    fieldsets = (("بيانات الموديل", {"fields": ("name", "code", "category", "series_size", "notes", "description",
                                                 "low_stock_level", "is_active")}),)
     inlines = [VariantInline]
     actions = [_print_labels]
@@ -43,14 +43,17 @@ class ClothingModelAdmin(admin.ModelAdmin):
 
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
-    list_display = ("model", "size", "color", "quantity", "avg_cost", "sale_price")
+    list_display = ("model", "size", "color", "quantity", "avg_cost", "sale_price", "wholesale_price")
     list_filter = ("model",)
     readonly_fields = ("quantity", "avg_cost")
+    search_fields = ("model__code", "model__name", "size", "color")
 
 
 class PurchaseItemInline(admin.TabularInline):
     model = PurchaseItem
     extra = 1
+    fields = ("variant", "quantity", "unit_cost", "sale_price", "wholesale_price")
+    autocomplete_fields = ("variant",)
 
 
 class SaleItemInline(admin.TabularInline):
@@ -108,8 +111,9 @@ class SaleInvoiceAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone", "seller")
-    search_fields = ("name", "phone")
+    list_display = ("name", "shop_name", "phone", "governorate", "area", "customer_type", "credit_limit", "seller")
+    list_filter = ("customer_type", "governorate")
+    search_fields = ("name", "shop_name", "phone", "other_phones")
 
     def get_readonly_fields(self, request, obj=None):
         ro = []
@@ -154,8 +158,9 @@ class OnlineOrderAdmin(admin.ModelAdmin):
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone", "address", "opening_balance")
-    search_fields = ("name", "phone")
+    list_display = ("name", "phone", "supplier_type", "categories_display", "opening_balance")
+    list_filter = ("supplier_type",)
+    search_fields = ("name", "phone", "other_phones")
 
     def get_readonly_fields(self, request, obj=None):
         if request.user.has_perm("trade.import_data"):

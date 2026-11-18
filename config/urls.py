@@ -40,6 +40,7 @@ from trade.stock_count_views import (reorder, reorder_create, stock_count_action
                                      stock_count_set, stock_counts)
 from trade.views import dashboard
 
+from trade import coding_views
 from trade import store_admin_views as store_admin
 from trade.store_views import robots as store_robots
 
@@ -120,6 +121,12 @@ urlpatterns = [
     path("inventory/<int:pk>/delete/", model_delete, name="model_delete"),
     path("sales/<int:pk>/delete/", sale_delete, name="sale_delete"),
     path("purchases/<int:pk>/delete/", purchase_delete, name="purchase_delete"),
+    path("coding/customer/", coding_views.code_customer, name="code_customer"),
+    path("coding/customer/<int:pk>/", coding_views.code_customer, name="code_customer_edit"),
+    path("coding/supplier/", coding_views.code_supplier, name="code_supplier"),
+    path("coding/supplier/<int:pk>/", coding_views.code_supplier, name="code_supplier_edit"),
+    path("coding/item/", coding_views.code_item, name="code_item"),
+    path("coding/item/<int:pk>/", coding_views.code_item, name="code_item_edit"),
     path("customers/", customers, name="customers"),
     path("customers/debts/", debts, name="debts"),
     path("customers/<int:pk>/followup/", debt_followup_add, name="debt_followup_add"),

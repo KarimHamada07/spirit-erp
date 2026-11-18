@@ -25,6 +25,10 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   `SaleReturnItem.unit_refund` (سعر البيع بعد نصيبه من خصم الفاتورة، بيتثبت وقت التأكيد).
 - رصيد المورد (`Supplier.balance`) بالإشارة: موجب = ليه عندنا، سالب = لينا عنده (دفعة مقدمة تحت الحساب).
   `SupplierPayment.kind`: `pay` (سداد، ينفع أكتر من المستحق) أو `refund` (استرداد، مش أكتر من اللي لينا).
+- التكويد: `coding_views.py` (عميل/مورد/صنف). العميل: محل، موبايلات (`phone` + `other_phones`)، محافظة ومنطقة،
+  `customer_type` (نقدي/آجل/دفعات)، `credit_limit`. المورد: نوع وتصنيفات (`categories` أكواد + other).
+  الصنف: مقاسات السيري × الألوان بتعمل الـ Variants، و`series_size` = عدد المقاسات. أسعار البيع بتيجي من
+  `PurchaseItem.sale_price/wholesale_price` وقت تأكيد فاتورة التوريد (والصنف اللي سعره صفر لازم يتحددله سعر).
 - `debts.py` + `debt_views.py` — أعمار المديونيات (FIFO) ومتابعة التحصيل للمحاسب (`DebtFollowUp`).
 - `profit.py` (تقرير الربحية)، `analytics_views.py` (رسوم)، `report_views.py` (تقارير + Excel).
 - `notify.py` — `log_event(text, audience="")` بيسجل `ActivityLog` وبيبعته تليجرام (مباشر أو عن طريق

@@ -35,19 +35,7 @@
   {% if q or only_debt %}<a href="{% url 'customers' %}" class="btn btn-outline-secondary">مسح</a>{% endif %}
 </form>
 
-<details class="mb-3">
-  <summary class="btn btn-success">+ عميل جديد</summary>
-  <form method="post" action="{% url 'customer_add' %}" class="card card-body mt-2">
-    {% csrf_token %}
-    <div class="row">
-      <div class="col-md-5 mb-2"><input name="name" class="form-control" placeholder="اسم العميل" required></div>
-      <div class="col-md-3 mb-2"><input name="phone" class="form-control" placeholder="رقم الموبايل"></div>
-      <div class="col-md-2 mb-2"><select name="seller" class="form-control" required>
-        <option value="">— البائع —</option>{% for s in sellers %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}</select></div>
-      <div class="col-md-2 mb-2"><button class="btn btn-success btn-block">حفظ</button></div>
-    </div>
-  </form>
-</details>
+{% if perms.trade.add_customer %}<a href="{% url 'code_customer' %}" class="btn btn-success mb-3" data-tip="تكويد عميل جديد ببياناته كاملة">+ عميل جديد</a>{% endif %}
 
 <div class="card">
   <div class="card-body p-0">
@@ -57,7 +45,7 @@
         <tbody>
           {% for c in rows %}
           <tr>
-            <td><a href="{% url 'customer_detail' c.pk %}"><b>{{ c.name }}</b></a></td>
+            <td><a href="{% url 'customer_detail' c.pk %}"><b>{{ c.name }}</b></a>{% if c.shop_name %}<div class="text-muted" style="font-size:12.5px">{{ c.shop_name }}{% if c.area %} · {{ c.area }}{% endif %}</div>{% endif %}</td>
             <td>{{ c.phone|default:"—" }}</td>
             <td>{{ c.seller.name|default:"—" }}</td>
             <td>{{ c.credit_total|floatformat:2|intcomma }}</td>
