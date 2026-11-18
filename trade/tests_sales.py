@@ -162,7 +162,7 @@ class WholesaleSeriesTests(SalesBase):
         self.assertTrue(r.json()["ok"], r.content)
         page = self.boss.get(r.json()["print_url"]).content.decode()
         self.assertIn("مقاسات السيري", page)
-        self.assertIn("<b>2</b> سيري", page)
+        self.assertIn("<b>2</b> سيري (4 قطع)", page)
         self.assertIn("<b>1</b> قطعة", page)
         self.assertIn("إجمالي السيريهات", page)
         self.assertIn("L×2", page)

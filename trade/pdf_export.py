@@ -115,7 +115,10 @@ def invoice_pdf(invoice, ctx):
     data = [["الكود", "الصنف", "الكمية", "السعر", "الإجمالي"]]
     for r in ctx["rows"]:
         name = r["name"] + (f" - {r['color']}" if r.get("color") else "") + (f" ({r['size']})" if r.get("size") else "")
-        qty = f"{r['qty']} {r['unit']}" if r.get("unit") else str(r["qty"])
+        if r.get("series_pieces"):
+            qty = f"{r['qty']} سيري ({r['series_pieces']} قطع)"
+        else:
+            qty = f"{r['qty']} قطعة" if r.get("unit") else str(r["qty"])
         data.append([r["code"], name, qty, _money(r["price"]), _money(r["total"])])
     if ctx.get("wholesale"):
         data.append(["", "إجمالي السيريهات", str(ctx["series_count"]), "", ""])

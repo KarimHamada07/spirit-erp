@@ -434,10 +434,10 @@
       var sizes = Object.keys(b.need).map(function (sz) { return sz + (b.need[sz] > 1 ? "×" + b.need[sz] : ""); }).join(" ");
       var locked = its.some(function (c) { return lockedPrice(c); });
       html += '<tr data-b="' + esc(key) + '"><td><b>' + esc(b.label) + '</b><div class="pos-hint">' + esc(b.code) + " · سيري: <span dir=\"ltr\">" + esc(sizes) + "</span>" +
-        " (" + (pcs / b.count) + " قطع)</div>" + (first.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>' : "") + "</td>" +
+        "</div>" + (first.locked ? ' <span class="badge badge-warning">سعر سابق للعميل</span>' : "") + "</td>" +
         '<td><div class="qty-ctl"><button type="button" data-bstep="-1" aria-label="سيري أقل">−</button>' +
         '<input type="number" min="1" value="' + b.count + '" class="form-control" data-f="bqty" aria-label="عدد السيريهات">' +
-        '<button type="button" data-bstep="1" aria-label="سيري زيادة">+</button></div><div class="pos-hint">' + pcs + " قطعة</div></td>" +
+        '<button type="button" data-bstep="1" aria-label="سيري زيادة">+</button></div><div class="pos-hint">سيري (' + (pcs / b.count) + " قطع) · " + pcs + " قطعة</div></td>" +
         '<td><input type="number" min="0" step="0.01" value="' + first.price + '" class="form-control" data-f="bprice"' +
         (locked ? ' readonly data-tip="تعديل السعر لمدير الحسابات بس"' : ' data-tip="سعر القطعة"') + "></td>" +
         '<td id="bline-' + esc(key) + '">' + money(tot) + "</td>" +
