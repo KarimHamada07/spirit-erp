@@ -8,7 +8,7 @@
   {% include "trade/_doc_style.html" %}
 </head>
 <body>
-  {% include "trade/_print_bar.html" with default_size="a5" %}
+  {% if wholesale %}{% include "trade/_print_bar.html" with default_size="a4" print_kind="wholesale" %}{% else %}{% include "trade/_print_bar.html" with default_size="pos" print_kind="retail" %}{% endif %}
   {% if not public %}
   <div class="no-print share-row">
     <a class="wa" href="{{ whatsapp_url }}" target="_blank" rel="noopener"
@@ -43,9 +43,9 @@
 
     {% if wholesale %}
     <table class="items">
-      <thead><tr><th>الكود</th><th>الصنف</th><th>اللون</th><th>مقاسات السيري</th><th>العدد</th><th>سعر القطعة</th><th>سعر السيري</th><th>الإجمالي</th></tr></thead>
+      <thead><tr><th class="c-code">الكود</th><th>الصنف</th><th>اللون</th><th>مقاسات السيري</th><th>العدد</th><th>سعر القطعة</th><th>سعر السيري</th><th>الإجمالي</th></tr></thead>
       <tbody>
-        {% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td>
+        {% for r in rows %}<tr><td class="c-code">{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td>
           <td><span dir="ltr">{{ r.size }}</span></td>
           <td style="white-space:nowrap">{% if r.series_pieces %}<b>{{ r.qty }}</b> سيري ({{ r.series_pieces }} قطع){% else %}<b>{{ r.qty }}</b> قطعة{% endif %}</td>
           <td class="num">{% if r.piece_price is not None %}{{ r.piece_price|floatformat:2 }}{% else %}—{% endif %}</td>
@@ -55,9 +55,9 @@
     </table>
     {% else %}
     <table class="items">
-      <thead><tr><th>الكود</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>التصنيف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
+      <thead><tr><th class="c-code">الكود</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th class="c-cat">التصنيف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>
       <tbody>
-        {% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td><td>{{ r.size }}</td><td>{{ r.category|default:"—" }}</td>
+        {% for r in rows %}<tr><td class="c-code">{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td><td>{{ r.size }}</td><td class="c-cat">{{ r.category|default:"—" }}</td>
           <td>{{ r.qty }}</td><td class="num">{{ r.price|floatformat:2 }}</td><td class="num">{{ r.total|floatformat:2 }}</td></tr>{% endfor %}
       </tbody>
     </table>

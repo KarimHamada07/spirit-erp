@@ -7,7 +7,7 @@
   {% include "trade/_doc_style.html" %}
 </head>
 <body>
-  {% include "trade/_print_bar.html" with default_size="a5" %}
+  {% if wholesale %}{% include "trade/_print_bar.html" with default_size="a4" print_kind="wholesale" %}{% else %}{% include "trade/_print_bar.html" with default_size="pos" print_kind="retail" %}{% endif %}
   <div class="actions no-print"><a href="{% url 'pos' %}">نقطة البيع</a></div>
   <div class="sheet">
     <div class="brand">
@@ -23,8 +23,8 @@
       <div>سبب الارتجاع: <b>{{ first.reason|default:"—" }}</b></div>
     </div>
     <table class="items">
-      <thead><tr><th>الكود</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>من فاتورة</th></tr></thead>
-      <tbody>{% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td><td>{{ r.size }}</td><td>{{ r.qty }}</td>
+      <thead><tr><th class="c-code">الكود</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>من فاتورة</th></tr></thead>
+      <tbody>{% for r in rows %}<tr><td class="c-code">{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td><td>{{ r.size }}</td><td>{{ r.qty }}</td>
         <td class="num">{{ r.price|floatformat:2 }}</td><td class="num">{{ r.total|floatformat:2 }}</td><td>#{{ r.invoice }}</td></tr>{% endfor %}</tbody>
     </table>
     <div class="bottom">
