@@ -24,7 +24,7 @@ from trade.customer_views import (customer_add, customer_detail, customer_pay, c
 from trade.online_views import (online_create, online_detail, online_list,
                                 online_new, online_status)
 from trade.pwa_views import manifest, offline, service_worker
-from trade.pos_views import (invoice_public, pos, pos_checkout, pos_customer_prices, pos_return,
+from trade.pos_views import (invoice_public, sale_approvals, pos_return_customer, return_print, pos, pos_checkout, pos_customer_prices, pos_return,
                              pos_return_lookup, sale_pdf, sale_print)
 from trade.stock_views import inventory, inventory_detail, purchase_confirm
 from trade.treasury_views import (commissions_view, daily_close_view,
@@ -40,6 +40,7 @@ from trade.stock_count_views import (reorder, reorder_create, stock_count_action
                                      stock_count_set, stock_counts)
 from trade.views import dashboard
 
+from trade import coding_views
 from trade import store_admin_views as store_admin
 from trade.store_views import robots as store_robots
 
@@ -120,6 +121,15 @@ urlpatterns = [
     path("inventory/<int:pk>/delete/", model_delete, name="model_delete"),
     path("sales/<int:pk>/delete/", sale_delete, name="sale_delete"),
     path("purchases/<int:pk>/delete/", purchase_delete, name="purchase_delete"),
+    path("coding/customer/", coding_views.code_customer, name="code_customer"),
+    path("coding/customer/<int:pk>/", coding_views.code_customer, name="code_customer_edit"),
+    path("coding/supplier/", coding_views.code_supplier, name="code_supplier"),
+    path("coding/supplier/<int:pk>/", coding_views.code_supplier, name="code_supplier_edit"),
+    path("coding/item/", coding_views.code_item, name="code_item"),
+    path("coding/item/<int:pk>/", coding_views.code_item, name="code_item_edit"),
+    path("sales/approvals/", sale_approvals, name="sale_approvals"),
+    path("pos/return/customer/", pos_return_customer, name="pos_return_customer"),
+    path("returns/<str:group>/print/", return_print, name="return_print"),
     path("customers/", customers, name="customers"),
     path("customers/debts/", debts, name="debts"),
     path("customers/<int:pk>/followup/", debt_followup_add, name="debt_followup_add"),

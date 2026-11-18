@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+{% include "trade/_coding_style.html" %}
+<form method="post" class="card cf">{% csrf_token %}<div class="card-body">
+  <div class="mb-3"><label class="l" for="s-name">اسم المورد <span class="req">*</span></label>
+    <input id="s-name" name="name" value="{{ data.name }}" class="form-control" required maxlength="150"></div>
+  {% include "trade/_phones.html" %}
+  <div class="mb-3"><label class="l">نوع المورد <span class="req">*</span></label>
+    <div class="opts">{% for k, v in party_types %}<label><input type="radio" name="supplier_type" value="{{ k }}"{% if data.supplier_type == k or not data.supplier_type and k == "credit" %} checked{% endif %}><span>{{ v }}</span></label>{% endfor %}</div></div>
+  <div class="mb-3"><label class="l">التصنيف (بيورّد إيه) <span class="req">*</span></label>
+    <div class="opts">{% for k, v in categories %}<label><input type="checkbox" name="categories" value="{{ k }}"{% if k in data.cats %} checked{% endif %}{% if k == "other" %} id="s-other"{% endif %}><span>{{ v }}</span></label>{% endfor %}</div>
+    <input name="categories_other" id="s-other-text" value="{{ data.categories_other }}" class="form-control mt-2" maxlength="120" placeholder="أخرى: اكتبها (خامات، إكسسوارات، تغليف...)"></div>
+  <div class="row">
+    <div class="col-md-6 mb-3"><label class="l" for="s-open">الرصيد الافتتاحي</label>
+      <input id="s-open" name="opening_balance" value="{{ data.opening_balance }}" type="number" step="0.01" class="form-control"{% if not can_opening %} disabled{% endif %}>
+      <div class="hint">موجب = ليه عندنا، سالب = لينا عنده (دفعنا مقدم).{% if not can_opening %} التعديل لمدير الحسابات.{% endif %}</div></div>
+    <div class="col-md-6 mb-3"><label class="l" for="s-addr">العنوان</label><input id="s-addr" name="address" value="{{ data.address }}" class="form-control" maxlength="250"></div>
+  </div>
+  <div class="mb-3"><label class="l" for="s-notes">ملاحظات</label><textarea id="s-notes" name="notes" class="form-control">{{ data.notes }}</textarea></div>
+  <button class="btn btn-primary btn-lg">{% if obj %}احفظ التعديل{% else %}سجّل المورد{% endif %}</button>
+  <a href="{% url 'suppliers' %}" class="btn btn-outline-secondary btn-lg">الموردين</a>
+</div></form>
+<script>(function(){var c=document.getElementById("s-other"),t=document.getElementById("s-other-text");function s(){t.style.display=c.checked?"":"none";}c.addEventListener("change",s);s();})();</script>
+{% endblock %}

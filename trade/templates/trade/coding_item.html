@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+{% include "trade/_coding_style.html" %}
+<form method="post" class="card cf">{% csrf_token %}<div class="card-body">
+  <div class="row">
+    <div class="col-md-4 mb-3"><label class="l" for="i-code">كود الصنف <span class="req">*</span></label>
+      <input id="i-code" name="code" value="{{ data.code }}" class="form-control" required maxlength="30" dir="ltr"></div>
+    <div class="col-md-8 mb-3"><label class="l" for="i-name">اسم الصنف <span class="req">*</span></label>
+      <input id="i-name" name="name" value="{{ data.name }}" class="form-control" required maxlength="100"></div>
+  </div>
+  <div class="mb-3"><label class="l" for="i-sizes">المقاسات <span class="req">*</span></label>
+    <input id="i-sizes" name="sizes" value="{{ data.sizes }}" class="form-control" required dir="ltr" placeholder="S, M, L, XL, XXL, XXXL">
+    <div class="hint">كل المقاسات اللي الصنف نازل بيها، مفصولة بفاصلة.</div><div class="tags" id="size-tags"></div></div>
+  <div class="mb-3"><label class="l" for="i-series">السيري (للجملة) <span class="badge badge-dark" id="series">عدد قطع السيري: 0</span></label>
+    <input id="i-series" name="series" value="{{ data.series }}" class="form-control" dir="ltr" placeholder="M, L, XL, XXL, XXXL">
+    <div class="hint">مقاسات السيري الواحد للون. لو مقاس بيتكرر اكتبه مرتين (M, L, L, XL = 4 قطع). فاضي = كل المقاسات. السيري بيظهر في فواتير الجملة بس.</div>
+    <div class="tags" id="series-tags"></div></div>
+  <div class="mb-3"><label class="l" for="i-colors">الألوان <span class="req">*</span></label>
+    <input id="i-colors" name="colors" value="{{ data.colors }}" class="form-control" required placeholder="أسود، أبيض، أحمر، كحلي">
+    <div class="hint">كل لون بيتعمل بكل مقاسات السيري.</div><div class="tags" id="color-tags"></div></div>
+  <div class="mb-3"><label class="l">التصنيف <span class="req">*</span></label>
+    <div class="opts">{% for k, v in categories %}<label><input type="radio" name="category" value="{{ k }}"{% if data.category == k %} checked{% endif %} required><span>{{ v }}</span></label>{% endfor %}</div></div>
+  <div class="mb-3"><label class="l" for="i-notes">ملاحظات</label><textarea id="i-notes" name="notes" class="form-control">{{ data.notes }}</textarea></div>
+  <div class="alert alert-light border">💡 أسعار البيع (قطاعي وجملة) بتتحدد من <b>فاتورة التوريد</b>، وبتتحدّث على الصنف لما الفاتورة تتأكد.</div>
+  <button class="btn btn-primary btn-lg">{% if obj %}احفظ التعديل{% else %}سجّل الصنف{% endif %}</button>
+  {% if obj %}<a href="{% url 'code_item' %}" class="btn btn-outline-secondary btn-lg">+ صنف جديد</a>{% endif %}
+</div></form>
+{% if variants %}
+<div class="card cf"><div class="card-header"><h3 class="card-title">المقاسات والألوان ({{ variants|length }})</h3></div>
+  <div class="card-body p-0"><table class="table table-sm mb-0"><thead><tr><th>المقاس</th><th>اللون</th><th>الكمية</th><th>القطاعي</th><th>الجملة</th></tr></thead>
+  {% for v in variants %}<tr><td>{{ v.size }}</td><td>{{ v.color|default:"—" }}</td><td>{{ v.quantity }}</td><td>{{ v.sale_price|floatformat:2 }}</td><td>{{ v.wholesale_price|default_if_none:"—" }}</td></tr>{% endfor %}</table></div>
+  <div class="card-footer text-muted" style="font-size:13px">لو شلت مقاس أو لون من الخانات فوق، مش بيتمسح (ممكن يكون عليه حركات). المسح من "المقاسات والألوان".</div></div>
+{% endif %}
+<script>
+(function () {
+  function tags(inp, box, upper, badge, keepRepeats, fallback) {
+    function draw() {
+      var src = inp.value.trim() || (fallback ? fallback.value : "");
+      var list = src.split(/[,،\/\n]+/).map(function (x) { x = x.trim(); return upper ? x.toUpperCase() : x; }).filter(Boolean);
+      if (!keepRepeats) list = list.filter(function (x, i) { return list.indexOf(x) === i; });
+      box.innerHTML = list.map(function (x) { var b = document.createElement("b"); b.textContent = x; return b.outerHTML; }).join("");
+      if (badge) badge.textContent = "عدد قطع السيري: " + list.length;
+    }
+    inp.addEventListener("input", draw); if (fallback) fallback.addEventListener("input", draw); draw();
+  }
+  tags(document.getElementById("i-sizes"), document.getElementById("size-tags"), true);
+  tags(document.getElementById("i-series"), document.getElementById("series-tags"), true, document.getElementById("series"), true, document.getElementById("i-sizes"));
+  tags(document.getElementById("i-colors"), document.getElementById("color-tags"), false);
+})();
+</script>
+{% endblock %}

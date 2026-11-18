@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .models import (CustodyClearance, Customer, DebtFollowUp, LeaveRequest, OnlineOrder,
-                     PurchaseInvoice, StockCount, WebOrder)
+                     PurchaseInvoice, SaleInvoice, StockCount, WebOrder)
 
 
 def _due_followups(today):
@@ -34,6 +34,9 @@ def pending_items(user):
         if count:
             out.append({"key": key, "label": label, "count": count, "url": url, "icon": icon})
 
+    if user.has_perm("trade.approve_saleinvoice"):
+        add("sale_approvals", "فواتير بيع مستنية موافقتك (حد الائتمان أو التاريخ)",
+            SaleInvoice.objects.filter(approval="pending").count(), reverse("sale_approvals"), "fas fa-stamp")
     if user.has_perm("trade.change_weborder"):
         add("store_orders", "طلبات جديدة من الموقع محتاجة تأكيد",
             WebOrder.objects.filter(status=WebOrder.NEW).count(),

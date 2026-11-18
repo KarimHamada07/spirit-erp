@@ -1,0 +1,20 @@
+<div class="mb-3 phones">
+  <label class="l">الموبايل <span class="req">*</span></label>
+  <div id="phones">
+    {% for p in phones %}<div class="input-group"><input name="phones" value="{{ p }}" class="form-control" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx" maxlength="20"{% if forloop.first %} required{% endif %}>
+      <div class="input-group-append"><button type="button" class="btn btn-outline-secondary" data-rm aria-label="شيل الرقم">×</button></div></div>{% endfor %}
+  </div>
+  <button type="button" class="btn btn-sm btn-outline-secondary" id="add-phone" data-tip="ضيف رقم موبايل تاني">+ رقم تاني</button>
+</div>
+<script>
+(function () {
+  var box = document.getElementById("phones");
+  document.getElementById("add-phone").addEventListener("click", function () {
+    var row = box.firstElementChild.cloneNode(true), inp = row.querySelector("input");
+    inp.value = ""; inp.required = false; box.appendChild(row); inp.focus();
+  });
+  box.addEventListener("click", function (e) {
+    if (e.target.hasAttribute("data-rm") && box.children.length > 1) e.target.closest(".input-group").remove();
+  });
+})();
+</script>

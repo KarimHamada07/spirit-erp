@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}فواتير مستنية موافقة{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+{% for r in rows %}
+<div class="card mb-3"><div class="card-body">
+  <div class="d-flex justify-content-between flex-wrap" style="gap:8px">
+    <div><b style="font-size:17px">فاتورة #{{ r.inv.pk }} — {{ r.inv.get_channel_display }}</b>
+      <div class="text-muted">{{ r.inv.date|date:"d/m/Y" }} · {{ r.inv.customer.name|default:"—" }} · البائع: {{ r.inv.seller.name|default:"—" }}{% if r.inv.created_by %} · عملها: {{ r.inv.created_by.get_full_name|default:r.inv.created_by.username }}{% endif %}</div></div>
+    <div class="text-left"><div class="text-muted">صافي الفاتورة</div><b style="font-size:20px">{{ r.inv.total|floatformat:2|intcomma }}</b></div>
+  </div>
+  <div class="alert alert-warning my-2"><i class="fas fa-triangle-exclamation"></i> {{ r.inv.approval_reason }}</div>
+  {% if r.credit %}<div class="mb-2">رصيده دلوقتي: <b>{{ r.credit.balance|floatformat:2|intcomma }}</b>
+    {% if r.credit.limit is not None %} · حد الائتمان: <b>{{ r.credit.limit|floatformat:2|intcomma }}</b> · المتاح: <b>{{ r.credit.available|floatformat:2|intcomma }}</b>{% endif %}</div>{% endif %}
+  <table class="table table-sm mb-2"><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th></tr></thead>
+    {% for i in r.inv.items.all %}<tr><td>{{ i.variant }}</td><td>{{ i.quantity }}</td><td>{{ i.unit_price|floatformat:2 }}</td></tr>{% endfor %}</table>
+  <div class="mb-2">السداد: {% for p in r.inv.payment_plan %}<span class="badge badge-dark">{{ p.name }}: {{ p.amount }}</span> {% endfor %}</div>
+  <form method="post" class="d-flex" style="gap:8px">{% csrf_token %}<input type="hidden" name="invoice" value="{{ r.inv.pk }}">
+    <button name="decision" value="approve" class="btn btn-primary" data-tip="الفاتورة تتأكد وتتخصم من المخزن وتتسجل طرق السداد">موافقة</button>
+    <button name="decision" value="reject" class="btn btn-outline-primary">رفض</button>
+    <a href="{% url 'sale_print' r.inv.pk %}" class="btn btn-outline-secondary" target="_blank">عرض الفاتورة</a></form>
+</div></div>
+{% empty %}
+<div class="card"><div class="card-body text-muted"><i class="fas fa-circle-check"></i> مفيش فواتير مستنية موافقتك.</div></div>
+{% endfor %}
+{% endblock %}

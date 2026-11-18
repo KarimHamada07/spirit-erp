@@ -46,38 +46,57 @@ def _finish(rows, d1, d2, opening_label="رصيد سابق"):
 
 
 def customer_statement(customer, d1=None, d2=None):
+    """كشف حساب العميل: الفواتير (بعد الخصم)، والدفعات وطريقتها، والمرتجعات، واللي اترد نقدي.
+    الرصيد = افتتاحي + الفواتير − المرتجعات − الدفعات + اللي اترد نقدي (نفس رصيد with_balance)."""
+    from .models import CashEntry
     rows = []
     if customer.opening_balance:
         rows.append((customer.opening_date or timezone.localdate(), -1, 0, {
-            "kind": "رصيد افتتاحي", "ref": "", "debit": customer.opening_balance, "credit": ZERO}))
-    for inv in (SaleInvoice.objects.filter(customer=customer, is_confirmed=True)
-                .prefetch_related("items")):
+            "kind": "رصيد افتتاحي", "ref": "", "cat": "opening",
+            "debit": customer.opening_balance, "credit": ZERO}))
+    invoices = list(SaleInvoice.objects.filter(customer=customer, is_confirmed=True).prefetch_related("items"))
+    for inv in invoices:
         total = inv.total
-        if inv.payment_type == "credit":
-            rows.append((inv.date, 0, inv.pk, {"kind": "فاتورة آجل", "ref": f"فاتورة #{inv.pk}",
-                                               "debit": total, "credit": ZERO}))
-        else:  # الكاش متسدد وقت البيع: بيظهر في الكشف ومش بيأثر على الرصيد
-            rows.append((inv.date, 0, inv.pk, {"kind": "فاتورة نقدي", "ref": f"فاتورة #{inv.pk}",
-                                               "debit": total, "credit": total}))
+        disc = f" — بعد خصم {inv.discount:,.2f}" if inv.discount else ""
+        rows.append((inv.date, 0, inv.pk, {"kind": f"فاتورة {inv.get_channel_display()}",
+                                           "ref": f"فاتورة #{inv.pk}{disc}", "cat": "invoice",
+                                           "debit": total, "credit": ZERO}))
+    # الفلوس اللي اتدفعت مع فواتير الكاش (من الخزن)
+    cash_ids = [i.pk for i in invoices if i.payment_type == "cash"]
+    for e in (CashEntry.objects.filter(invoice_id__in=cash_ids, kind="sale").select_related("box")):
+        rows.append((e.date, 0, e.invoice_id, {"kind": "دفعة مع الفاتورة", "ref": f"{e.box.name} — فاتورة #{e.invoice_id}",
+                                               "cat": "payment", "debit": ZERO, "credit": e.amount}))
     for ret in (SaleReturn.objects.filter(invoice__customer=customer, is_confirmed=True)
-                .select_related("invoice")):
+                .select_related("invoice", "refund_box").prefetch_related("items")):
         amount = ret.total
-        if ret.refund_mode == "account":
-            rows.append((ret.date, 1, ret.pk, {"kind": "مرتجع (خصم من الحساب)",
-                                               "ref": f"مرتجع #{ret.pk} (فاتورة #{ret.invoice_id})",
-                                               "debit": ZERO, "credit": amount}))
-        else:
-            rows.append((ret.date, 1, ret.pk, {"kind": "مرتجع (استرداد نقدي)",
-                                               "ref": f"مرتجع #{ret.pk} (فاتورة #{ret.invoice_id})",
-                                               "debit": amount, "credit": amount}))
-    for p in customer.payments.all():
-        ref = f"دفعة #{p.pk}" + (f" (فاتورة #{p.invoice_id})" if p.invoice_id else "")
-        rows.append((p.date, 2, p.pk, {"kind": f"دفعة {p.get_method_display()}", "ref": ref,
+        why = f" — {ret.reason}" if ret.reason else ""
+        rows.append((ret.date, 1, ret.pk, {"kind": "مرتجع", "ref": f"مرتجع #{ret.pk} (فاتورة #{ret.invoice_id}){why}",
+                                           "cat": "return", "debit": ZERO, "credit": amount}))
+        cash = amount - ret.account_amount
+        if cash > 0:
+            boxes = "، ".join(p["name"] for p in ret.refund_plan if p.get("box") != "account") or \
+                (ret.refund_box.name if ret.refund_box_id else "خزنة")
+            rows.append((ret.date, 1, ret.pk, {"kind": "اترد نقدي", "ref": f"مرتجع #{ret.pk} — {boxes}",
+                                               "cat": "refund", "debit": cash, "credit": ZERO}))
+    for p in customer.payments.select_related("box"):
+        how = p.box.name if p.box_id else p.get_method_display()
+        ref = f"دفعة #{p.pk} — {how}" + (f" (فاتورة #{p.invoice_id})" if p.invoice_id else "")
+        if p.notes:
+            ref += f" — {p.notes}"
+        rows.append((p.date, 2, p.pk, {"kind": "دفعة", "ref": ref, "cat": "payment",
                                        "debit": ZERO, "credit": p.amount}))
     entries, totals = _finish(rows, d1, d2)
+    sums = {k: ZERO for k in ("invoice", "return", "payment", "refund")}
+    for e in entries:
+        if e.get("cat") in sums:
+            sums[e["cat"]] += e["debit"] or e["credit"]
+    summary = [("إجمالي الفواتير", sums["invoice"]), ("إجمالي المرتجعات", sums["return"]),
+               ("إجمالي الدفعات", sums["payment"])]
+    if sums["refund"]:
+        summary.append(("اترد نقدي", sums["refund"]))
     return {"kind": "customer", "title": f"كشف حساب عميل: {customer.name}", "name": customer.name,
-            "phone": customer.phone, "entries": entries, "totals": totals,
-            "debit_label": "فواتير (عليه)", "credit_label": "دفعات (ليه)",
+            "phone": " / ".join(customer.phones), "entries": entries, "totals": totals, "summary": summary,
+            "debit_label": "فواتير (عليه)", "credit_label": "دفعات ومرتجعات (ليه)",
             "balance_label": "الرصيد المستحق على العميل"}
 
 
@@ -125,7 +144,9 @@ def statement_sheets(st):
     if t["d1"] or t["d2"]:
         period = f"{t['d1'] or 'البداية'} → {t['d2'] or t['as_of']}"
     info = [["الاسم", st["name"]], ["الموبايل", st["phone"] or ""], ["الفترة", period or "كل الحركات"],
-            ["تاريخ الكشف", t["as_of"]], [st["balance_label"], t["balance"]]]
+            ["تاريخ الكشف", t["as_of"]]]
+    info += [[label, value] for label, value in st.get("summary", [])]
+    info.append([st["balance_label"], t["balance"]])
     return [("كشف الحساب", ["التاريخ", "النوع", "المرجع", st["debit_label"], st["credit_label"],
                             "الرصيد"], rows),
             ("ملخص", ["البيان", "القيمة"], info)]

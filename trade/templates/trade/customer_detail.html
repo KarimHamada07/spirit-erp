@@ -25,6 +25,7 @@
   <a href="{{ wa_chat }}" target="_blank" rel="noopener" class="btn btn-outline-success" data-tip="يفتح شات واتساب مع العميل"><i class="fab fa-whatsapp"></i> واتساب</a>
   <a href="{{ wa_statement }}" target="_blank" rel="noopener" class="btn btn-success"
      data-tip="يبعتله رسالة واتساب فيها رصيده ورابط كشف حسابه PDF (الرابط شغال 30 يوم)"><i class="fab fa-whatsapp"></i> ابعتله كشف الحساب</a>{% endif %}
+  {% if perms.trade.change_customer %}<a href="{% url 'code_customer_edit' customer.pk %}" class="btn btn-outline-secondary" data-tip="تعديل بيانات العميل"><i class="fas fa-pen"></i> تعديل</a>{% endif %}
   <span class="btn btn-light disabled">البائع: <b>{{ customer.seller.name|default:"—" }}</b></span>
   {% if can_change_seller %}
   <form method="post" action="{% url 'customer_set_seller' customer.pk %}" class="d-inline">{% csrf_token %}
@@ -39,6 +40,15 @@
         data-confirm-title="تأكيد الحذف">{% csrf_token %}
     <button type="submit" class="btn btn-outline-primary">حذف العميل</button></form>
 </div>
+
+<div class="card mb-3"><div class="card-body py-2 d-flex flex-wrap" style="gap:18px">
+  {% if customer.shop_name %}<span>🏪 <b>{{ customer.shop_name }}</b></span>{% endif %}
+  {% if customer.place %}<span>📍 {{ customer.place }}</span>{% endif %}
+  <span>📞 {% for p in customer.phones %}<a href="tel:{{ p }}" dir="ltr">{{ p }}</a>{% if not forloop.last %} / {% endif %}{% empty %}—{% endfor %}</span>
+  <span>النوع: <b>{{ customer.get_customer_type_display }}</b></span>
+  <span>حد الائتمان: <b>{% if customer.credit_limit is not None %}{{ customer.credit_limit|floatformat:2 }}{% else %}من غير حد{% endif %}</b></span>
+  {% if customer.notes %}<span class="text-muted">📝 {{ customer.notes }}</span>{% endif %}
+</div></div>
 
 {% url 'customer_statement_pdf' customer.pk as pdf_url %}{% url 'customer_statement' customer.pk 'xlsx' as xlsx_url %}
 {% include "trade/_statement_box.html" with pdf_url=pdf_url xlsx_url=xlsx_url %}

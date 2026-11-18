@@ -114,10 +114,17 @@ def invoice_pdf(invoice, ctx):
     story.append(Spacer(1, 6 * mm))
     data = [["الكود", "الصنف", "الكمية", "السعر", "الإجمالي"]]
     for r in ctx["rows"]:
-        data.append([r["code"], r["name"], str(r["qty"]), _money(r["price"]), _money(r["total"])])
+        name = r["name"] + (f" - {r['color']}" if r.get("color") else "") + (f" ({r['size']})" if r.get("size") else "")
+        if r.get("series_pieces"):
+            qty = f"{r['qty']} سيري ({r['series_pieces']} قطع)"
+        else:
+            qty = f"{r['qty']} قطعة" if r.get("unit") else str(r["qty"])
+        data.append([r["code"], name, qty, _money(r["price"]), _money(r["total"])])
+    if ctx.get("wholesale"):
+        data.append(["", "إجمالي السيريهات", str(ctx["series_count"]), "", ""])
     data.append(["", "عدد القطع", str(ctx["pieces"]), "", ""])
     story.append(_table(data, [24 * mm, 70 * mm, 20 * mm, 28 * mm, 28 * mm],
-                        total_rows=(len(data) - 1,)))
+                        total_rows=tuple(range(len(data) - (2 if ctx.get("wholesale") else 1), len(data)))))
     story.append(Spacer(1, 6 * mm))
     summary = [
         ["الإجمالي قبل الخصم", _money(ctx["gross"])],
@@ -159,11 +166,14 @@ def statement_pdf(st):
         data.append(["-", "مفيش حركات في الفترة دي", "", "", "", ""])
     story.append(_table(data, [27 * mm, 31 * mm, 36 * mm, 27 * mm, 27 * mm, 28 * mm]))
     story.append(Spacer(1, 6 * mm))
-    summary = [
-        [st["debit_label"], _money(t["debit"])],
-        [st["credit_label"], _money(t["credit"])],
-        [st["balance_label"], _money(t["balance"])],
-    ]
+    if st.get("summary"):
+        summary = [[label, _money(v)] for label, v in st["summary"]] + [[st["balance_label"], _money(t["balance"])]]
+    else:
+        summary = [
+            [st["debit_label"], _money(t["debit"])],
+            [st["credit_label"], _money(t["credit"])],
+            [st["balance_label"], _money(t["balance"])],
+        ]
     if t["previous"]:
         summary.insert(0, ["رصيد سابق", _money(t["previous"])])
     tbl = Table([[_p(b), _p(a)] for a, b in summary], colWidths=[40 * mm, 60 * mm], hAlign="RIGHT")

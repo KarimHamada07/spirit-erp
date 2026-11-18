@@ -29,7 +29,8 @@ def customers(request):
     rows = all_customers
     if q:
         ql = q.lower()
-        rows = [c for c in rows if ql in c.name.lower() or q in (c.phone or "")]
+        rows = [c for c in rows if ql in c.name.lower() or ql in (c.shop_name or "").lower()
+                or q in (c.phone or "") or q in (c.other_phones or "") or ql in (c.area or "").lower()]
     if only_debt:
         rows = [c for c in rows if c.balance > 0]
     rows.sort(key=lambda c: (-c.balance, c.name))

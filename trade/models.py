@@ -32,6 +32,14 @@ class ClothingModel(models.Model):
     low_stock_level = models.PositiveIntegerField(
         "حد التنبيه", default=5,
         help_text="لما كمية أي مقاس/لون توصل للرقم ده أو أقل يجيلك تنبيه إن المخزون قرب يخلص")
+    series_size = models.PositiveSmallIntegerField(
+        "عدد قطع السيري", null=True, blank=True,
+        help_text="بيتحسب لوحده من مقاسات السيري")
+    series_sizes = models.CharField(
+        "مقاسات السيري (للجملة)", max_length=120, blank=True,
+        help_text="المقاسات اللي في السيري الواحد للون، مفصولة بفاصلة، والمقاس اللي بيتكرر اكتبه مرتين "
+                  "(مثلاً M, L, L, XL = 4 قطع). السيري بيتباع في الجملة بس")
+    notes = models.TextField("ملاحظات", blank=True)
     # الموقع (spiritegy.org)
     show_online = models.BooleanField("يظهر في الموقع", default=False, db_index=True)
     featured = models.BooleanField("مميز في الصفحة الرئيسية", default=False)
@@ -46,6 +54,12 @@ class ClothingModel(models.Model):
     def __str__(self):
         return f"{self.name} ({self.code})"
 
+    @property
+    def series_list(self):
+        """مقاسات السيري بالترتيب (المقاس المتكرر بيتكرر)"""
+        import re
+        return [x.strip().upper() for x in re.split(r"[,،/\n]+", self.series_sizes or "") if x.strip()]
+
 
 class Variant(models.Model):
     """مقاس/لون لكل موديل، وعليه المخزون وسعر البيع ومتوسط التكلفة"""
@@ -56,7 +70,8 @@ class Variant(models.Model):
     quantity = models.IntegerField("الكمية بالمخزن", default=0, editable=False)
     avg_cost = models.DecimalField("متوسط التكلفة", max_digits=12,
                                    decimal_places=2, default=0, editable=False)
-    sale_price = models.DecimalField("سعر القطاعي", max_digits=12, decimal_places=2)
+    sale_price = models.DecimalField("سعر القطاعي", max_digits=12, decimal_places=2, default=0,
+                                     help_text="بيتحدّث لوحده من سعر البيع في فاتورة التوريد")
     wholesale_price = models.DecimalField("سعر الجملة", max_digits=12, decimal_places=2, null=True,
                                           blank=True, help_text="فاضي = نفس سعر القطاعي")
 
@@ -83,10 +98,32 @@ class Variant(models.Model):
         self.quantity = new_qty
 
 
+PARTY_TYPES = [("cash", "نقدي"), ("credit", "آجل"), ("installments", "دفعات")]
+
+
+def split_phones(*values):
+    """أرقام الموبايل من خانة أو أكتر (مفصولة بـ / أو , أو سطر جديد) من غير تكرار"""
+    import re
+    out = []
+    for v in values:
+        for p in re.split(r"[/,،\n]+", v or ""):
+            p = p.strip()
+            if p and p not in out:
+                out.append(p)
+    return out
+
+
 class Supplier(models.Model):
+    OTHER = "other"
     name = models.CharField("اسم المورد", max_length=150)
-    phone = models.CharField("الهاتف", max_length=30, blank=True)
+    phone = models.CharField("الموبايل", max_length=30, blank=True)
+    other_phones = models.CharField("أرقام تانية", max_length=200, blank=True, help_text="مفصولة بـ /")
     address = models.CharField("العنوان", max_length=250, blank=True)
+    supplier_type = models.CharField("نوع المورد", max_length=12, choices=PARTY_TYPES, default="credit")
+    categories = models.CharField("التصنيف (بيورّد إيه)", max_length=200, blank=True,
+                                  help_text="أكواد التصنيفات مفصولة بفاصلة، و other = أخرى")
+    categories_other = models.CharField("أخرى (اكتبها)", max_length=120, blank=True)
+    notes = models.TextField("ملاحظات", blank=True)
     opening_balance = models.DecimalField(
         "رصيد افتتاحي", max_digits=14, decimal_places=2, default=0,
         help_text="قبل ما نبدأ النظام: موجب = ليه عندنا فلوس، سالب = لينا عنده فلوس (دفعنا مقدم تحت الحساب)")
@@ -98,6 +135,22 @@ class Supplier(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def phones(self):
+        return split_phones(self.phone, self.other_phones)
+
+    @property
+    def category_keys(self):
+        return [c for c in (self.categories or "").split(",") if c]
+
+    @property
+    def categories_display(self):
+        labels = dict(ClothingModel.CATEGORIES)
+        out = [labels.get(c, c) for c in self.category_keys if c != self.OTHER]
+        if self.OTHER in self.category_keys:
+            out.append(self.categories_other or "أخرى")
+        return "، ".join(out)
 
     @property
     def balance(self):
@@ -138,13 +191,11 @@ class CustomerQuerySet(models.QuerySet):
                 .filter(customer=OuterRef("pk"))
                 .order_by().values("customer")
                 .annotate(s=Sum("amount")).values("s"))
-        returns = (SaleReturnItem.objects
-                   .filter(return_doc__invoice__customer=OuterRef("pk"),
-                           return_doc__is_confirmed=True,
-                           return_doc__refund_mode="account",
-                           return_doc__invoice__payment_type="credit")
-                   .order_by().values("return_doc__invoice__customer")
-                   .annotate(s=Sum(F("quantity") * F("unit_refund"), output_field=DEC))
+        returns = (SaleReturn.objects
+                   .filter(invoice__customer=OuterRef("pk"), is_confirmed=True,
+                           invoice__payment_type="credit")
+                   .order_by().values("invoice__customer")
+                   .annotate(s=Sum("account_amount", output_field=DEC))
                    .values("s"))
         return (self
                 .annotate(
@@ -167,7 +218,17 @@ class CustomerQuerySet(models.QuerySet):
 
 class Customer(models.Model):
     name = models.CharField("اسم العميل", max_length=150)
-    phone = models.CharField("الهاتف", max_length=30, blank=True)
+    shop_name = models.CharField("اسم المحل", max_length=150, blank=True)
+    phone = models.CharField("الموبايل", max_length=30, blank=True)
+    other_phones = models.CharField("أرقام تانية", max_length=200, blank=True, help_text="مفصولة بـ /")
+    governorate = models.CharField("المحافظة", max_length=60, blank=True)
+    area = models.CharField("المنطقة", max_length=100, blank=True)
+    customer_type = models.CharField("نوع العميل", max_length=12, choices=PARTY_TYPES, default="credit",
+                                     help_text="نقدي = مينفعش يتسجل عليه آجل. آجل ودفعات = بيتسجل على حسابه")
+    credit_limit = models.DecimalField("حد الائتمان", max_digits=14, decimal_places=2, null=True, blank=True,
+                                       help_text="أقصى مديونية. الفاتورة اللي تعدّيه بتستنى موافقة مدير الحسابات. "
+                                                 "فاضي = من غير حد")
+    notes = models.TextField("ملاحظات", blank=True)
     seller = models.ForeignKey("Seller", on_delete=models.PROTECT, null=True, blank=True,
                                related_name="customers", verbose_name="البائع المرتبط")
     opening_balance = models.DecimalField(
@@ -185,6 +246,14 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def phones(self):
+        return split_phones(self.phone, self.other_phones)
+
+    @property
+    def place(self):
+        return " - ".join(p for p in (self.governorate, self.area) if p)
 
 
 class PurchaseInvoice(models.Model):
@@ -213,7 +282,13 @@ class PurchaseInvoice(models.Model):
             raise ValidationError("الفاتورة بدون أصناف")
         for item in self.items.select_related("variant"):
             v = Variant.objects.select_for_update().get(pk=item.variant_id)
+            if not v.sale_price and not item.sale_price:
+                raise ValidationError(f"حدد سعر بيع القطاعي لـ {v} (صنف جديد لسه مالوش سعر)")
             v.add_stock(item.quantity, item.unit_cost)
+            if item.sale_price:
+                v.sale_price = item.sale_price
+            if item.wholesale_price:
+                v.wholesale_price = item.wholesale_price
             v.save()
         self.is_confirmed = True
         self.save()
@@ -225,6 +300,9 @@ class PurchaseItem(models.Model):
     variant = models.ForeignKey(Variant, on_delete=models.PROTECT, verbose_name="الصنف")
     quantity = models.PositiveIntegerField("الكمية")
     unit_cost = models.DecimalField("سعر الشراء للقطعة", max_digits=12, decimal_places=2)
+    # سعر البيع بيتحدد من فاتورة التوريد: وقت تأكيد الفاتورة بيتحدّث على الصنف (فاضي = سعره زي ما هو)
+    sale_price = models.DecimalField("سعر بيع القطاعي", max_digits=12, decimal_places=2, null=True, blank=True)
+    wholesale_price = models.DecimalField("سعر بيع الجملة", max_digits=12, decimal_places=2, null=True, blank=True)
 
     class Meta:
         verbose_name = "بند توريد"
@@ -237,7 +315,10 @@ class PurchaseItem(models.Model):
 class SaleInvoice(models.Model):
     """فاتورة بيع مباشر (نقدي أو آجل)"""
     PAYMENT_TYPES = [("cash", "نقدي"), ("credit", "آجل")]
-    CHANNELS = [("retail", "قطاعي"), ("wholesale", "جملة")]
+    CHANNELS = [("retail", "قطاعي"), ("wholesale", "جملة"), ("marketing", "تسويق"), ("online", "أون لاين")]
+    DELIVERY = [("customer", "العميل استلم"), ("shipping", "شركة الشحن")]
+    APPROVALS = [("", "—"), ("pending", "مستنية موافقة مدير الحسابات"), ("approved", "اتوافق عليها"),
+                 ("rejected", "اترفضت")]
 
     customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True,
                                  blank=True, verbose_name="العميل")
@@ -255,7 +336,20 @@ class SaleInvoice(models.Model):
         "خصم (نسبة %)", max_digits=5, decimal_places=2, null=True, blank=True,
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))])
     notes = models.TextField("ملاحظات", blank=True)
+    delivery = models.CharField("طريقة التسليم", max_length=10, choices=DELIVERY, default="customer")
     is_confirmed = models.BooleanField("مؤكدة", default=False, editable=False)
+    # طرق السداد اللي اتختارت: [{"box": id, "name": "...", "amount": "..."}] و"من الحساب" = account
+    payment_plan = models.JSONField("طرق السداد", default=list, blank=True, editable=False)
+    account_amount = models.DecimalField("من الحساب (آجل)", max_digits=12, decimal_places=2, default=0,
+                                         editable=False)
+    # موافقة مدير الحسابات (حد الائتمان أو تغيير التاريخ): الفاتورة بتستنى ومش بتخصم من المخزن لحد الموافقة
+    approval = models.CharField("الموافقة", max_length=10, choices=APPROVALS, default="", blank=True,
+                                editable=False, db_index=True)
+    approval_reason = models.CharField("سبب طلب الموافقة", max_length=300, blank=True, editable=False)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                    editable=False, related_name="approved_sales", verbose_name="وافق/رفض")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   editable=False, related_name="created_sales", verbose_name="عملها")
 
     @property
     def pieces(self):
@@ -267,7 +361,8 @@ class SaleInvoice(models.Model):
         permissions = [("change_customer_price",
                         "تعديل سعر صنف لعميل سبق له شراءه (مدير الحسابات)"),
                        ("change_invoice_date", "تعديل تاريخ فاتورة البيع (مدير الحسابات)"),
-                       ("change_sale_price", "تعديل سعر البيع في نقطة البيع (مدير الحسابات)")]
+                       ("change_sale_price", "تعديل سعر البيع في نقطة البيع (مدير الحسابات)"),
+                       ("approve_saleinvoice", "الموافقة على فواتير البيع (حد الائتمان وتغيير التاريخ)")]
 
     def apply_percent(self):
         """لو الخصم بالنسبة: المبلغ = نسبة من مجموع البنود"""
@@ -304,8 +399,7 @@ class SaleInvoice(models.Model):
     @property
     def returned_on_account(self):
         """مرتجعات مؤكدة اتخصمت من مديونية الفاتورة دي"""
-        return sum((r.total for r in self.returns.filter(is_confirmed=True, refund_mode="account")),
-                   ZERO)
+        return sum((r.account_amount for r in self.returns.filter(is_confirmed=True)), ZERO)
 
     @property
     def remaining(self):
@@ -899,6 +993,17 @@ class SaleReturn(models.Model):
                                    default="box")
     refund_box = models.ForeignKey(CashBox, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name="sale_returns", verbose_name="الخزنة اللي بترد منها")
+    delivery = models.CharField("طريقة الاستلام", max_length=10, choices=SaleInvoice.DELIVERY, default="customer")
+    notes = models.TextField("ملاحظات", blank=True)
+    discount = models.DecimalField("خصم على المرتجع", max_digits=12, decimal_places=2, default=0)
+    # اللي اتخصم من مديونية العميل (الباقي اترد من الخزن في refund_plan)
+    account_amount = models.DecimalField("اتخصم من الحساب", max_digits=12, decimal_places=2, default=0,
+                                         editable=False)
+    refund_plan = models.JSONField("رد الفلوس", default=list, blank=True, editable=False)
+    group = models.CharField("رقم العملية", max_length=32, blank=True, db_index=True, editable=False,
+                             help_text="المرتجع من كذا فاتورة (FIFO) بيتسجل كذا مرتجع بنفس الرقم")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   editable=False, related_name="created_returns", verbose_name="عمله")
     is_confirmed = models.BooleanField("مؤكد", default=False, editable=False)
 
     class Meta:
@@ -919,22 +1024,41 @@ class SaleReturn(models.Model):
         return sum((i.quantity * (i.sale_item.unit_price * ratio).quantize(Decimal("0.01"))
                     for i in items), ZERO)
 
+    def priced_total(self):
+        """القيمة قبل التأكيد: سعر البيع بعد خصم الفاتورة، ناقص خصم المرتجع"""
+        ratio = self.invoice.net_ratio
+        gross = sum((i.quantity * (i.sale_item.unit_price * ratio).quantize(Decimal("0.01"))
+                     for i in self.items.select_related("sale_item")), ZERO)
+        return max(ZERO, gross - self.discount)
+
     @transaction.atomic
-    def confirm(self):
+    def confirm(self, refunds=None, account=None):
+        """refunds = [(box, amount)] ، account = اللي يتخصم من مديونية العميل.
+        من غير الاتنين: بيمشي على refund_mode (خزنة واحدة أو الحساب كله) زي الأول."""
         if self.is_confirmed:
             raise ValidationError("المرتجع مؤكد بالفعل")
         if not self.invoice.is_confirmed:
             raise ValidationError("الفاتورة الأصلية لازم تكون مؤكدة")
         if not self.items.exists():
             raise ValidationError("المرتجع بدون أصناف")
-        if self.refund_mode == "account" and self.invoice.payment_type != "credit":
-            raise ValidationError("الخصم من المديونية للفواتير الآجل بس")
-        if self.refund_mode == "box" and not self.refund_box_id:
-            raise ValidationError("اختار الخزنة اللي هترد منها الفلوس")
+        if refunds is None and account is None:
+            if self.refund_mode == "account":
+                refunds, account = [], None          # الحساب كله (بيتحسب تحت)
+            else:
+                if not self.refund_box_id:
+                    raise ValidationError("اختار الخزنة اللي هترد منها الفلوس")
+                refunds, account = None, ZERO        # الخزنة كلها
         ratio = self.invoice.net_ratio
-        for item in self.items.select_related("sale_item__variant"):
+        gross = ZERO
+        lines = list(self.items.select_related("sale_item__variant"))
+        for item in lines:
+            gross += item.quantity * (item.sale_item.unit_price * ratio).quantize(Decimal("0.01"))
+        if self.discount < 0 or self.discount > gross:
+            raise ValidationError("خصم المرتجع غير صحيح")
+        factor = (gross - self.discount) / gross if gross else Decimal("1")
+        for item in lines:
             si = item.sale_item
-            item.unit_refund = (si.unit_price * ratio).quantize(Decimal("0.01"))
+            item.unit_refund = (si.unit_price * ratio * factor).quantize(Decimal("0.01"))
             item.save(update_fields=["unit_refund"])
             already = (SaleReturnItem.objects
                        .filter(sale_item=si, return_doc__is_confirmed=True)
@@ -945,11 +1069,30 @@ class SaleReturn(models.Model):
             v.add_stock(item.quantity, si.unit_cost)
             v.save()
         self.is_confirmed = True  # عشان total يقرا السعر المتثبت
-        if self.refund_mode == "box":
-            CashEntry.post(self.refund_box, -self.total, "refund",
-                           f"مرتجع بيع #{self.pk}", invoice=self.invoice,
-                           customer=self.invoice.customer)
-        self.is_confirmed = True
+        total = self.total
+        if refunds is None:                       # الخزنة كلها
+            refunds = [(self.refund_box, total)]
+        if account is None:                       # الحساب كله
+            account = total - sum((a for _b, a in refunds), ZERO)
+        if account < 0 or any(a < 0 for _b, a in refunds):
+            raise ValidationError("مبالغ رد الفلوس غير صحيحة")
+        if account and self.invoice.payment_type != "credit":
+            raise ValidationError("الخصم من الحساب للفواتير الآجل بس")
+        if abs(sum((a for _b, a in refunds), ZERO) + account - total) > Decimal("0.01"):
+            raise ValidationError(f"مجموع رد الفلوس لازم يساوي قيمة المرتجع ({total:,.2f})")
+        plan = []
+        for box, amt in refunds:
+            if amt > 0:
+                CashEntry.post(box, -amt, "refund", f"مرتجع بيع #{self.pk}", invoice=self.invoice,
+                               customer=self.invoice.customer)
+                plan.append({"box": box.pk, "name": box.name, "amount": str(amt)})
+        if account:
+            plan.append({"box": "account", "name": "من الحساب", "amount": str(account)})
+        self.account_amount = account
+        self.refund_plan = plan
+        self.refund_mode = "account" if account and not any(a for _b, a in refunds) else "box"
+        if self.refund_mode == "box" and refunds and not self.refund_box_id:
+            self.refund_box = refunds[0][0]
         self.save()
 
 

@@ -1,0 +1,47 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مرتجع بيع {% for r in rets %}#{{ r.pk }} {% endfor %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  {% include "trade/_doc_style.html" %}
+</head>
+<body>
+  {% include "trade/_print_bar.html" with default_size="a5" %}
+  <div class="actions no-print"><a href="{% url 'pos' %}">نقطة البيع</a></div>
+  <div class="sheet">
+    <div class="brand">
+      <img src="{% static 'trade/img/invoice_logo.png' %}" alt="" onerror="this.style.display='none'">
+      <div class="shop">{{ shop_name }}</div>
+      <div class="no">رقم المرتجع<br><b style="font-size:16px;color:#000">{% for r in rets %}#{{ r.pk }}{% if not forloop.last %}، {% endif %}{% endfor %}</b></div>
+    </div>
+    <div class="doc-title"><span>مرتجع {{ channels }}</span></div>
+    <div class="info">
+      <div>التاريخ: <b>{{ first.date|date:"d/m/Y" }}</b></div>
+      {% if customer %}<div>العميل: <b>{{ customer.name }}</b>{% if customer.shop_name %} — {{ customer.shop_name }}{% endif %}</div>
+      {% if customer.phones %}<div>الموبايل: <span dir="ltr">{{ customer.phones|join:" / " }}</span></div>{% endif %}{% else %}<div>العميل: <b>عميل نقدي</b></div>{% endif %}
+      <div>سبب الارتجاع: <b>{{ first.reason|default:"—" }}</b></div>
+    </div>
+    <table class="items">
+      <thead><tr><th>الكود</th><th>الصنف</th><th>اللون</th><th>المقاس</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th><th>من فاتورة</th></tr></thead>
+      <tbody>{% for r in rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td><td>{{ r.size }}</td><td>{{ r.qty }}</td>
+        <td class="num">{{ r.price|floatformat:2 }}</td><td class="num">{{ r.total|floatformat:2 }}</td><td>#{{ r.invoice }}</td></tr>{% endfor %}</tbody>
+    </table>
+    <div class="bottom">
+      <div class="totals">
+        <div><span>إجمالي القطع</span><b>{{ pieces }}</b></div>
+        <div><span>إجمالي المرتجع</span><span class="num">{{ gross|floatformat:2 }}</span></div>
+        <div><span>الخصم</span><span class="num">{{ discount|floatformat:2 }}</span></div>
+        <div class="net"><span>صافي المرتجع</span><span class="num">{{ total|floatformat:2 }}</span></div>
+      </div>
+      <div class="pay">
+        <h4>رد الفلوس</h4>
+        {% for name, amt in plan %}<div><span>{{ name }}</span><span class="num">{{ amt|floatformat:2 }}</span></div>{% endfor %}
+        <h4 style="margin-top:8px">طريقة الاستلام</h4><div>{{ first.get_delivery_display }}</div>
+      </div>
+    </div>
+    {% if first.notes %}<div class="notes"><b>ملاحظات:</b> {{ first.notes }}</div>{% endif %}
+    <div class="seller">عمله: <b>{% if first.created_by %}{{ first.created_by.get_full_name|default:first.created_by.username }}{% else %}—{% endif %}</b></div>
+  </div>
+</body>
+</html>

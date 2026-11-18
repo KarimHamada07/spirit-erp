@@ -269,7 +269,9 @@ class TreasuryFlows(TestCase):
         self.assertNotIn("سبيريت", html)
         self.assertIn("TS-01", html)
         self.assertIn("خالد فلكس", html)
-        self.assertIn("عدد القطع", html)
+        self.assertIn("إجمالي القطع", html)
+        self.assertIn("فاتورة قطاعي", html)
+        self.assertIn("صافي الفاتورة", html)
         self.assertIn("كاش دالي", html)
         self.assertIn("إنستاباي دالي", html)
 
