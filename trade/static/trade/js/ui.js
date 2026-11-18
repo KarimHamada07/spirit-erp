@@ -371,4 +371,27 @@
     }).observe(doc.body, {childList: true, subtree: true});
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
+
+  /* ================= الإسكانر (بيكتب زي الكيبورد بسرعة وبعدين Enter) =================
+     برا خانات الكتابة: باركود الفاتورة بيفتحها، وباركود الصنف بيفتح تكويده.
+     الصفحة تقدر تمسك الباركود بنفسها (نقطة البيع) بـ erp-scan + preventDefault. */
+  var AR = "٠١٢٣٤٥٦٧٨٩", buf = "", last = 0;
+  doc.addEventListener("keydown", function (e) {
+    var t = e.target, now = Date.now();
+    if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) { buf = ""; return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === "Enter") {
+      var code = buf; buf = "";
+      if (code.length >= 6 && now - last < 80) {
+        e.preventDefault();
+        var ev = new CustomEvent("erp-scan", {detail: {code: code}, cancelable: true});
+        if (doc.dispatchEvent(ev)) location.href = "/scan/?c=" + encodeURIComponent(code);
+      }
+      return;
+    }
+    if (!e.key || e.key.length !== 1) return;
+    var k = AR.indexOf(e.key) !== -1 ? String(AR.indexOf(e.key)) : e.key;
+    buf = (now - last > 80 ? "" : buf) + k;
+    last = now;
+  });
 })();

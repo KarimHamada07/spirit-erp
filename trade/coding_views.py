@@ -163,6 +163,8 @@ def code_item(request, pk=None):
     _need(request, "trade.change_clothingmodel" if obj else "trade.add_clothingmodel")
     errors, data = [], {}
     existing = list(obj.variants.all()) if obj else []
+    if request.method == "POST" and obj and request.POST.get("what") == "barcodes":
+        return _save_barcodes(request, obj, existing)
     if request.method == "POST":
         data = {k: request.POST.get(k, "").strip() for k in ("code", "name", "category", "notes")}
         sizes = list(dict.fromkeys(s.upper() for s in _list(request.POST.get("sizes"))))
@@ -212,3 +214,28 @@ def code_item(request, pk=None):
     return render(request, "trade/coding_item.html", _ctx(
         request, "تعديل صنف" if obj else "تكويد صنف", obj=obj, data=data, errors=errors,
         categories=ClothingModel.CATEGORIES, variants=sorted(existing, key=_size_key)))
+
+
+def _save_barcodes(request, obj, variants):
+    """باركود المصنع لكل مقاس/لون (فاضي = السيستم بيعمله)"""
+    from .barcodes import VARIANT, barcode_error, clean, make
+    errors, changed, seen = [], [], set()
+    for v in variants:
+        code = clean(request.POST.get(f"barcode_{v.pk}")) or make(VARIANT, v.pk)
+        err = barcode_error(code, v.pk) or (f"الباركود {code} مكرر في نفس الصفحة" if code in seen else "")
+        seen.add(code)
+        if err:
+            errors.append(f"{v.size} / {v.color}: {err}")
+        elif code != v.barcode:
+            changed.append((v, code))
+    if errors:
+        for e in errors:
+            messages.error(request, e)
+    else:
+        with transaction.atomic():
+            for v, code in changed:
+                Variant.objects.filter(pk=v.pk).update(barcode=None)
+            for v, code in changed:
+                Variant.objects.filter(pk=v.pk).update(barcode=code)
+        messages.success(request, f"اتحفظ الباركود ({len(changed)} اتغير)")
+    return redirect("code_item_edit", pk=obj.pk)

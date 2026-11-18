@@ -40,7 +40,7 @@ from trade.stock_count_views import (reorder, reorder_create, stock_count_action
                                      stock_count_set, stock_counts)
 from trade.views import dashboard
 
-from trade import coding_views
+from trade import barcode_views, coding_views
 from trade import store_admin_views as store_admin
 from trade.store_views import robots as store_robots
 
@@ -126,6 +126,8 @@ urlpatterns = [
     path("coding/supplier/", coding_views.code_supplier, name="code_supplier"),
     path("coding/supplier/<int:pk>/", coding_views.code_supplier, name="code_supplier_edit"),
     path("coding/item/", coding_views.code_item, name="code_item"),
+    path("barcode/labels/", barcode_views.barcode_labels, name="barcode_labels"),
+    path("scan/", barcode_views.scan_open, name="scan_open"),
     path("coding/item/<int:pk>/", coding_views.code_item, name="code_item_edit"),
     path("sales/approvals/", sale_approvals, name="sale_approvals"),
     path("pos/return/customer/", pos_return_customer, name="pos_return_customer"),

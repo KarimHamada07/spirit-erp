@@ -24,6 +24,7 @@ MENU = [
         ("تكويد عميل", "code_customer", "fas fa-user-plus", "trade.add_customer"),
         ("تكويد مورد", "code_supplier", "fas fa-truck-field", "trade.add_supplier"),
         ("تكويد صنف", "code_item", "fas fa-barcode", "trade.add_clothingmodel"),
+        ("ملصقات الباركود", "barcode_labels", "fas fa-tags", "trade.view_clothingmodel"),
     ]),
     ("البيع", [
         ("نقطة البيع", "pos", "fas fa-cash-register", "trade.add_saleinvoice"),

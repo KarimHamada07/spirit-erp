@@ -28,10 +28,15 @@
   {% if obj %}<a href="{% url 'code_item' %}" class="btn btn-outline-secondary btn-lg">+ صنف جديد</a>{% endif %}
 </div></form>
 {% if variants %}
-<div class="card cf"><div class="card-header"><h3 class="card-title">المقاسات والألوان ({{ variants|length }})</h3></div>
-  <div class="card-body p-0"><table class="table table-sm mb-0"><thead><tr><th>المقاس</th><th>اللون</th><th>الكمية</th><th>القطاعي</th><th>الجملة</th></tr></thead>
-  {% for v in variants %}<tr><td>{{ v.size }}</td><td>{{ v.color|default:"—" }}</td><td>{{ v.quantity }}</td><td>{{ v.sale_price|floatformat:2 }}</td><td>{{ v.wholesale_price|default_if_none:"—" }}</td></tr>{% endfor %}</table></div>
-  <div class="card-footer text-muted" style="font-size:13px">لو شلت مقاس أو لون من الخانات فوق، مش بيتمسح (ممكن يكون عليه حركات). المسح من "المقاسات والألوان".</div></div>
+<form method="post" class="card cf">{% csrf_token %}<input type="hidden" name="what" value="barcodes">
+  <div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title">المقاسات والألوان ({{ variants|length }})</h3>
+    <a href="{% url 'barcode_labels' %}?models={{ obj.pk }}" class="btn btn-dark btn-sm mr-auto" data-tip="اطبع ملصقات باركود للمقاسات والألوان دي"><i class="fas fa-tags"></i> اطبع باركود</a></div>
+  <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>المقاس</th><th>اللون</th><th>الكمية</th><th>القطاعي</th><th>الجملة</th><th style="min-width:170px">الباركود</th></tr></thead>
+  {% for v in variants %}<tr><td>{{ v.size }}</td><td>{{ v.color|default:"—" }}</td><td>{{ v.quantity }}</td><td>{{ v.sale_price|floatformat:2 }}</td><td>{{ v.wholesale_price|default_if_none:"—" }}</td>
+    <td><input name="barcode_{{ v.pk }}" value="{{ v.barcode|default:'' }}" class="form-control form-control-sm" dir="ltr" maxlength="40"></td></tr>{% endfor %}</table></div></div>
+  <div class="card-footer text-muted d-flex flex-wrap justify-content-between align-items-center" style="font-size:13px;gap:8px">
+    <span>الباركود بيتعمل لوحده. لو القطعة جاية بباركود المصنع، اكتبه (أو اسكانه) مكانه. لو شلت مقاس أو لون من الخانات فوق، مش بيتمسح. المسح من "المقاسات والألوان".</span>
+    <button class="btn btn-primary btn-sm" data-tip="احفظ الباركود اللي اتعدل">احفظ الباركود</button></div></form>
 {% endif %}
 <script>
 (function () {

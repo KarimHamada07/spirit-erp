@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% block content_title %}{{ title }}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+{% include "trade/_coding_style.html" %}
+<div class="card cf"><div class="card-body">
+  <form method="get" class="d-flex flex-wrap align-items-end" style="gap:10px">
+    <div style="flex:1 1 260px"><label class="l" for="bl-model">الموديل</label>
+      <select id="bl-model" name="models" class="form-control" onchange="this.form.submit()">
+        <option value="">— اختار موديل —</option>
+        {% for pk, code, name in models %}<option value="{{ pk }}"{% if pk in model_ids %} selected{% endif %}>{{ code }} — {{ name }}</option>{% endfor %}
+      </select></div>
+    <div style="flex:1 1 220px"><label class="l" for="bl-q">أو ابحث بالكود/الاسم/الباركود</label>
+      <input id="bl-q" name="q" value="{{ q }}" class="form-control" placeholder="M-01"></div>
+    <button class="btn btn-primary" data-tip="اعرض المقاسات والألوان">عرض</button>
+  </form>
+  <div class="hint mt-2">💡 من <b>فواتير التوريد</b> علّم على الفاتورة واختار "طباعة باركود لكل القطع" عشان عدد الملصقات يبقى بالكمية اللي اتوردت.</div>
+</div></div>
+
+{% if source %}<div class="alert alert-light border">{{ source }}</div>{% endif %}
+
+{% if rows %}
+<form method="post" target="_blank" class="card cf">{% csrf_token %}
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead><tr><th>الكود</th><th>الصنف</th><th>المقاس</th><th>اللون</th><th>الباركود</th><th>بالمخزن</th><th style="width:120px">عدد الملصقات</th></tr></thead>
+      <tbody>{% for r in rows %}<tr>
+        <td>{{ r.v.model.code }}</td><td>{{ r.v.model.name }}</td><td>{{ r.v.size }}</td><td>{{ r.v.color|default:"—" }}</td>
+        <td dir="ltr" style="text-align:right;font-family:monospace">{{ r.v.barcode }}</td><td>{{ r.v.quantity }}</td>
+        <td><input type="hidden" name="v" value="{{ r.v.pk }}">
+          <input type="number" min="0" max="500" name="n_{{ r.v.pk }}" value="{{ r.n }}" class="form-control form-control-sm"></td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div></div>
+  <div class="card-footer d-flex flex-wrap align-items-center" style="gap:14px">
+    <label class="mb-0">مقاس الملصق
+      <select name="size" class="form-control form-control-sm d-inline-block" style="width:auto">
+        {% for k, wh in sizes.items %}<option value="{{ k }}">{{ wh.0 }}×{{ wh.1 }} مم</option>{% endfor %}
+      </select></label>
+    <label class="mb-0"><input type="checkbox" name="price" value="1" checked> اكتب سعر القطاعي على الملصق</label>
+    <button type="button" class="btn btn-outline-secondary btn-sm" id="bl-zero" data-tip="خلّي كل الأعداد صفر وتكتب اللي محتاجه بس">صفّر الكل</button>
+    <button class="btn btn-primary" data-tip="بيفتح PDF: كل ملصق في صفحة بمقاس الملصق، اطبعه على طابعة الباركود">
+      <i class="fas fa-print"></i> اطبع الملصقات</button>
+  </div>
+</form>
+<script>
+document.getElementById("bl-zero").addEventListener("click", function () {
+  document.querySelectorAll('input[name^="n_"]').forEach(function (i) { i.value = 0; });
+});
+</script>
+{% elif q or model_ids %}
+<div class="text-muted p-3">مفيش أصناف مطابقة.</div>
+{% endif %}
+{% endblock %}

@@ -71,6 +71,7 @@ def pos(request):
         "wprice": float(v.wholesale_price) if v.wholesale_price else None,
         "category": v.model.get_category_display(),
         "series": v.model.series_list or None,
+        "barcode": v.barcode or "",
     } for v in variants]
     context = {
         **admin.site.each_context(request),
@@ -433,7 +434,11 @@ def pos_return_lookup(request):
     """بيانات فاتورة البيع عشان المرتجع: الأصناف واللي لسه ينفع يرجع منها"""
     if not request.user.has_perm("trade.add_salereturn"):
         raise PermissionDenied
-    num = request.GET.get("invoice", "").strip().lstrip("#")
+    from .barcodes import clean, parse_doc
+    num = clean(request.GET.get("invoice", "")).lstrip("#")
+    doc = parse_doc(num)
+    if doc and doc[0] == "sale":                 # باركود الفاتورة نفسه
+        num = str(doc[1])
     inv = (SaleInvoice.objects.filter(pk=num, is_confirmed=True).select_related("customer").first()
            if num.isdigit() else None)
     if inv is None:

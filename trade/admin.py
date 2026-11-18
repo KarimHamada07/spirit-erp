@@ -18,15 +18,23 @@ class VariantInline(admin.TabularInline):
 
 
 def _print_labels(modeladmin, request, queryset):
-    from django.http import HttpResponse
-    from .labels import labels_pdf
-    pdf = labels_pdf(list(queryset.order_by("code")))
-    resp = HttpResponse(pdf, content_type="application/pdf")
-    resp["Content-Disposition"] = 'inline; filename="labels.pdf"'
-    return resp
+    from django.shortcuts import redirect
+    from django.urls import reverse
+    ids = ",".join(str(pk) for pk in queryset.values_list("pk", flat=True))
+    return redirect(reverse("barcode_labels") + "?models=" + ids)
 
 
-_print_labels.short_description = "طباعة ملصقات الباركود للموديلات المحددة (50×30 مم)"
+_print_labels.short_description = "طباعة ملصقات الباركود للموديلات المحددة"
+
+
+def _purchase_labels(modeladmin, request, queryset):
+    from django.shortcuts import redirect
+    from django.urls import reverse
+    ids = ",".join(str(pk) for pk in queryset.values_list("pk", flat=True))
+    return redirect(reverse("barcode_labels") + "?purchase=" + ids)
+
+
+_purchase_labels.short_description = "طباعة باركود لكل القطع اللي في الفواتير المحددة"
 
 
 @admin.register(ClothingModel)
@@ -43,10 +51,10 @@ class ClothingModelAdmin(admin.ModelAdmin):
 
 @admin.register(Variant)
 class VariantAdmin(admin.ModelAdmin):
-    list_display = ("model", "size", "color", "quantity", "avg_cost", "sale_price", "wholesale_price")
+    list_display = ("model", "size", "color", "barcode", "quantity", "avg_cost", "sale_price", "wholesale_price")
     list_filter = ("model",)
     readonly_fields = ("quantity", "avg_cost")
-    search_fields = ("model__code", "model__name", "size", "color")
+    search_fields = ("barcode", "model__code", "model__name", "size", "color")
 
 
 class PurchaseItemInline(admin.TabularInline):
@@ -80,7 +88,7 @@ class PurchaseInvoiceAdmin(admin.ModelAdmin):
     list_display = ("id", "supplier", "date", "total", "is_confirmed")
     list_filter = ("is_confirmed",)
     inlines = [PurchaseItemInline]
-    actions = [_confirm]
+    actions = [_confirm, _purchase_labels]
 
 
 def _export_sales(modeladmin, request, queryset):

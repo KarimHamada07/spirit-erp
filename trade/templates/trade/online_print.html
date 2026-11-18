@@ -1,4 +1,4 @@
-{% load static humanize %}<!DOCTYPE html>
+{% load static humanize barcode_tags %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
@@ -33,6 +33,9 @@
     .head .logo { display: flex; align-items: center; gap: 8px; }
     .head img { height: 9mm; }
     .head .shop { font-size: 17px; font-weight: 800; letter-spacing: 2px; direction: ltr; }
+    .bc-wrap { display: inline-flex; flex-direction: column; align-items: center; direction: ltr; }
+    .bc-wrap .bc-num { font: 600 10px/1.2 monospace; letter-spacing: 1.5px; color: #000; }
+    .head .bc svg { display: block; height: 11mm; width: auto; }
     .head .no { text-align: left; font-size: 11px; color: #555; line-height: 1.3; }
     .head .no b { display: block; font-size: 18px; color: #000; }
 
@@ -85,6 +88,7 @@
           <img src="{% static 'trade/img/invoice_logo.png' %}" alt="" onerror="this.style.display='none'">
           <span class="shop">{{ shop_name }}</span>
         </div>
+        <div class="bc">{% barcode o.pk|online_code 8 0.28 %}</div>
         <div class="no">أوردر رقم<b>#{{ o.pk }}</b>{{ o.created_at|date:"d/m/Y" }}</div>
       </div>
 

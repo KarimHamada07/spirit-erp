@@ -93,6 +93,11 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - نقطة البيع: سعر الجملة `Variant.wholesale_price` حسب القناة، وتعديل السعر بصلاحية `change_sale_price` بس
   (السيرفر بيتحقق). المرتجع من نفس الشاشة برقم الفاتورة (`pos_return_lookup` / `pos_return`).
   الفاتورة ليها رابط موقّع للعميل `/i/<token>/` بيتبعت واتساب.
+- الباركود: `barcodes.py`. كل `Variant.barcode` (فاضي = `20`+رقمه 6 خانات، أو باركود المصنع من تكويد الصنف)، وفاتورة
+  البيع `31`+رقمها، وأوردر الأونلاين `32`+رقمه (أرقام بس عشان الكيبورد العربي). الملصقات `labels.py` + `barcode_views.barcode_labels`
+  (من الموديل أو فاتورة التوريد). `ui.js` بيلقط الإسكانر بره الخانات ويبعت `erp-scan` (نقطة البيع بتمسكه: قطعة في القطاعي،
+  سيري في الجملة) وإلا بيفتح `/scan/?c=`. الوسم `{% barcode %}` في `templatetags/barcode_tags.py`.
+  بوالص الأونلاين `online_views.online_print` (3 في ورقة A4).
 - الأونلاين: الربح بيتحسب بـ `OnlineOrder.status_at` (يوم التحصيل/المرتجع)، مش `updated_at`.
 - أوامر: `nightly` (3 الفجر: نسخة + ملخص + النسخة لتليجرام)، `backup_db`، `debt_reminders`، `stock_alerts`،
   `telegram_test`.

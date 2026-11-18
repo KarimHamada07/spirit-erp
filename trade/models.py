@@ -74,6 +74,8 @@ class Variant(models.Model):
                                      help_text="بيتحدّث لوحده من سعر البيع في فاتورة التوريد")
     wholesale_price = models.DecimalField("سعر الجملة", max_digits=12, decimal_places=2, null=True,
                                           blank=True, help_text="فاضي = نفس سعر القطاعي")
+    barcode = models.CharField("الباركود", max_length=40, unique=True, null=True, blank=True,
+                               help_text="فاضي = السيستم بيعمله لوحده (20 + رقم الصنف). ممكن تكتب باركود المصنع.")
 
     class Meta:
         verbose_name = "مقاس/لون"
@@ -82,6 +84,20 @@ class Variant(models.Model):
 
     def __str__(self):
         return f"{self.model.name} - {self.size} - {self.color}".strip(" -")
+
+    def clean(self):
+        from .barcodes import barcode_error
+        err = barcode_error(self.barcode, self.pk)
+        if err:
+            raise ValidationError({"barcode": err})
+
+    def save(self, *args, **kwargs):
+        from .barcodes import VARIANT, clean, make
+        self.barcode = clean(self.barcode) or None
+        super().save(*args, **kwargs)
+        if not self.barcode:
+            self.barcode = make(VARIANT, self.pk)
+            Variant.objects.filter(pk=self.pk).update(barcode=self.barcode)
 
     def price_for(self, channel):
         """سعر البيع حسب نوع البيع: الجملة ليها سعرها لو متحدد"""

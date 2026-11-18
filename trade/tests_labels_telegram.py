@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from trade.labels import labels_pdf
-from trade.models import ActivityLog, CashBox, CashTransfer, ClothingModel
+from trade.models import ActivityLog, CashBox, CashTransfer, ClothingModel, Variant
 
 D = Decimal
 
@@ -11,8 +11,12 @@ D = Decimal
 class LabelsTest(TestCase):
     def test_labels_pdf_is_pdf(self):
         m = ClothingModel.objects.create(name="تيشرت قطن", code="TS-SHOT")
-        data = labels_pdf([m])
-        self.assertTrue(data.startswith(b"%PDF"))
+        v = Variant.objects.create(model=m, size="L", color="أسود", sale_price=D("250"))
+        self.assertEqual(v.barcode, f"20{v.pk:06d}")
+        for size in ("50x30", "38x25"):
+            data = labels_pdf([(v, 2)], size=size)
+            self.assertTrue(data.startswith(b"%PDF"))
+            self.assertEqual(data.count(b"/Type /Page\n"), 2)
 
 
 class TelegramNewEventsTest(TestCase):

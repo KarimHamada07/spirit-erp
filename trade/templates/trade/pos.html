@@ -98,7 +98,7 @@
         {% for c in customers %}<option value="{{ c.pk }}">{{ c.name }}{% if c.phone %} — {{ c.phone }}{% endif %}</option>{% endfor %}</select>
     </div>
     <div class="ret-find" id="find-invoice" style="display:none">
-      <input id="ret-no" type="number" min="1" class="form-control" placeholder="رقم فاتورة البيع" inputmode="numeric">
+      <input id="ret-no" type="number" min="1" class="form-control" placeholder="رقم الفاتورة أو اسكان الباركود" inputmode="numeric">
       <button type="button" id="ret-load" class="btn btn-dark" data-tip="يجيب أصناف الفاتورة عشان تختار الراجع منها">هات الفاتورة</button>
     </div>
     <div id="ret-info" class="text-muted my-2"></div>
@@ -650,6 +650,53 @@
     document.getElementById("scan-close").addEventListener("click", stop);
   })();
 
+  // ---- الإسكانر: باركود المقاس/اللون ----
+  // القطاعي: قطعة. الجملة: سيري كامل من نفس اللون (لو السيري أكتر من قطعة). باركود الفاتورة: يفتح المرتجع بيها أو الفاتورة.
+  function normCode(t) {
+    return String(t || "").replace(/[٠-٩]/g, function (d) { return "٠١٢٣٤٥٦٧٨٩".indexOf(d); }).replace(/\s+/g, "");
+  }
+  function beep(ok) {
+    try {
+      var ctx = beep.ctx || (beep.ctx = new (window.AudioContext || window.webkitAudioContext)());
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = ok ? 1500 : 300; g.gain.value = 0.08; o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + (ok ? 0.08 : 0.3));
+    } catch (e) { /* مفيش صوت */ }
+  }
+  function scanCode(code) {
+    var doc = /^(3[12])(\d{6,})$/.exec(code);
+    if (doc) {
+      var retPanel = document.getElementById("return-panel");
+      if (doc[1] === "31" && retPanel && retPanel.style.display !== "none" && document.getElementById("ret-no")) {
+        var rn = document.getElementById("ret-no"); rn.value = String(parseInt(doc[2], 10));
+        rn.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+      } else {
+        window.open("/scan/?c=" + code, "_blank");
+      }
+      return true;
+    }
+    var v = V.find(function (x) { return x.barcode && x.barcode === code; });
+    if (!v) return false;
+    if (v.qty <= 0) { beep(false); toast("خلصان من المخزن: " + label(v)); return true; }
+    if (channel() === "wholesale" && seriesFor(v.code, v.color).count > 1) changeSeries(v.code, v.color, 1);
+    else add(v.id);
+    beep(true);
+    return true;
+  }
+  // الإسكان وانت مش واقف في خانة كتابة (ui.js بيبعت erp-scan)
+  document.addEventListener("erp-scan", function (e) {
+    var code = normCode(e.detail.code);
+    if (scanCode(code)) { e.preventDefault(); return; }
+    var sameModel = V.filter(function (v) { return v.code.toLowerCase() === code.toLowerCase(); });
+    if (sameModel.length) {
+      e.preventDefault();
+      var s = document.getElementById("search"); s.value = code; s.focus();
+      s.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true}));
+      return;
+    }
+    e.preventDefault(); beep(false); toast("مفيش صنف بالباركود " + code);
+  });
+
   elProducts.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && e.target.classList.contains("one")) { e.preventDefault(); add(parseInt(e.target.getAttribute("data-id"), 10)); }
   });
@@ -671,7 +718,8 @@
   document.getElementById("search").addEventListener("keydown", function (e) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    var raw = this.value.trim();
+    var raw = this.value.trim(), scanned = normCode(raw);
+    if (scanned && scanCode(scanned)) { this.value = ""; hint.textContent = ""; renderProducts(); return; }
     var f = raw.toLowerCase();
     // باركود الموديل (كود كامل): لو ليه مقاس/لون واحد متاح بيتضاف، ولو أكتر بيفضل يختار
     var sameModel = V.filter(function (v) { return v.code.toLowerCase() === f && v.qty > 0; });
