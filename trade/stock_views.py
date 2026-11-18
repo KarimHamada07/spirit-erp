@@ -34,6 +34,8 @@ def _size_key(variant):
 
 @staff_member_required
 def inventory(request):
+    if not request.user.has_perm("trade.view_variant"):
+        raise PermissionDenied
     models_qs = (ClothingModel.objects
                  .annotate(
                      total_qty=Coalesce(Sum("variants__quantity"), 0),
@@ -77,6 +79,8 @@ def inventory(request):
 
 @staff_member_required
 def inventory_detail(request, pk):
+    if not request.user.has_perm("trade.view_variant"):
+        raise PermissionDenied
     model = get_object_or_404(ClothingModel, pk=pk)
     variants = sorted(model.variants.all(), key=_size_key)
 

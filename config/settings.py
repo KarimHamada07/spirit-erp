@@ -49,6 +49,12 @@ if not DEBUG and not TESTING:
     SECURE_REFERRER_POLICY = "same-origin"
 # نوافذ الإضافة السريعة في لوحة الإدارة بتفتح في iframe من نفس الموقع
 X_FRAME_OPTIONS = "SAMEORIGIN"
+
+# الكاش: ملفات على السيرفر (عشان قفل الدخول يبان لكل الـ workers)، وفي الاختبارات في الميموري
+CACHES = {"default": (
+    {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"} if TESTING else
+    {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+     "LOCATION": str(BASE_DIR / "cache"), "OPTIONS": {"MAX_ENTRIES": 5000}})}
 INSTALLED_APPS = [
     "jazzmin",
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",

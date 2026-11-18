@@ -30,6 +30,8 @@ def _whatsapp_link(phone):
 
 @staff_member_required
 def online_list(request):
+    if not request.user.has_perm("trade.view_onlineorder"):
+        raise PermissionDenied
     q = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
     if status not in dict(OnlineOrder.STATUS_CHOICES):
@@ -69,6 +71,8 @@ def online_list(request):
 
 @staff_member_required
 def online_new(request):
+    if not request.user.has_perm("trade.add_onlineorder"):
+        raise PermissionDenied
     variants = (Variant.objects
                 .filter(model__is_active=True, quantity__gt=0)
                 .select_related("model")
@@ -120,6 +124,8 @@ def online_create(request):
 
 @staff_member_required
 def online_detail(request, pk):
+    if not request.user.has_perm("trade.view_onlineorder"):
+        raise PermissionDenied
     order = get_object_or_404(
         OnlineOrder.objects.prefetch_related("items__variant__model"), pk=pk)
     context = {

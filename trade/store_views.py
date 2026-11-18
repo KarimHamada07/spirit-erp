@@ -20,6 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from .security import safe_back
 from .models import (ClothingModel, HeroSlide, ProductImage, ShippingZone, StoreSettings, Variant, WebOrder,
                      WebOrderItem)
 from .notify import client_ip, fmt, log_event
@@ -248,7 +249,7 @@ def cart_add(request):
     if v is None or v.quantity <= 0:
         if _is_ajax(request):
             return JsonResponse({"ok": False, "error": "المقاس ده خلص"}, status=400)
-        return redirect(request.META.get("HTTP_REFERER") or reverse("store:home"))
+        return redirect(safe_back(request, reverse("store:home")))
     try:
         qty = max(1, min(int(request.POST.get("qty", 1)), MAX_QTY))
     except ValueError:
@@ -369,6 +370,10 @@ def checkout(request):
                                          created_at__gte=timezone.now() - timedelta(hours=6)).count()
         if recent >= 3:
             errors.append("عندك طلبات لسه بنأكدها، هنكلمك قريب. لو محتاج حاجة كلمنا على واتساب")
+        if not errors:
+            from .security import client_ip, hit
+            if hit(f"weborder:ip:{client_ip(request)}", 8, 60 * 60):     # أكتر من 8 طلبات في الساعة من نفس الجهاز
+                errors.append("طلبات كتير من نفس الجهاز. استنى شوية أو كلمنا على واتساب")
         if not errors:
             try:
                 order = _place_order(request, lines, data, phone, phone2, zone, total, s)
