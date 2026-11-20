@@ -40,6 +40,9 @@ class ClothingModel(models.Model):
         help_text="المقاسات اللي في السيري الواحد للون، مفصولة بفاصلة، والمقاس اللي بيتكرر اكتبه مرتين "
                   "(مثلاً M, L, L, XL = 4 قطع). السيري بيتباع في الجملة بس")
     notes = models.TextField("ملاحظات", blank=True)
+    unit_cost = models.DecimalField(
+        "تكلفة القطعة", max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="من تكويد الصنف: بيتحسب بيها المكسب في كل نوع بيع، وبتتاخد وقت البيع لو مفيش متوسط تكلفة من التوريد")
     # الموقع (spiritegy.org)
     show_online = models.BooleanField("يظهر في الموقع", default=False, db_index=True)
     featured = models.BooleanField("مميز في الصفحة الرئيسية", default=False)
@@ -98,6 +101,13 @@ class Variant(models.Model):
         if not self.barcode:
             self.barcode = make(VARIANT, self.pk)
             Variant.objects.filter(pk=self.pk).update(barcode=self.barcode)
+
+    @property
+    def cost_basis(self):
+        """التكلفة اللي بيتحسب بيها الربح: متوسط تكلفة التوريد/الإنتاج، ولو لسه صفر = تكلفة القطعة من التكويد"""
+        if self.avg_cost:
+            return self.avg_cost
+        return self.model.unit_cost or Decimal("0")
 
     def price_for(self, channel):
         """سعر البيع حسب نوع البيع: الجملة ليها سعرها لو متحدد"""
@@ -436,7 +446,7 @@ class SaleInvoice(models.Model):
             v = Variant.objects.select_for_update().get(pk=item.variant_id)
             if v.quantity < item.quantity:
                 raise ValidationError(f"الكمية غير كافية للصنف: {v} (المتاح {v.quantity})")
-            item.unit_cost = v.avg_cost  # تثبيت التكلفة وقت البيع لحساب الربح
+            item.unit_cost = v.cost_basis  # تثبيت التكلفة وقت البيع لحساب الربح
             item.save()
             v.quantity -= item.quantity
             v.save()
@@ -611,7 +621,7 @@ class OnlineOrder(models.Model):
                     f"الكمية غير كافية للصنف: {v} (المتاح {v.quantity})")
             OnlineOrderItem.objects.create(
                 order=order, variant=v, quantity=qty, unit_price=price,
-                unit_cost=v.avg_cost)
+                unit_cost=v.cost_basis)
             v.quantity -= qty
             v.save()
             gross += qty * price

@@ -222,3 +222,43 @@ class BarcodeTests(SalesBase):
         self.assertRedirects(self.boss.get(reverse("scan_open"), {"c": online_code(o.pk)}),
                              reverse("online_detail", args=[o.pk]), fetch_redirect_response=False)
         self.assertIn("<svg", self.boss.get(reverse("online_print")).content.decode())
+
+
+class CostAndHoldTests(SalesBase):
+    def test_item_cost_margins_and_customer_profit(self):
+        m = self.v.model
+        Variant.objects.filter(pk=self.v.pk).update(avg_cost=0)
+        self.boss.post(reverse("code_item_edit", args=[m.pk]),
+                       {"code": m.code, "name": m.name, "category": "sweatshirt", "sizes": "L", "colors": "أسود",
+                        "series": "L, L, L", "unit_cost": "250"})
+        m.refresh_from_db()
+        self.assertEqual(m.unit_cost, D("250"))
+        page = self.boss.get(reverse("code_item_edit", args=[m.pk])).content.decode()
+        self.assertIn("مكسب القطاعي", page)
+        self.assertIn("250.00", page)                        # 500 − 250 قطاعي
+        self.assertIn("150.00", page)                        # 400 − 250 جملة
+        # التكلفة وقت البيع بتتاخد من التكويد لما مفيش متوسط تكلفة
+        self.sell(self.boss, 2, [{"box": self.box.pk, "amount": 900}], channel="wholesale", price=450)
+        inv = SaleInvoice.objects.get()
+        self.assertEqual(inv.items.get().unit_cost, D("250"))
+        page = self.boss.get(reverse("customer_profit")).content.decode()
+        self.assertIn(self.cust.name, page)
+        self.assertIn("400.00", page)                        # الربح (450−250)×2
+        self.assertIn("44.4%", page)                         # أقصى خصم 400 ÷ 900
+        self.assertEqual(self.sales.get(reverse("customer_profit")).status_code, 403)
+
+    def test_online_hold_shows_in_inventory_and_pos(self):
+        from trade.models import OnlineOrder
+        o = OnlineOrder.create_order(customer_name="ع", phone="01000000000", address="", notes="", discount=D("0"),
+                                     shipping_fee=D("0"), shipping_cost=D("0"),
+                                     items=[{"id": self.v.pk, "qty": 3, "price": 500}], seller=self.seller)
+        self.assertEqual(Variant.objects.get(pk=self.v.pk).quantity, 47)       # مش متاح للبيع
+        page = self.boss.get(reverse("inventory_detail", args=[self.v.model_id])).content.decode()
+        self.assertIn("هولد في الشحن", page)
+        self.assertIn("3 متجهز", page)
+        self.assertIn('"held": 3', self.sales.get(reverse("pos")).content.decode())
+        o.set_status(OnlineOrder.SHIPPED)
+        self.assertIn("3 اتشحن", self.boss.get(reverse("inventory_detail", args=[self.v.model_id])).content.decode())
+        o.set_status(OnlineOrder.RETURNED)                                    # رجع: للمتاح
+        self.assertEqual(Variant.objects.get(pk=self.v.pk).quantity, 50)
+        self.assertIn('"held": 0', self.sales.get(reverse("pos")).content.decode())

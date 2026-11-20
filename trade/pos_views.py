@@ -60,8 +60,11 @@ def pos(request):
                 .filter(model__is_active=True, quantity__gt=0)
                 .select_related("model")
                 .order_by("model__name", "size", "color"))
+    from .holds import held_by_variant
+    held = held_by_variant()
     data = [{
         "id": v.id,
+        "held": held.get(v.id, {}).get("total", 0),
         "name": v.model.name,
         "code": v.model.code,
         "size": v.size,

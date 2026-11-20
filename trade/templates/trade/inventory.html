@@ -35,8 +35,9 @@
 
 <div class="row">
   <div class="col-lg-3 col-6">
-    <div class="kpi bg-k1"><div class="label">إجمالي القطع</div>
-      <div class="value">{{ grand_qty|intcomma }}</div></div>
+    <div class="kpi bg-k1"><div class="label">المتاح للبيع</div>
+      <div class="value">{{ grand_qty|intcomma }}</div>
+      {% if grand_held %}<div style="font-size:13px;opacity:.85" data-tip="قطع في أوردرات أونلاين اتجهزت أو اتشحنت: مش متاحة للبيع، ولو الأوردر رجع بترجع للمتاح">+ {{ grand_held|intcomma }} هولد في الشحن 🚚</div>{% endif %}</div>
   </div>
   <div class="col-lg-3 col-6">
     <div class="kpi bg-k2"><div class="label">عدد الموديلات</div>
@@ -68,7 +69,8 @@
     <a href="{% url 'inventory_detail' m.pk %}" class="inv-card{% if not m.is_active %} inactive{% endif %}">
       <div class="name">{{ m.name }}</div>
       <div class="code">{{ m.code }}{% if m.category %} · {{ m.get_category_display }}{% endif %}{% if not m.is_active %} · غير نشط{% endif %}</div>
-      <div class="qty">{{ m.total_qty|intcomma }} <small style="font-size:15px">قطعة</small></div>
+      <div class="qty">{{ m.total_qty|intcomma }} <small style="font-size:15px">قطعة متاحة</small></div>
+      {% if m.held %}<div class="meta" style="color:#b26a00">🚚 {{ m.held }} هولد في الشحن</div>{% endif %}
       <div class="meta">{{ m.variants_count }} مقاس/لون
         {% if m.low_variants %}· <span class="text-danger">{{ m.low_variants }} منخفض أو نافد</span>{% endif %}</div>
       <div class="meta">القيمة: {{ m.stock_value|floatformat:2|intcomma }}</div>

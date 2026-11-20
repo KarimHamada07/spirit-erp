@@ -121,3 +121,63 @@ def _stock_by_model():
         q, val = res.get(v.model_id, (0, ZERO))
         res[v.model_id] = (q + v.quantity, val + v.quantity * v.avg_cost)
     return res
+
+
+def customer_profitability(d1, d2, channel=""):
+    """المكسب من كل تاجر/عميل في الفترة: مبيعاته بعد الخصم ناقص المرتجعات، والتكلفة، والربح، ونسبة الخصم
+    اللي بياخدها. العملاء النقدي (من غير اسم) متجمعين في سطر واحد."""
+    rows = OrderedDict()
+
+    def row(customer):
+        key = customer.pk if customer else 0
+        r = rows.get(key)
+        if r is None:
+            r = rows[key] = {"customer": customer, "invoices": 0, "pieces": 0, "returned": 0,
+                             "gross": ZERO, "discount": ZERO, "revenue": ZERO, "cost": ZERO, "channels": set()}
+        return r
+
+    invoices = (SaleInvoice.objects.filter(is_confirmed=True, date__range=(d1, d2))
+                .select_related("customer").prefetch_related("items"))
+    if channel:
+        invoices = invoices.filter(channel=channel)
+    for inv in invoices:
+        items = list(inv.items.all())
+        gross = sum((i.quantity * i.unit_price for i in items), ZERO)
+        r = row(inv.customer)
+        r["invoices"] += 1
+        r["channels"].add(inv.get_channel_display())
+        r["pieces"] += sum(i.quantity for i in items)
+        r["gross"] += gross
+        r["discount"] += inv.discount
+        r["revenue"] += gross - inv.discount
+        r["cost"] += sum((i.quantity * i.unit_cost for i in items), ZERO)
+
+    returns = (SaleReturnItem.objects
+               .filter(return_doc__is_confirmed=True, return_doc__date__range=(d1, d2))
+               .select_related("sale_item", "return_doc__invoice__customer"))
+    if channel:
+        returns = returns.filter(return_doc__invoice__channel=channel)
+    for ri in returns:
+        r = row(ri.return_doc.invoice.customer)
+        r["returned"] += ri.quantity
+        r["revenue"] -= ri.quantity * ri.unit_refund
+        r["cost"] -= ri.quantity * ri.sale_item.unit_cost
+
+    out = []
+    for r in rows.values():
+        r["revenue"] = r["revenue"].quantize(Decimal("0.01"))
+        r["profit"] = r["revenue"] - r["cost"]
+        r["margin"] = (r["profit"] * 100 / r["revenue"]) if r["revenue"] else None
+        r["discount_pct"] = (r["discount"] * 100 / r["gross"]) if r["gross"] else None
+        # أقصى خصم إضافي من غير خسارة = الربح ÷ المبيعات قبل الخصم
+        r["room_pct"] = (r["profit"] * 100 / r["gross"]) if r["gross"] else None
+        r["unit_profit"] = (r["profit"] / (r["pieces"] - r["returned"])) if r["pieces"] > r["returned"] else None
+        r["channels"] = "، ".join(sorted(r["channels"]))
+        out.append(r)
+    out.sort(key=lambda r: r["profit"], reverse=True)
+    t = {k: sum((r[k] for r in out), ZERO) for k in ("gross", "discount", "revenue", "cost", "profit")}
+    t["pieces"] = sum(r["pieces"] for r in out)
+    t["returned"] = sum(r["returned"] for r in out)
+    t["margin"] = (t["profit"] * 100 / t["revenue"]) if t["revenue"] else None
+    t["discount_pct"] = (t["discount"] * 100 / t["gross"]) if t["gross"] else None
+    return {"rows": out, "totals": t}

@@ -16,7 +16,7 @@ from trade.attendance_views import (attendance_photo, attendance_report, my_atte
 from trade.audit_views import audit
 from trade.delete_views import (customer_delete, model_delete, purchase_delete,
                                  sale_delete)
-from trade.report_views import profit_report, report_export, report_print, reports
+from trade.report_views import customer_profit, profit_report, report_export, report_print, reports
 from trade.search_views import search_api
 from trade.quick_views import quick_expense, quick_payment
 from trade.customer_views import (customer_add, customer_detail, customer_pay, customer_set_seller,
@@ -84,6 +84,7 @@ urlpatterns = [
     path("reports/export/", report_export, name="report_export"),
     path("reports/print/", report_print, name="report_print"),
     path("reports/profit/", profit_report, name="profit_report"),
+    path("reports/customers-profit/", customer_profit, name="customer_profit"),
     path("analytics/", analytics, name="analytics"),
     path("attendance/", my_attendance, name="my_attendance"),
     path("attendance/punch/", punch, name="attendance_punch"),
