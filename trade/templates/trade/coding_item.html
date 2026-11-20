@@ -20,6 +20,9 @@
   <div class="mb-3"><label class="l" for="i-colors">الألوان <span class="req">*</span></label>
     <input id="i-colors" name="colors" value="{{ data.colors }}" class="form-control" required placeholder="أسود، أبيض، أحمر، كحلي">
     <div class="hint">كل لون بيتعمل بكل مقاسات السيري.</div><div class="tags" id="color-tags"></div></div>
+  <div class="mb-3"><label class="l" for="i-cost">تكلفة القطعة</label>
+    <input id="i-cost" name="unit_cost" value="{{ data.unit_cost }}" class="form-control" style="max-width:220px" inputmode="decimal" placeholder="مثلاً 120">
+    <div class="hint">بيتحسب بيها المكسب في القطاعي والجملة تحت. ولو الصنف لسه ما اتوردش، بتتاخد هي التكلفة وقت البيع.</div></div>
   <div class="mb-3"><label class="l">التصنيف <span class="req">*</span></label>
     <div class="opts">{% for k, v in categories %}<label><input type="radio" name="category" value="{{ k }}"{% if data.category == k %} checked{% endif %} required><span>{{ v }}</span></label>{% endfor %}</div></div>
   <div class="mb-3"><label class="l" for="i-notes">ملاحظات</label><textarea id="i-notes" name="notes" class="form-control">{{ data.notes }}</textarea></div>
@@ -31,12 +34,29 @@
 <form method="post" class="card cf">{% csrf_token %}<input type="hidden" name="what" value="barcodes">
   <div class="card-header d-flex justify-content-between align-items-center"><h3 class="card-title">المقاسات والألوان ({{ variants|length }})</h3>
     <a href="{% url 'barcode_labels' %}?models={{ obj.pk }}" class="btn btn-dark btn-sm mr-auto" data-tip="اطبع ملصقات باركود للمقاسات والألوان دي"><i class="fas fa-tags"></i> اطبع باركود</a></div>
-  <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>المقاس</th><th>اللون</th><th>الكمية</th><th>القطاعي</th><th>الجملة</th><th style="min-width:170px">الباركود</th></tr></thead>
-  {% for v in variants %}<tr><td>{{ v.size }}</td><td>{{ v.color|default:"—" }}</td><td>{{ v.quantity }}</td><td>{{ v.sale_price|floatformat:2 }}</td><td>{{ v.wholesale_price|default_if_none:"—" }}</td>
+  <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>المقاس</th><th>اللون</th><th>المتاح</th><th data-tip="في أوردرات أونلاين في الشحن">هولد</th><th>القطاعي</th><th>الجملة</th><th style="min-width:170px">الباركود</th></tr></thead>
+  {% for v in variants %}<tr><td>{{ v.size }}</td><td>{{ v.color|default:"—" }}</td><td>{{ v.quantity }}</td><td>{% if v.held %}<b style="color:#b26a00">{{ v.held }}</b>{% else %}—{% endif %}</td><td>{{ v.sale_price|floatformat:2 }}</td><td>{{ v.wholesale_price|default_if_none:"—" }}</td>
     <td><input name="barcode_{{ v.pk }}" value="{{ v.barcode|default:'' }}" class="form-control form-control-sm" dir="ltr" maxlength="40"></td></tr>{% endfor %}</table></div></div>
   <div class="card-footer text-muted d-flex flex-wrap justify-content-between align-items-center" style="font-size:13px;gap:8px">
     <span>الباركود بيتعمل لوحده. لو القطعة جاية بباركود المصنع، اكتبه (أو اسكانه) مكانه. لو شلت مقاس أو لون من الخانات فوق، مش بيتمسح. المسح من "المقاسات والألوان".</span>
     <button class="btn btn-primary btn-sm" data-tip="احفظ الباركود اللي اتعدل">احفظ الباركود</button></div></form>
+{% endif %}
+{% if margins %}
+<div class="card cf"><div class="card-header"><h3 class="card-title">المكسب في كل نوع بيع</h3></div>
+  {% if not margins.has_cost %}<div class="card-body"><div class="alert alert-warning mb-0">اكتب <b>تكلفة القطعة</b> فوق عشان المكسب يتحسب.</div></div>
+  {% else %}<div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>المقاس</th><th>اللون</th><th>التكلفة</th>
+      <th>سعر القطاعي</th><th>مكسب القطاعي</th><th>سعر الجملة</th><th>مكسب الجملة</th>{% if margins.series %}<th>مكسب السيري ({{ margins.series }} قطع)</th>{% endif %}</tr></thead>
+    {% for r in margins.rows %}<tr><td>{{ r.v.size }}</td><td>{{ r.v.color|default:"—" }}</td>
+      <td>{{ r.cost|floatformat:2 }}{% if r.avg_cost and r.avg_cost != r.cost %}<div class="text-muted" style="font-size:11px" data-tip="متوسط تكلفة اللي في المخزن فعلاً من فواتير التوريد">المخزن: {{ r.avg_cost|floatformat:2 }}</div>{% endif %}</td>
+      <td>{% if r.retail %}{{ r.retail.price|floatformat:2 }}{% else %}—{% endif %}</td>
+      <td>{% if r.retail %}<b class="{% if r.retail.profit < 0 %}text-danger{% endif %}">{{ r.retail.profit|floatformat:2 }}</b> <small class="text-muted">({{ r.retail.pct|floatformat:0 }}%)</small>{% else %}—{% endif %}</td>
+      <td>{% if r.wholesale %}{{ r.wholesale.price|floatformat:2 }}{% else %}—{% endif %}</td>
+      <td>{% if r.wholesale %}<b class="{% if r.wholesale.profit < 0 %}text-danger{% endif %}">{{ r.wholesale.profit|floatformat:2 }}</b> <small class="text-muted">({{ r.wholesale.pct|floatformat:0 }}%)</small>{% else %}—{% endif %}</td>
+      {% if margins.series %}<td>{% if r.series_profit is not None %}{{ r.series_profit|floatformat:2 }}{% else %}—{% endif %}</td>{% endif %}
+    </tr>{% endfor %}</table></div></div>
+  <div class="card-footer text-muted" style="font-size:13px">النسبة = المكسب ÷ السعر، وهي أقصى خصم ينفع تديه من غير ما تخسر. الأسعار بتيجي من فاتورة التوريد. ومكسب كل تاجر فعلياً في <a href="{% url 'customer_profit' %}">ربحية التجار</a>.</div>{% endif %}
+</div>
 {% endif %}
 <script>
 (function () {

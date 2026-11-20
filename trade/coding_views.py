@@ -166,7 +166,7 @@ def code_item(request, pk=None):
     if request.method == "POST" and obj and request.POST.get("what") == "barcodes":
         return _save_barcodes(request, obj, existing)
     if request.method == "POST":
-        data = {k: request.POST.get(k, "").strip() for k in ("code", "name", "category", "notes")}
+        data = {k: request.POST.get(k, "").strip() for k in ("code", "name", "category", "notes", "unit_cost")}
         sizes = list(dict.fromkeys(s.upper() for s in _list(request.POST.get("sizes"))))
         colors = list(dict.fromkeys(_list(request.POST.get("colors"))))
         series = [s.upper() for s in _list(request.POST.get("series"))] or list(sizes)
@@ -183,6 +183,7 @@ def code_item(request, pk=None):
             errors.append("اكتب لون واحد على الأقل")
         if data["category"] not in dict(ClothingModel.CATEGORIES):
             errors.append("اختار التصنيف")
+        unit_cost = _dec(data["unit_cost"], "تكلفة القطعة", errors)
         extra = [x for x in series if x not in sizes]
         if extra:
             errors.append(f"مقاس في السيري مش من مقاسات الصنف: {extra[0]}")
@@ -191,6 +192,7 @@ def code_item(request, pk=None):
                 m = obj or ClothingModel()
                 m.code, m.name, m.category, m.notes = data["code"], data["name"], data["category"], data["notes"]
                 m.series_sizes, m.series_size = ", ".join(series), len(series)
+                m.unit_cost = unit_cost
                 m.save()
                 have = {(v.size.upper(), v.color) for v in m.variants.all()}
                 added = 0
@@ -210,10 +212,17 @@ def code_item(request, pk=None):
             if v.size not in sizes:
                 sizes.append(v.size)
         data = {"code": obj.code, "name": obj.name, "category": obj.category, "notes": obj.notes,
+                "unit_cost": obj.unit_cost if obj.unit_cost is not None else "",
                 "sizes": ", ".join(sizes), "series": obj.series_sizes, "colors": ", ".join(dict.fromkeys(v.color for v in existing if v.color))}
+    variants = sorted(existing, key=_size_key)
+    from .holds import held_by_variant
+    held = held_by_variant(v.pk for v in variants)
+    for v in variants:
+        v.held = held.get(v.pk, {}).get("total", 0)
     return render(request, "trade/coding_item.html", _ctx(
         request, "تعديل صنف" if obj else "تكويد صنف", obj=obj, data=data, errors=errors,
-        categories=ClothingModel.CATEGORIES, variants=sorted(existing, key=_size_key)))
+        categories=ClothingModel.CATEGORIES, variants=variants,
+        margins=item_margins(obj, variants) if obj else None))
 
 
 def _save_barcodes(request, obj, variants):
@@ -239,3 +248,25 @@ def _save_barcodes(request, obj, variants):
                 Variant.objects.filter(pk=v.pk).update(barcode=code)
         messages.success(request, f"اتحفظ الباركود ({len(changed)} اتغير)")
     return redirect("code_item_edit", pk=obj.pk)
+
+
+def _margin(price, cost):
+    if not price:
+        return None
+    profit = price - cost
+    return {"price": price, "profit": profit, "pct": (profit * 100 / price) if price else None}
+
+
+def item_margins(model, variants):
+    """المكسب في كل نوع بيع لكل مقاس/لون: القطاعي، والجملة (للقطعة وللسيري).
+    التكلفة = تكلفة القطعة من التكويد، ولو مش متكتبة = متوسط تكلفة المخزن."""
+    rows = []
+    series = model.series_size or 0
+    for v in variants:
+        cost = model.unit_cost if model.unit_cost is not None else v.avg_cost
+        retail = _margin(v.sale_price, cost)
+        wholesale = _margin(v.wholesale_price or v.sale_price, cost)
+        rows.append({"v": v, "cost": cost, "avg_cost": v.avg_cost, "retail": retail, "wholesale": wholesale,
+                     "series_profit": wholesale["profit"] * series if wholesale and series > 1 else None})
+    return {"rows": rows, "has_cost": bool(model.unit_cost) or any(v.avg_cost for v in variants),
+            "series": series}

@@ -409,14 +409,15 @@
     groups.forEach(function (g) {
       var prices = g.items.map(chanPrice), lo = Math.min.apply(null, prices), hi = Math.max.apply(null, prices);
       var stock = g.items.reduce(function (t, v) { return t + v.qty; }, 0);
+      var held = g.items.reduce(function (t, v) { return t + (v.held || 0); }, 0);
       var one = g.items.length === 1 ? g.items[0] : null;
       html += '<div class="pm' + (one ? " one" : "") + '"' + (one ? ' data-id="' + one.id + '" role="button" tabindex="0"' : "") + ">" +
         '<div class="pm-head"><div><div class="name">' + esc(g.name) + '</div><div class="code">' + esc(g.code) +
-        " · " + stock + ' متاح</div></div><b class="pm-price">' + money(lo) + (hi > lo ? " – " + money(hi) : "") + "</b></div>" +
+        " · " + stock + ' متاح' + (held ? ' <span style="color:#b26a00" data-tip="قطع في أوردرات أونلاين في الشحن: مش متاحة للبيع">· ' + held + ' هولد 🚚</span>' : "") + '</div></div><b class="pm-price">' + money(lo) + (hi > lo ? " – " + money(hi) : "") + "</b></div>" +
         seriesButtons(g) + '<div class="pm-chips">' + g.items.map(function (v) {
           var t = v.size + (v.color ? " · " + v.color : "");
           return '<button type="button" class="chip' + (v.qty <= 3 ? " low" : "") + '" data-id="' + v.id + '"' +
-            ' data-tip="' + esc(t + " — " + money(chanPrice(v)) + " — " + v.qty + " متاح") + '">' +
+            ' data-tip="' + esc(t + " — " + money(chanPrice(v)) + " — " + v.qty + " متاح" + (v.held ? " + " + v.held + " هولد في الشحن" : "")) + '">' +
             esc(t) + " <small>" + v.qty + "</small></button>";
         }).join("") + "</div></div>";
     });

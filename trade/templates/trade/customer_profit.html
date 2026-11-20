@@ -1,0 +1,65 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}ربحية التجار{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .kpi { border-radius: 12px; padding: 16px 18px; margin-bottom: 16px; background: var(--erp-card,#fff); color: var(--erp-ink,#111); border: 1px solid var(--erp-line,#e2e2e4); }
+  .kpi .label { font-size: 14px; opacity: .85; }
+  .kpi .value { font-size: 24px; font-weight: 700; line-height: 1.3; }
+  .kpi .sub { font-size: 12px; opacity: .8; }
+  .kpi.dark { background: #000; color: #fff; border-color: #000; }
+  .kpi.red { background: #fe0000; color: #fff; border-color: #fe0000; }
+  .neg { color: #fe0000; font-weight: 700; }
+  .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .room { display: inline-block; min-width: 54px; text-align: center; border-radius: 12px; padding: 1px 8px; font-weight: 700; font-size: 13px; }
+  .room.ok { background: #e8f6ec; color: #137333; } .room.tight { background: #fff4e0; color: #9a5b00; } .room.bad { background: #fde8e8; color: #c00; }
+  html.dark .room.ok, body.dark-mode .room.ok { background: #143d22; color: #8fe0a8; }
+</style>
+
+<form method="get" class="d-flex flex-wrap align-items-end mb-3" style="gap:10px">
+  <div><label class="mb-1 d-block">من</label><input type="date" name="from" value="{{ d1|date:'Y-m-d' }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">إلى</label><input type="date" name="to" value="{{ d2|date:'Y-m-d' }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">نوع الفاتورة</label>
+    <select name="channel" class="form-control"><option value="">الكل</option>
+      {% for k, v in channels %}<option value="{{ k }}"{% if channel == k %} selected{% endif %}>{{ v }}</option>{% endfor %}</select></div>
+  <button class="btn btn-primary">عرض</button>
+  <a class="btn btn-success" href="?from={{ d1|date:'Y-m-d' }}&to={{ d2|date:'Y-m-d' }}&channel={{ channel }}&export=xlsx" data-tip="نزّل الجدول Excel">Excel</a>
+  <a class="btn btn-outline-secondary" href="{% url 'profit_report' %}" data-tip="الربحية حسب الموديل والمقاس">الربحية حسب الصنف</a>
+</form>
+
+{% with t=data.totals %}
+<div class="row">
+  <div class="col-lg-3 col-6"><div class="kpi dark"><div class="label">المبيعات (صافي)</div>
+    <div class="value num">{{ t.revenue|floatformat:2|intcomma }}</div><div class="sub">{{ t.pieces }} قطعة · {{ t.returned }} مرتجع</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi"><div class="label">التكلفة</div><div class="value num">{{ t.cost|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi red"><div class="label">الربح</div><div class="value num">{{ t.profit|floatformat:2|intcomma }}</div>
+    <div class="sub">هامش {% if t.margin is not None %}{{ t.margin|floatformat:1 }}%{% else %}—{% endif %}</div></div></div>
+  <div class="col-lg-3 col-6"><div class="kpi"><div class="label">الخصومات اللي اتدت</div><div class="value num">{{ t.discount|floatformat:2|intcomma }}</div>
+    <div class="sub">{% if t.discount_pct is not None %}{{ t.discount_pct|floatformat:1 }}% من المبيعات{% endif %}</div></div></div>
+</div>
+{% endwith %}
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-sm mb-0 align-middle">
+    <thead><tr><th>العميل</th><th>الفواتير</th><th>القطع</th><th>المبيعات</th><th>الخصم الحالي</th><th>التكلفة</th><th>الربح</th><th>الهامش</th><th>ربح القطعة</th>
+      <th data-tip="قد إيه تقدر تزوّد خصم التاجر ده (من سعر البيع) وانت لسه مش خسران">أقصى خصم زيادة</th></tr></thead>
+    <tbody>{% for r in data.rows %}<tr>
+      <td>{% if r.customer %}<a href="{% url 'customer_detail' r.customer.pk %}"><b>{{ r.customer.name }}</b></a>{% if r.customer.shop_name %}<div class="text-muted" style="font-size:12px">{{ r.customer.shop_name }}</div>{% endif %}{% else %}<b>عملاء نقدي</b>{% endif %}
+        <div class="text-muted" style="font-size:11px">{{ r.channels }}</div></td>
+      <td>{{ r.invoices }}</td><td>{{ r.pieces }}{% if r.returned %} <small class="text-muted">(−{{ r.returned }})</small>{% endif %}</td>
+      <td class="num">{{ r.revenue|floatformat:2|intcomma }}</td>
+      <td>{% if r.discount %}<span class="num">{{ r.discount|floatformat:2|intcomma }}</span> <small class="text-muted">({{ r.discount_pct|floatformat:1 }}%)</small>{% else %}—{% endif %}</td>
+      <td class="num">{{ r.cost|floatformat:2|intcomma }}</td>
+      <td class="num{% if r.profit < 0 %} neg{% endif %}"><b>{{ r.profit|floatformat:2|intcomma }}</b></td>
+      <td>{% if r.margin is not None %}{{ r.margin|floatformat:1 }}%{% else %}—{% endif %}</td>
+      <td class="num">{% if r.unit_profit is not None %}{{ r.unit_profit|floatformat:2 }}{% else %}—{% endif %}</td>
+      <td>{% if r.room_pct is not None %}<span class="room {% if r.room_pct <= 0 %}bad{% elif r.room_pct < 10 %}tight{% else %}ok{% endif %}">{{ r.room_pct|floatformat:1 }}%</span>{% else %}—{% endif %}</td>
+    </tr>{% empty %}<tr><td colspan="10" class="text-muted p-4">مفيش مبيعات في الفترة دي.</td></tr>{% endfor %}</tbody>
+  </table>
+</div></div>
+<div class="card-footer text-muted" style="font-size:13px">
+  المبيعات = بعد خصم الفاتورة وناقص المرتجعات. التكلفة = متوسط تكلفة التوريد وقت البيع (ولو الصنف ما اتوردش، تكلفة القطعة من التكويد).
+  <b>أقصى خصم زيادة</b> = الربح ÷ المبيعات قبل الخصم: لو زودت خصم التاجر بالنسبة دي هتبيع بالتكلفة بالظبط، فاختار نسبة أقل منها.
+</div></div>
+{% endblock %}

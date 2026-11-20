@@ -52,6 +52,10 @@ def inventory(request):
                  .order_by("name"))
     cat = request.GET.get("cat", "")
     all_items = list(models_qs)
+    from .holds import held_by_model
+    held = held_by_model()
+    for m in all_items:
+        m.held = held.get(m.pk, 0)
     counts = {}
     for m in all_items:
         counts[m.category] = counts.get(m.category, 0) + m.total_qty
@@ -70,6 +74,7 @@ def inventory(request):
         "categories": categories,
         "cat": cat,
         "grand_qty": sum(m.total_qty for m in items),
+        "grand_held": sum(m.held for m in items),
         "grand_value": sum((m.stock_value for m in items), Decimal("0")),
         "models_count": len(items),
         "low_total": sum(m.low_variants for m in items),
@@ -83,6 +88,8 @@ def inventory_detail(request, pk):
         raise PermissionDenied
     model = get_object_or_404(ClothingModel, pk=pk)
     variants = sorted(model.variants.all(), key=_size_key)
+    from .holds import held_by_variant
+    held = held_by_variant(v.pk for v in variants)
 
     rows = []
     for v in variants:
@@ -96,6 +103,7 @@ def inventory_detail(request, pk):
             "variant": v,
             "value": v.quantity * v.avg_cost,
             "status": status,
+            "held": held.get(v.pk),
         })
 
     total_qty = sum(r["variant"].quantity for r in rows)
@@ -109,6 +117,7 @@ def inventory_detail(request, pk):
         "model": model,
         "rows": rows,
         "total_qty": total_qty,
+        "total_held": sum(h["total"] for h in held.values()),
         "total_value": sum((r["value"] for r in rows), Decimal("0")),
         "low_limit": model.low_stock_level,
     }

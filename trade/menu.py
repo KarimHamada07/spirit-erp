@@ -69,6 +69,7 @@ MENU = [
     ("التقارير", [
         ("التحليلات", "analytics", "fas fa-chart-pie", "trade.view_expense"),
         ("تقرير الربحية", "profit_report", "fas fa-coins", "trade.view_expense"),
+        ("ربحية التجار", "customer_profit", "fas fa-hand-holding-dollar", "trade.view_expense"),
         ("التقارير", "reports", "fas fa-file-lines", "trade.view_expense"),
     ]),
     ("الإدارة", [

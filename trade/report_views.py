@@ -225,3 +225,33 @@ def profit_report(request):
     return render(request, "trade/profit.html", {
         **admin.site.each_context(request), "title": "تقرير الربحية", "data": data,
         "d1": d1.isoformat(), "d2": d2.isoformat()})
+
+
+@staff_member_required
+def customer_profit(request):
+    """ربحية التجار: كسبت كام من كل عميل، عشان تحدد نسبة الخصم المناسبة ليه"""
+    from .profit import customer_profitability
+    if not _allowed(request.user):
+        raise PermissionDenied
+    d1, d2 = _dates(request)
+    if "from" not in request.GET:                  # افتراضياً آخر 3 شهور
+        d1 = d2 - timedelta(days=90)
+    channel = request.GET.get("channel", "")
+    channels = SaleInvoice.CHANNELS
+    if channel not in dict(channels):
+        channel = ""
+    data = customer_profitability(d1, d2, channel)
+    if request.GET.get("export") == "xlsx":
+        def pct(x):
+            return round(float(x), 1) if x is not None else ""
+        return xlsx_response([("ربحية التجار",
+            ["العميل", "المحل", "الفواتير", "القطع", "مرتجع", "قبل الخصم", "الخصم", "نسبة الخصم %",
+             "المبيعات الصافية", "التكلفة", "الربح", "الهامش %", "ربح القطعة", "أقصى خصم من غير خسارة %"],
+            [[r["customer"].name if r["customer"] else "عملاء نقدي", r["customer"].shop_name if r["customer"] else "",
+              r["invoices"], r["pieces"], r["returned"], r["gross"], r["discount"], pct(r["discount_pct"]),
+              r["revenue"], r["cost"], r["profit"], pct(r["margin"]),
+              round(r["unit_profit"], 2) if r["unit_profit"] is not None else "", pct(r["room_pct"])]
+             for r in data["rows"]])], "customer_profit")
+    return render(request, "trade/customer_profit.html", {
+        **admin.site.each_context(request), "title": "ربحية التجار", "data": data,
+        "d1": d1, "d2": d2, "channel": channel, "channels": channels})

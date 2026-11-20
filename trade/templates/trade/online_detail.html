@@ -68,7 +68,8 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><h3 class="card-title">الأصناف</h3></div>
+      <div class="card-header"><h3 class="card-title">الأصناف</h3>
+        {% if order.status == "prepared" or order.status == "shipped" %}<span class="badge badge-warning mr-2" data-tip="القطع دي مش متاحة للبيع في المحل. لو اتحصّلت بتخرج نهائي، ولو رجعت بترجع للمتاح">هولد في المخزن 🚚</span>{% endif %}</div>
       <div class="card-body p-0"><div class="table-responsive">
         <table class="table table-sm mb-0">
           <thead><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>

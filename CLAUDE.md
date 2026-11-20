@@ -101,6 +101,11 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   (من الموديل أو فاتورة التوريد). `ui.js` بيلقط الإسكانر بره الخانات ويبعت `erp-scan` (نقطة البيع بتمسكه: قطعة في القطاعي،
   سيري في الجملة) وإلا بيفتح `/scan/?c=`. الوسم `{% barcode %}` في `templatetags/barcode_tags.py`.
   بوالص الأونلاين `online_views.online_print` (3 في ورقة A4).
+- تكلفة القطعة `ClothingModel.unit_cost` من تكويد الصنف: `Variant.cost_basis` = `avg_cost` ولو صفر = `unit_cost` (بتتثبت
+  وقت البيع). صفحة الصنف بتعرض المكسب قطاعي/جملة/سيري (`coding_views.item_margins`). ربحية التجار
+  `profit.customer_profitability` + `report_views.customer_profit` (`view_expense`).
+- الهولد (`holds.py`): أوردر الأونلاين بيخصم من `Variant.quantity` (المتاح) أول ما يتسجل، والقطع اللي في أوردرات
+  متجهزة/اتشحنت بتظهر "هولد في الشحن" في المخزون ونقطة البيع وتكويد الصنف؛ التحصيل بيخرّجها، والمرتجع بيرجعها للمتاح.
 - الأونلاين: الربح بيتحسب بـ `OnlineOrder.status_at` (يوم التحصيل/المرتجع)، مش `updated_at`.
 - أوامر: `nightly` (3 الفجر: نسخة + ملخص + النسخة لتليجرام)، `backup_db`، `debt_reminders`، `stock_alerts`،
   `telegram_test`.
