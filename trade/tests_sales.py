@@ -262,3 +262,34 @@ class CostAndHoldTests(SalesBase):
         o.set_status(OnlineOrder.RETURNED)                                    # رجع: للمتاح
         self.assertEqual(Variant.objects.get(pk=self.v.pk).quantity, 50)
         self.assertIn('"held": 0', self.sales.get(reverse("pos")).content.decode())
+
+
+class SaleAdminFormTests(SalesBase):
+    def post(self, client, qty=2, price="500", channel="retail", seller=None, discount=""):
+        url = reverse("admin:trade_saleinvoice_add")
+        data = {"customer": self.cust.pk, "date": timezone.localdate().isoformat(), "payment_type": "credit",
+                "channel": channel, "seller": seller or "", "discount": discount, "discount_percent": "",
+                "notes": "", "delivery": "customer",
+                "items-TOTAL_FORMS": "1", "items-INITIAL_FORMS": "0", "items-MIN_NUM_FORMS": "0",
+                "items-MAX_NUM_FORMS": "1000",
+                "items-0-model_code": self.v.model.code, "items-0-color": "أسود", "items-0-size": "L",
+                "items-0-quantity": str(qty), "items-0-unit_price": price}
+        return client.post(url, data)
+
+    def test_rules(self):
+        other = Seller.objects.create(name="بائع تاني")
+        # السعر أقل من سعر البيع = مرفوض، والكمية أكتر من الرصيد = مرفوض
+        self.assertContains(self.post(self.boss, price="450"), "ينفع تزوّد بس")
+        self.assertContains(self.post(self.boss, qty=51), "الرصيد 50 بس")
+        # الجملة: أقل سعر = سعر الجملة
+        self.assertEqual(self.post(self.boss, price="400", channel="wholesale").status_code, 302)
+        # البائع بيتاخد من العميل حتى لو اتبعت غيره، والخصم الفاضي = صفر، والسعر الفاضي = سعر البيع
+        self.assertEqual(self.post(self.boss, price="", seller=other.pk).status_code, 302)
+        inv = SaleInvoice.objects.order_by("-id").first()
+        self.assertEqual((inv.seller, inv.discount, inv.items.get().unit_price), (self.seller, D("0"), D("500")))
+        # الربحية لمدير الحسابات بس
+        page = self.boss.get(reverse("admin:trade_saleinvoice_change", args=[inv.pk])).content.decode()
+        self.assertIn("ربحية الفاتورة", page)
+        self.assertNotIn("ربحية الفاتورة", self.sales.get(reverse("admin:trade_saleinvoice_change", args=[inv.pk])).content.decode())
+        self.assertNotIn("field-profit_col", self.sales.get(reverse("admin:trade_saleinvoice_changelist")).content.decode())
+        self.assertIn("field-profit_col", self.boss.get(reverse("admin:trade_saleinvoice_changelist")).content.decode())

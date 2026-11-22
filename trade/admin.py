@@ -67,11 +67,6 @@ class PurchaseItemInline(admin.TabularInline):
     autocomplete_fields = ("variant",)
 
 
-class SaleItemInline(admin.TabularInline):
-    model = SaleItem
-    extra = 1
-
-
 def _confirm(modeladmin, request, queryset):
     for inv in queryset:
         try:
@@ -117,30 +112,9 @@ class PurchaseInvoiceAdmin(admin.ModelAdmin):
     actions = [_confirm, _purchase_labels]
 
 
-def _export_sales(modeladmin, request, queryset):
-    rows = [[i.pk, i.date, str(i.customer or ""), i.get_payment_type_display(),
-             "مؤكدة" if i.is_confirmed else "مسودة", i.total, i.profit]
-            for i in queryset.select_related("customer").prefetch_related("items")]
-    return xlsx_response([("فواتير البيع", ["رقم", "التاريخ", "العميل", "النوع", "الحالة", "الإجمالي", "الربح"],
-                           rows)], "sale_invoices")
+from .sale_admin import make_admin  # noqa: E402
 
-
-_export_sales.short_description = "تصدير الفواتير المحددة إلى Excel"
-
-
-@admin.register(SaleInvoice)
-class SaleInvoiceAdmin(admin.ModelAdmin):
-    list_display = ("id", "customer", "date", "payment_type", "total", "profit",
-                    "is_confirmed")
-    list_filter = ("payment_type", "is_confirmed")
-    inlines = [SaleItemInline]
-    actions = [_confirm, _export_sales]
-
-    def get_readonly_fields(self, request, obj=None):
-        # التاريخ بيتحط لوحده بتاريخ النهارده؛ تعديله لمدير الحسابات بس
-        if request.user.has_perm("trade.change_invoice_date"):
-            return ()
-        return ("date",)
+admin.site.register(SaleInvoice, make_admin(_confirm))
 
 
 @admin.register(Customer)

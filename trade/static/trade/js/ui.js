@@ -381,7 +381,11 @@
     if (!$f.length) return;
     $f.each(function () {
       var $s = $(this);
-      $s.find("option").each(function () { if (/^-+$/.test($(this).text().trim())) $(this).text("الكل"); });
+      $s.find("option").each(function () {
+        var $o = $(this);
+        if (!/^-+$/.test($o.text().trim())) return;
+        $o.text($o.data("name") ? "فاضي" : "الكل");     // اللي ليه data-name = "من غير قيمة"، والتاني = الكل
+      });
       if ($s.find("option").length <= 12) {
         try { if ($s.data("select2")) $s.select2("destroy"); } catch (e) { /* مش متعمل */ }
         $s.select2({minimumResultsForSearch: Infinity, dir: "rtl", width: "resolve"});

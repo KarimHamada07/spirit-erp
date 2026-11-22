@@ -48,3 +48,6 @@ msgstr "الخميس"
 
 msgid "Friday"
 msgstr "الجمعة"
+
+msgid "Remove"
+msgstr "حذف"

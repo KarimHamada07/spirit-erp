@@ -145,3 +145,9 @@ msgstr "صلاحيات زيادة للمستخدم ده بس، غير اللي �
 
 msgid "group"
 msgstr "دور"
+
+msgid "Remove"
+msgstr "حذف"
+
+msgid "Delete?"
+msgstr "حذف؟"
