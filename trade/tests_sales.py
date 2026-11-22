@@ -265,9 +265,10 @@ class CostAndHoldTests(SalesBase):
 
 
 class SaleAdminFormTests(SalesBase):
-    def post(self, client, qty=2, price="500", channel="retail", seller=None, discount=""):
+    def post(self, client, qty=2, price="500", channel="retail", seller=None, discount="", method="cash", box=None):
         url = reverse("admin:trade_saleinvoice_add")
-        data = {"customer": self.cust.pk, "date": timezone.localdate().isoformat(), "payment_type": "credit",
+        data = {"customer": self.cust.pk, "date": timezone.localdate().isoformat(),
+                "pay_method": method, "pay_box": box if box is not None else self.box.pk,
                 "channel": channel, "seller": seller or "", "discount": discount, "discount_percent": "",
                 "notes": "", "delivery": "customer",
                 "items-TOTAL_FORMS": "1", "items-INITIAL_FORMS": "0", "items-MIN_NUM_FORMS": "0",
@@ -293,3 +294,32 @@ class SaleAdminFormTests(SalesBase):
         self.assertNotIn("ربحية الفاتورة", self.sales.get(reverse("admin:trade_saleinvoice_change", args=[inv.pk])).content.decode())
         self.assertNotIn("field-profit_col", self.sales.get(reverse("admin:trade_saleinvoice_changelist")).content.decode())
         self.assertIn("field-profit_col", self.boss.get(reverse("admin:trade_saleinvoice_changelist")).content.decode())
+
+
+    def test_pay_method_custody_and_treasury(self):
+        from trade.models import CashBox
+        from trade.sale_admin import confirm_sales  # noqa: F401
+        wallet = CashBox.objects.get(method="wallet", holder="هشام")       # اتعملت لوحدها
+        self.assertTrue(CashBox.objects.filter(method="bank", holder="محمد طارق").exists())
+        # العهدة لازم تبقى من نفس النوع
+        self.assertContains(self.post(self.boss, method="wallet", box=self.box.pk), "مش محفظة")
+        self.assertContains(self.post(self.boss, method="instapay", box=""), "اختار العهدة")
+        self.assertEqual(self.post(self.boss, method="wallet", box=wallet.pk).status_code, 302)
+        inv = SaleInvoice.objects.order_by("-id").first()
+        self.assertEqual((inv.payment_type, inv.payment_plan[0]["box"]), ("cash", wallet.pk))
+        changelist = reverse("admin:trade_saleinvoice_changelist")
+        self.boss.post(changelist, {"action": "confirm_sales", "_selected_action": [inv.pk]})
+        inv.refresh_from_db()
+        self.assertTrue(inv.is_confirmed)
+        self.assertEqual(wallet.balance, D("1000"))                               # السداد سمّع في الخزنة
+        html = self.boss.get(reverse("sale_print", args=[inv.pk])).content.decode()
+        self.assertIn("<span>محفظة</span>", html)
+        self.assertNotIn("هشام", html)                                             # العهدة مش في الفاتورة
+        # التسوية: من رصيد العميل (بتتسجل على حسابه)، من غير خزنة
+        self.assertEqual(self.post(self.boss, qty=1, method="settle", box="").status_code, 302)
+        inv2 = SaleInvoice.objects.order_by("-id").first()
+        self.boss.post(changelist, {"action": "confirm_sales", "_selected_action": [inv2.pk]})
+        inv2.refresh_from_db()
+        self.assertEqual((inv2.is_confirmed, inv2.payment_type, inv2.account_amount), (True, "credit", D("500")))
+        self.assertEqual(self.balance(), D("500"))
+        self.assertIn("تسوية من رصيد العميل", self.boss.get(reverse("sale_print", args=[inv2.pk])).content.decode())

@@ -14,7 +14,23 @@ from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
 
 from .exports import xlsx_response
-from .models import ClothingModel, Customer, SaleInvoice, SaleItem, Variant
+from .models import CashBox, ClothingModel, Customer, SaleInvoice, SaleItem, Variant
+
+# نوع الفاتورة (طريقة السداد) ← نوع الخزنة. "تسوية" = من رصيد العميل في الشركة (بيتخصم من حسابه)
+PAY_METHODS = [("cash", "نقدي"), ("wallet", "محفظة"), ("instapay", "إنستاباي"), ("bank", "تحويل بنكي"),
+               ("settle", "تسوية (من رصيد العميل)")]
+SETTLE = "settle"
+
+
+def plan_choice(inv):
+    """(نوع الفاتورة، الخزنة) من طرق السداد المتسجلة على الفاتورة"""
+    plan = inv.payment_plan or []
+    if plan and plan[0].get("box") == "account":
+        return SETTLE, None
+    if plan:
+        box = CashBox.objects.filter(pk=plan[0].get("box")).first()
+        return (box.method if box else "cash"), box
+    return ("cash" if inv.payment_type == "cash" else SETTLE), None
 
 PROFIT_PERM = "trade.approve_saleinvoice"
 
@@ -136,10 +152,22 @@ class SaleInvoiceForm(forms.ModelForm):
         model = SaleInvoice
         fields = "__all__"
 
+    pay_method = forms.ChoiceField(label="نوع الفاتورة", choices=PAY_METHODS, initial="cash")
+    pay_box = forms.ModelChoiceField(
+        label="العهدة", required=False, queryset=CashBox.objects.none(), empty_label="— اختار العهدة —",
+        help_text="الفلوس هتتسجل في الخزنة دي وقت التأكيد. مش بتظهر في الفاتورة المطبوعة")
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if "discount" in self.fields:
             self.fields["discount"].required = False      # فاضي = صفر (من غير نجمة)
+        self.fields["pay_box"].queryset = CashBox.objects.filter(
+            is_active=True, method__in=[m for m, _ in PAY_METHODS]).order_by("method", "id")
+        if self.instance.pk:
+            method, box = plan_choice(self.instance)
+            self.initial.setdefault("pay_method", method)
+            if box:
+                self.initial.setdefault("pay_box", box.pk)
 
     def clean_discount(self):
         return self.cleaned_data.get("discount") or Decimal("0")
@@ -149,6 +177,20 @@ class SaleInvoiceForm(forms.ModelForm):
         customer = data.get("customer")
         if customer and customer.seller_id:
             data["seller"] = customer.seller                # البائع المكوّد على العميل
+        if self.instance.pk and self.instance.is_confirmed:
+            return data
+        method, box = data.get("pay_method"), data.get("pay_box")
+        if method == SETTLE:
+            if not customer:
+                self.add_error("customer", "التسوية من رصيد العميل: اختار العميل")
+            data["pay_box"] = None
+            self.instance.payment_type = "credit"
+        elif method:
+            if box is None:
+                self.add_error("pay_box", "اختار العهدة اللي الفلوس هتدخلها")
+            elif box.method != method:
+                self.add_error("pay_box", f"{box.name} مش {dict(PAY_METHODS)[method]}")
+            self.instance.payment_type = "cash"
         return data
 
 
@@ -162,6 +204,49 @@ def _export_sales(modeladmin, request, queryset):
 
 
 _export_sales.short_description = "تصدير الفواتير المحددة إلى Excel"
+
+
+class PaidFilter(admin.SimpleListFilter):
+    title = "السداد"
+    parameter_name = "paid"
+
+    def lookups(self, request, model_admin):
+        return [("paid", "اتدفعت (نقدي/محفظة/إنستاباي/تحويل)"), ("settle", "تسوية من رصيد العميل")]
+
+    def queryset(self, request, queryset):
+        if self.value() == "paid":
+            return queryset.filter(payment_type="cash")
+        if self.value() == "settle":
+            return queryset.filter(payment_type="credit")
+        return queryset
+
+
+def confirm_sales(modeladmin, request, queryset):
+    """التأكيد: بيخصم المخزن، وبيسجّل الفلوس في خزنة العهدة اللي اتختارت (التسوية بتتسجل على حساب العميل)"""
+    from django.db import transaction
+    from .treasury import record_sale_payments
+    for inv in queryset:
+        try:
+            with transaction.atomic():
+                inv.confirm()
+                allocations = []
+                for p in inv.payment_plan or []:
+                    if p.get("box") == "account":
+                        continue
+                    box = CashBox.objects.filter(pk=p.get("box")).first()
+                    if box is None:
+                        raise ValidationError("خزنة العهدة مش موجودة")
+                    allocations.append((box, inv.total))      # بصافي الفاتورة وقت التأكيد
+                if allocations or inv.payment_plan:
+                    record_sale_payments(inv, allocations)
+            where = "، ".join(b.name for b, _a in allocations) or "حساب العميل"
+            messages.success(request, f"تم تأكيد {inv} — الفلوس اتسجلت في: {where}")
+        except ValidationError as e:
+            messages.error(request, f"{inv}: {' '.join(e.messages)}")
+
+
+confirm_sales.short_description = "تأكيد الفواتير المحددة (المخزن + الخزنة)"
+confirm_sales.allowed_permissions = ("change",)
 
 
 class StatusFilter(admin.SimpleListFilter):
@@ -186,17 +271,22 @@ def make_admin(confirm_action):
     class SaleInvoiceAdmin(admin.ModelAdmin):
         form = SaleInvoiceForm
         change_form_template = "admin/trade/saleinvoice/change_form.html"
-        list_filter = (StatusFilter, "channel", "payment_type", "seller")
+        list_filter = (StatusFilter, "channel", PaidFilter, "seller")
         search_fields = ("customer__name", "customer__phone", "=id")
         date_hierarchy = "date"
         inlines = [SaleItemInline]
-        actions = [confirm_action, _export_sales]
+        actions = [confirm_sales, _export_sales]
 
         def get_list_display(self, request):
-            cols = ["id", "customer", "date", "channel", "payment_type", "total"]
+            cols = ["id", "customer", "date", "channel", "pay_col", "total"]
             if can_see_profit(request.user):
                 cols.append("profit_col")
             return cols + ["is_confirmed"]
+
+        @admin.display(description="نوع الفاتورة")
+        def pay_col(self, obj):
+            method, _box = plan_choice(obj)
+            return dict(PAY_METHODS).get(method, "")
 
         @admin.display(description="الربح")
         def profit_col(self, obj):
@@ -209,12 +299,6 @@ def make_admin(confirm_action):
             total, profit = obj.total, invoice_profit(obj)
             pct = f" ({profit * 100 / total:.1f}%)" if total else ""
             return f"{profit:,.2f}{pct}" + ("" if obj.is_confirmed else " — تقديري لحد ما الفاتورة تتأكد")
-
-        def get_fields(self, request, obj=None):
-            fields = [f for f in super().get_fields(request, obj) if f != "profit_box"]
-            if can_see_profit(request.user):
-                fields.append("profit_box")
-            return fields
 
         def get_readonly_fields(self, request, obj=None):
             ro = [] if request.user.has_perm("trade.change_invoice_date") else ["date"]
@@ -230,6 +314,31 @@ def make_admin(confirm_action):
                 obj.seller_id = obj.customer.seller_id
             super().save_model(request, obj, form, change)
 
+        def save_related(self, request, form, formsets, change):
+            """بعد البنود: طريقة السداد بصافي الفاتورة (بتتسجل في الخزنة وقت التأكيد)"""
+            super().save_related(request, form, formsets, change)
+            inv = form.instance
+            if inv.is_confirmed:
+                return
+            total = inv.total
+            if form.cleaned_data.get("pay_method") == SETTLE:
+                inv.payment_type, inv.account_amount = "credit", total
+                inv.payment_plan = [{"box": "account", "name": "تسوية من رصيد العميل", "amount": str(total)}]
+            else:
+                box = form.cleaned_data.get("pay_box")
+                inv.payment_type, inv.account_amount = "cash", Decimal("0")
+                inv.payment_plan = [{"box": box.pk, "name": box.name, "amount": str(total)}] if box else []
+            inv.save(update_fields=["payment_type", "account_amount", "payment_plan"])
+
+        def get_fields(self, request, obj=None):
+            fields = [f for f in super().get_fields(request, obj)
+                      if f not in ("profit_box", "pay_method", "pay_box", "payment_type")]
+            at = fields.index("date") + 1 if "date" in fields else 1
+            fields[at:at] = ["pay_method", "pay_box"]
+            if can_see_profit(request.user):
+                fields.append("profit_box")
+            return fields
+
         def render_change_form(self, request, context, *args, **kwargs):
             data = {}
             for v in (Variant.objects.filter(model__is_active=True).select_related("model")
@@ -241,7 +350,8 @@ def make_admin(confirm_action):
                                       "wprice": float(v.wholesale_price) if v.wholesale_price else None})
             sellers = {c.pk: [c.seller_id, c.seller.name] for c in
                        Customer.objects.filter(seller__isnull=False).select_related("seller")}
-            context["sale_admin_data"] = {"models": data, "sellers": sellers}
+            boxes = {b.pk: b.method for b in CashBox.objects.filter(is_active=True)}
+            context["sale_admin_data"] = {"models": data, "sellers": sellers, "boxes": boxes}
             return super().render_change_form(request, context, *args, **kwargs)
 
     return SaleInvoiceAdmin

@@ -94,7 +94,27 @@
   document.addEventListener("change", function (e) { if (e.target.id === "id_customer") lockSeller(); });
   // الحقل الـ disabled ما بيتبعتش: نفكه قبل الحفظ (السيرفر بيثبت بائع العميل برضه)
   document.addEventListener("submit", function () { var s = $("#id_seller"); if (s) s.disabled = false; }, true);
-  function start() { all(true); lockSeller(); }
+  // العهدة حسب نوع الفاتورة (التسوية من غير عهدة)
+  var BOXES = DATA.boxes || {}, boxOpts = null;
+  function filterBoxes() {
+    var m = $("#id_pay_method"), b = $("#id_pay_box");
+    if (!m || !b) return;
+    if (!boxOpts) boxOpts = Array.prototype.map.call(b.options, function (o) { return [o.value, o.textContent]; });
+    var cur = b.value, method = m.value, wrap = b.closest(".form-group, .row, .field-pay_box") || b.parentNode;
+    b.innerHTML = "";
+    boxOpts.forEach(function (o) {
+      if (o[0] && BOXES[o[0]] !== method) return;
+      var el = document.createElement("option"); el.value = o[0]; el.textContent = o[1];
+      if (o[0] === cur) el.selected = true; b.appendChild(el);
+    });
+    var mine = boxOpts.filter(function (o) { return o[0] && BOXES[o[0]] === method; });
+    if (mine.length === 1) b.value = mine[0][0];
+    wrap.style.display = method === "settle" ? "none" : "";
+    if (window.jQuery && window.jQuery(b).data("select2")) window.jQuery(b).trigger("change.select2");
+  }
+  if (window.jQuery) window.jQuery(document).on("change", "#id_pay_method", filterBoxes);
+  document.addEventListener("change", function (e) { if (e.target.id === "id_pay_method") filterBoxes(); });
+  function start() { all(true); lockSeller(); filterBoxes(); }
   if (window.jQuery) window.jQuery(function () { setTimeout(start, 50); }); else document.addEventListener("DOMContentLoaded", start);
 })();
 </script>

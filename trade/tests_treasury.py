@@ -272,8 +272,10 @@ class TreasuryFlows(TestCase):
         self.assertIn("إجمالي القطع", html)
         self.assertIn("فاتورة قطاعي", html)
         self.assertIn("صافي الفاتورة", html)
-        self.assertIn("كاش دالي", html)
-        self.assertIn("إنستاباي دالي", html)
+        # طريقة السداد بالنوع بس، من غير اسم العهدة
+        self.assertIn("<span>كاش</span>", html)
+        self.assertIn("<span>إنستاباي</span>", html)
+        self.assertNotIn("كاش دالي", html)
 
     def test_invoice_pdf_downloads(self):
         r = self.checkout([{"id": self.v.pk, "qty": 1, "price": "350"}],

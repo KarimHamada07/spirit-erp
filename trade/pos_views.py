@@ -322,10 +322,24 @@ def _invoice_context(invoice):
     series_count = 0
     if invoice.channel == "wholesale":
         rows, series_count = series_rows(invoice.items.select_related("variant", "variant__model"))
+    # طرق السداد بالنوع بس (كاش/محفظة/إنستاباي/تحويل)، من غير اسم العهدة اللي استلمت
+    methods = dict(CashBox.METHODS)
     if invoice.payment_plan:      # طرق السداد اللي اتختارت وقت البيع (ومنها "من الحساب")
-        payments = [{"box": p["name"], "amount": Decimal(p["amount"])} for p in invoice.payment_plan]
+        boxes = CashBox.objects.in_bulk([p["box"] for p in invoice.payment_plan if p.get("box") != "account"])
+        payments = []
+        for p in invoice.payment_plan:
+            if p.get("box") == "account":
+                label = "تسوية من رصيد العميل" if "تسوية" in p.get("name", "") else "من الحساب (آجل)"
+            else:
+                b = boxes.get(p["box"])
+                label = methods.get(b.method, b.name) if b else p.get("name", "")
+            same = next((x for x in payments if x["box"] == label), None)
+            if same:                       # عهدتين بنفس النوع = سطر واحد
+                same["amount"] += Decimal(p["amount"])
+            else:
+                payments.append({"box": label, "amount": Decimal(p["amount"])})
     else:
-        payments = [{"box": e.box.name, "amount": e.amount}
+        payments = [{"box": methods.get(e.box.method, e.box.name), "amount": e.amount}
                     for e in CashEntry.objects.filter(
                         invoice=invoice, kind__in=["sale", "payment"]).select_related("box")]
         if invoice.payment_type == "credit" and invoice.remaining > 0:

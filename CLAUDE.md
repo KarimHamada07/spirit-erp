@@ -96,6 +96,9 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - فاتورة البيع في لوحة الإدارة: `sale_admin.py` (البنود بكود الصنف ← الاسم/التصنيف لوحدهم، اللون والمقاس اختيار، الكمية
   مش أكتر من الرصيد، والسعر مش أقل من `price_for(channel)`؛ البائع من العميل؛ الربحية لـ `approve_saleinvoice` بس؛
   الجافاسكربت في `templates/admin/trade/saleinvoice/change_form.html`، والـ inline prefix = `items`).
+  "نوع الفاتورة" (`pay_method`: نقدي/محفظة/إنستاباي/تحويل/تسوية) + "العهدة" (`pay_box` = خزنة من نفس النوع،
+  مش بتظهر في الطباعة) بيتحفظوا في `payment_plan`؛ التسوية = `account` من رصيد العميل. أكشن `confirm_sales` بيخصم
+  المخزن ويسجل الفلوس في الخزنة (`record_sale_payments`). العهد الافتراضية `treasury.CUSTODY_BOXES`.
 - نقطة البيع: سعر الجملة `Variant.wholesale_price` حسب القناة، وتعديل السعر بصلاحية `change_sale_price` بس
   (السيرفر بيتحقق). المرتجع من نفس الشاشة برقم الفاتورة (`pos_return_lookup` / `pos_return`).
   الفاتورة ليها رابط موقّع للعميل `/i/<token>/` بيتبعت واتساب.
