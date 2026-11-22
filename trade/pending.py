@@ -58,7 +58,7 @@ def pending_items(user):
     if user.has_perm("trade.change_purchaseinvoice"):
         add("admin:trade.purchaseinvoice", "فواتير توريد مستنية تأكيد استلام الكمية",
             PurchaseInvoice.objects.filter(is_confirmed=False).count(),
-            reverse("admin:trade_purchaseinvoice_changelist") + "?is_confirmed__exact=0", "fas fa-dolly")
+            reverse("admin:trade_purchaseinvoice_changelist") + "?status=pending", "fas fa-dolly")
     if user.has_perm("trade.change_stockcount"):
         add("stock_counts", "جرد شغال لسه ما اتطبقش",
             StockCount.objects.filter(status=StockCount.DRAFT).count(),

@@ -39,7 +39,7 @@ def customers(request):
 
     context = {
         **admin.site.each_context(request),
-        "title": "العملاء والآجل",
+        "title": "كشف حساب عميل",
         "rows": rows,
         "q": q,
         "only_debt": only_debt,

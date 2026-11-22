@@ -31,7 +31,7 @@ from trade.treasury_views import (commissions_view, daily_close_view,
                                   treasury, treasury_action)
 from trade.data_views import data_center, data_confirm, data_file, data_preview, data_upload
 from trade.debt_views import debt_followup_add, debts
-from trade.supplier_views import supplier_statement_view, suppliers
+from trade.supplier_views import supplier_statement_page, supplier_statement_view, suppliers
 from trade.employee_views import (employee_detail, employee_statement_file, employee_txn_add, employees,
                                   leave_request, leave_review, leaves, my_statement, payroll, payroll_approve)
 from trade.mission_views import (mission_photo, mission_point, mission_start, missions_report,
@@ -146,6 +146,7 @@ urlpatterns = [
     path("customers/<int:pk>/statement/<str:fmt>/", customer_statement_pdf, name="customer_statement"),
     path("suppliers/", suppliers, name="suppliers"),
     path("suppliers/<int:pk>/statement/<str:fmt>/", supplier_statement_view, name="supplier_statement"),
+    path("suppliers/statement/", supplier_statement_page, name="supplier_statement_page"),
     path("treasury/", treasury, name="treasury"),
     path("treasury/action/", treasury_action, name="treasury_action"),
     path("treasury/daily/", daily_close_view, name="daily_close"),

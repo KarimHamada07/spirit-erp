@@ -151,7 +151,7 @@
     </div>
     {% endfor %}
     {% if pending_count > pending_purchases|length %}
-    <a href="{% url 'admin:trade_purchaseinvoice_changelist' %}?is_confirmed__exact=0">عرض كل فواتير التوريد ({{ pending_count }})</a>
+    <a href="{% url 'admin:trade_purchaseinvoice_changelist' %}?status=pending">عرض كل فواتير التوريد ({{ pending_count }})</a>
     {% endif %}
   </div>
 </div>
