@@ -244,7 +244,7 @@ class MenuTests(Base):
     def test_menu_is_grouped_and_follows_permissions(self):
         page = self.client.get(reverse("customers")).content.decode()
         self.assertIn("erp-nav-header", page)
-        self.assertIn("متابعة التحصيل", page)
+        self.assertIn("مديونيات العملاء", page)
         self.assertIn('id="erp-bottom"', page)
         self.assertNotIn("<p>Dashboard</p>", page)  # قايمة Jazzmin القديمة اتشالت
         # الرابط المفتوح بس هو اللي متعلّم (مش "العملاء" لما تكون في متابعة التحصيل)
@@ -259,7 +259,7 @@ class MenuTests(Base):
         page = c.get(reverse("dashboard")).content.decode()
         self.assertIn("نقطة البيع", page)
         nav = page.split('id="jazzy-navigation"')[1].split("</ul>")[0]
-        for hidden in ("التقارير", "الإنتاج", "سجل المراجعة", "متابعة التحصيل"):
+        for hidden in ("التقارير", "الإنتاج", "سجل المراجعة", "مديونيات العملاء"):
             self.assertNotIn(hidden, nav)
 
     def test_pos_has_no_bottom_bar(self):

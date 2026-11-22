@@ -1,0 +1,101 @@
+{% extends "admin/change_form.html" %}
+{% block extrajs %}{{ block.super }}
+{{ sale_admin_data|json_script:"sale-admin-data" }}
+<style>
+  .si-ro { background: var(--erp-soft,#f4f4f5) !important; border-style: dashed !important; min-width: 0; }
+  #items-group td { padding: 6px 4px !important; vertical-align: top; }
+  #items-group td input, #items-group td select { min-width: 0; width: 100%; }
+  #items-group td.field-model_code { min-width: 125px; } #items-group td.field-item_name { min-width: 95px; }
+  #items-group td.field-color, #items-group td.field-size { min-width: 62px; } #items-group td.field-category { min-width: 64px; }
+  #items-group .select2-container { min-width: 0 !important; width: 100% !important; }
+  .si-stock { display: block; font-size: 12px; color: var(--erp-muted,#777); margin-top: 3px; }
+  .si-stock.bad { color: #fe0000; font-weight: 700; }
+  .si-floor { display: block; font-size: 11px; color: var(--erp-muted,#777); margin-top: 3px; }
+  .si-lock { display: block; font-size: 12px; color: var(--erp-muted,#777); margin-top: 4px; }
+  #items-group td.field-quantity, #items-group td.field-unit_price { min-width: 82px; }
+  #items-group th { white-space: nowrap; font-size: 13px; }
+  #items-group .original p { display: none; }
+</style>
+<script>
+(function () {
+  var DATA = JSON.parse(document.getElementById("sale-admin-data").textContent);
+  var M = DATA.models, SELLERS = DATA.sellers;
+  function $(sel, root) { return (root || document).querySelector(sel); }
+  function channel() { var c = $("#id_channel"); return c ? c.value : "retail"; }
+  function floorOf(v) { return channel() === "wholesale" && v.wprice ? v.wprice : v.price; }
+  function opts(sel, values, current) {
+    sel.innerHTML = "";
+    values.forEach(function (x) {
+      var o = document.createElement("option"); o.value = x; o.textContent = x || "—";
+      if (x === current) o.selected = true; sel.appendChild(o);
+    });
+  }
+  function uniq(a) { return a.filter(function (x, i) { return a.indexOf(x) === i; }); }
+  function hint(input, cls) {
+    var h = input.parentNode.querySelector("." + cls);
+    if (!h) { h = document.createElement("small"); h.className = cls; input.parentNode.appendChild(h); }
+    return h;
+  }
+  function row(tr, init) {
+    var code = $(".si-code", tr), color = $(".si-color", tr), size = $(".si-size", tr);
+    var qty = $(".si-qty", tr), price = $(".si-price", tr);
+    var name = $("input[name$='-item_name']", tr), cat = $("input[name$='-category']", tr);
+    if (!code || !color || !size) return;
+    var m = M[code.value];
+    if (!m) { name.value = ""; cat.value = ""; opts(color, [], ""); opts(size, [], ""); hint(qty, "si-stock").textContent = ""; return; }
+    name.value = m.name; cat.value = m.category;
+    var curC = color.value, curS = size.value;
+    opts(color, uniq(m.variants.map(function (v) { return v.color; })), curC);
+    var sizes = uniq(m.variants.filter(function (v) { return v.color === color.value; }).map(function (v) { return v.size; }));
+    opts(size, sizes, curS);
+    var v = m.variants.filter(function (x) { return x.color === color.value && x.size === size.value; })[0];
+    var st = hint(qty, "si-stock");
+    if (!v) { st.textContent = ""; return; }
+    qty.max = v.qty;
+    st.textContent = "الرصيد: " + v.qty;
+    st.classList.toggle("bad", (parseInt(qty.value, 10) || 0) > v.qty);
+    var floor = floorOf(v);
+    price.min = floor;
+    hint(price, "si-floor").textContent = "أقل سعر: " + floor.toFixed(2);
+    if (!init || !price.value) { if (!price.value || parseFloat(price.value) < floor || !init) price.value = floor.toFixed(2); }
+  }
+  function all(init) { document.querySelectorAll("#items-group tr.form-row, #items-group tbody tr").forEach(function (tr) { row(tr, init); }); }
+  document.addEventListener("change", function (e) {
+    var tr = e.target.closest && e.target.closest("#items-group tr");
+    if (tr && /si-code|si-color|si-size/.test(e.target.className)) row(tr, false);
+    if (tr && /si-qty/.test(e.target.className)) row(tr, true);
+    if (e.target.id === "id_channel") all(false);
+  });
+  document.addEventListener("input", function (e) { if (/si-qty/.test(e.target.className)) row(e.target.closest("tr"), true); });
+  // jQuery/select2: الكود ممكن يكون select2
+  if (window.jQuery) window.jQuery(document).on("change", ".si-code, .si-color, .si-size", function () { row(this.closest("tr"), false); });
+  document.addEventListener("formset:added", function (e) { var tr = e.target; if (tr) row(tr, false); });
+  if (window.jQuery) window.jQuery(document).on("formset:added", function (ev, $row) { if ($row && $row[0]) row($row[0], false); });
+
+  // البائع من العميل
+  function lockSeller() {
+    var c = $("#id_customer"), s = $("#id_seller");
+    if (!c || !s) return;
+    var info = SELLERS[c.value];
+    var note = hint(s, "si-lock");
+    if (info) {
+      if (window.jQuery) window.jQuery(s).val(String(info[0])).trigger("change.select2"); else s.value = String(info[0]);
+      s.setAttribute("data-locked", "1");
+      if (window.jQuery && window.jQuery(s).data("select2")) window.jQuery(s).prop("disabled", true).trigger("change.select2");
+      else s.disabled = true;
+      note.textContent = "البائع المكوّد على العميل (ما يتغيرش من الفاتورة)";
+    } else {
+      s.disabled = false;
+      if (window.jQuery && window.jQuery(s).data("select2")) window.jQuery(s).prop("disabled", false).trigger("change.select2");
+      note.textContent = "";
+    }
+  }
+  if (window.jQuery) window.jQuery(document).on("change", "#id_customer", lockSeller);
+  document.addEventListener("change", function (e) { if (e.target.id === "id_customer") lockSeller(); });
+  // الحقل الـ disabled ما بيتبعتش: نفكه قبل الحفظ (السيرفر بيثبت بائع العميل برضه)
+  document.addEventListener("submit", function () { var s = $("#id_seller"); if (s) s.disabled = false; }, true);
+  function start() { all(true); lockSeller(); }
+  if (window.jQuery) window.jQuery(function () { setTimeout(start, 50); }); else document.addEventListener("DOMContentLoaded", start);
+})();
+</script>
+{% endblock %}

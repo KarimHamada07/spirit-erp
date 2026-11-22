@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% load humanize %}
+{% block content_title %}كشف حساب مورد{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<style>
+  .num { direction: ltr; unicode-bidi: isolate; white-space: nowrap; }
+  .st-kpi { border: 1px solid var(--erp-line,#e2e2e4); border-radius: 12px; padding: 12px 16px; background: var(--erp-card,#fff); margin-bottom: 14px; }
+  .st-kpi .l { font-size: 13px; opacity: .8; } .st-kpi .v { font-size: 22px; font-weight: 700; }
+  .st-kpi.dark { background: #000; color: #fff; border-color: #000; }
+</style>
+<form method="get" class="card"><div class="card-body d-flex flex-wrap align-items-end" style="gap:10px">
+  <div style="flex:1 1 240px"><label class="mb-1 d-block" for="st-sup">المورد</label>
+    <select id="st-sup" name="supplier" class="form-control" required>
+      <option value="">— اختار المورد —</option>
+      {% for s in suppliers %}<option value="{{ s.pk }}"{% if supplier and s.pk == supplier.pk %} selected{% endif %}>{{ s.name }}</option>{% endfor %}
+    </select></div>
+  <div><label class="mb-1 d-block">من</label><input type="date" name="from" value="{{ d1|date:'Y-m-d' }}" class="form-control"></div>
+  <div><label class="mb-1 d-block">إلى</label><input type="date" name="to" value="{{ d2|date:'Y-m-d' }}" class="form-control"></div>
+  <button class="btn btn-primary" data-tip="اعرض كشف الحساب على الشاشة">عرض</button>
+  {% if st %}<a class="btn btn-outline-primary" href="{{ links.pdf }}" data-tip="نزّل الكشف PDF"><i class="fas fa-file-pdf"></i> PDF</a>
+  <a class="btn btn-dark" href="{{ links.xlsx }}" data-tip="نزّل الكشف Excel"><i class="fas fa-file-excel"></i> Excel</a>{% endif %}
+</div><div class="card-footer text-muted" style="font-size:13px">سيب التواريخ فاضية = كل الحركات.</div></form>
+
+{% if st %}
+{% with t=st.totals %}
+<div class="row">
+  <div class="col-md-4 col-6"><div class="st-kpi"><div class="l">{{ st.debit_label }}</div><div class="v num">{{ t.debit|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-md-4 col-6"><div class="st-kpi"><div class="l">{{ st.credit_label }}</div><div class="v num">{{ t.credit|floatformat:2|intcomma }}</div></div></div>
+  <div class="col-md-4"><div class="st-kpi dark"><div class="l">{% if t.balance > 0 %}ليه عندنا{% elif t.balance < 0 %}لينا عنده (دفعة مقدمة){% else %}خالص{% endif %}</div>
+    <div class="v num">{{ t.balance|floatformat:2|intcomma }}</div></div></div>
+</div>
+{% endwith %}
+<div class="card"><div class="card-header"><h3 class="card-title">{{ st.title }}{% if st.phone %} <small class="text-muted" dir="ltr">{{ st.phone }}</small>{% endif %}</h3></div>
+  <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>التاريخ</th><th>البيان</th><th>المرجع</th><th>{{ st.debit_label }}</th><th>{{ st.credit_label }}</th><th>الرصيد</th></tr></thead>
+    <tbody>{% for e in st.entries %}<tr>
+      <td>{{ e.date|date:"d/m/Y" }}</td><td>{{ e.kind }}</td><td>{{ e.ref|default:"" }}</td>
+      <td class="num">{% if e.debit %}{{ e.debit|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+      <td class="num">{% if e.credit %}{{ e.credit|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+      <td class="num"><b>{{ e.balance|floatformat:2|intcomma }}</b></td></tr>
+    {% empty %}<tr><td colspan="6" class="text-muted p-3">مفيش حركات في الفترة دي.</td></tr>{% endfor %}</tbody>
+  </table></div></div>
+  <div class="card-footer text-muted" style="font-size:13px">{{ st.balance_label }}</div></div>
+{% endif %}
+{% endblock %}

@@ -34,8 +34,14 @@ MENU = [
         ("مرتجعات العملاء", "admin:trade.salereturn", "fas fa-rotate-left", "trade.view_salereturn"),
     ]),
     ("العملاء", [
-        ("العملاء والآجل", "customers", "fas fa-user-group", "trade.view_customer"),
-        ("متابعة التحصيل", "debts", "fas fa-phone-volume", "trade.view_debtfollowup"),
+        ("كشف حساب عميل", "customers", "fas fa-user-group", "trade.view_customer"),
+        ("مديونيات العملاء", "debts", "fas fa-phone-volume", "trade.view_debtfollowup"),
+    ]),
+    ("الموردين", [
+        ("الموردين", "suppliers", "fas fa-industry", "trade.view_supplier"),
+        ("فواتير التوريد", "admin:trade.purchaseinvoice", "fas fa-dolly", "trade.view_purchaseinvoice"),
+        ("مرتجع مورد", "admin:trade.purchasereturn", "fas fa-truck-arrow-right", "trade.view_purchasereturn"),
+        ("كشف حساب مورد", "supplier_statement_page", "fas fa-file-invoice", "trade.view_supplier"),
     ]),
     ("المخزون", [
         ("المخزون", "inventory", "fas fa-boxes-stacked", "trade.view_variant"),
@@ -43,8 +49,6 @@ MENU = [
         ("اقتراحات الطلب", "reorder", "fas fa-cart-flatbed", "trade.view_purchaseinvoice"),
         ("الموديلات", "admin:trade.clothingmodel", "fas fa-shirt", "trade.view_clothingmodel"),
         ("المقاسات والألوان", "admin:trade.variant", "fas fa-palette", "trade.view_variant"),
-        ("فواتير التوريد", "admin:trade.purchaseinvoice", "fas fa-dolly", "trade.view_purchaseinvoice"),
-        ("الموردين", "suppliers", "fas fa-industry", "trade.view_supplier"),
     ]),
     ("الموقع", [
         ("طلبات الموقع", "store_orders", "fas fa-globe", "trade.view_weborder"),
@@ -85,7 +89,6 @@ MENU = [
 # صفحات بتتفتح قليل: تحت "صفحات أكتر" عشان القايمة تبقى قصيرة
 MORE = [
         ("دفعات التسديد", "admin:trade.payment", "fas fa-hand-holding-dollar", "trade.view_payment"),
-        ("مرتجعات الموردين", "admin:trade.purchasereturn", "fas fa-truck-arrow-right", "trade.view_purchasereturn"),
         ("مشتريات الخامات", "admin:trade.materialpurchase", "fas fa-truck-ramp-box", "trade.view_materialpurchase"),
         ("حركات الخزن", "admin:trade.cashentry", "fas fa-list-ul", "trade.view_cashentry"),
         ("التحويلات بين الخزن", "admin:trade.cashtransfer", "fas fa-right-left", "trade.view_cashtransfer"),

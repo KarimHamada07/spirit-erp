@@ -188,7 +188,7 @@ class UiHelpTests(TestCase):
         self.assertIn("الصفحة دي بتعمل إيه؟", page)
         self.assertIn("trade/js/ui.js?v=", page)
         self.assertIn("trade/css/ui.css?v=", page)
-        self.assertIn('data-tip="العملاء المتأخرين في الدفع ومواعيد متابعتهم"', page)
+        self.assertIn('data-tip="اللي على العملاء وأعمار المديونية ومواعيد التحصيل"', page)
         # صفحات لوحة الإدارة: شرح الجدول في القايمة، ونصيحة في الإضافة
         page = c.get(reverse("admin:trade_clothingmodel_changelist")).content.decode()
         self.assertIn("الموديلات (المنتجات)", page)

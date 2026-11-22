@@ -372,6 +372,35 @@
   }
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", init); else init();
 
+  /* ================= فلاتر الجداول (لوحة الإدارة) =================
+     الفلتر بيتطبق أول ما تختار (من غير "ابحث")، و"---------" = "الكل"، ومن غير خانة بحث للقوايم الصغيرة. */
+  function fixFilters() {
+    var $ = window.jQuery;
+    if (!$ || !$.fn.select2) return;
+    var $f = $(".search-filter");
+    if (!$f.length) return;
+    $f.each(function () {
+      var $s = $(this);
+      $s.find("option").each(function () {
+        var $o = $(this);
+        if (!/^-+$/.test($o.text().trim())) return;
+        $o.text($o.data("name") ? "فاضي" : "الكل");     // اللي ليه data-name = "من غير قيمة"، والتاني = الكل
+      });
+      if ($s.find("option").length <= 12) {
+        try { if ($s.data("select2")) $s.select2("destroy"); } catch (e) { /* مش متعمل */ }
+        $s.select2({minimumResultsForSearch: Infinity, dir: "rtl", width: "resolve"});
+      }
+    });
+    $(document).on("select2:select", ".search-filter", function () {
+      var form = document.getElementById("changelist-search");
+      if (!form) return;
+      $(this).trigger("change");                    // Jazzmin بيحط اسم الفلتر وقت الـ change
+      var btn = form.querySelector("[type=submit]");
+      setTimeout(function () { if (btn) btn.click(); else form.submit(); }, 0);
+    });
+  }
+  if (window.jQuery) window.jQuery(function () { setTimeout(fixFilters, 0); });
+
   /* ================= الإسكانر (بيكتب زي الكيبورد بسرعة وبعدين Enter) =================
      برا خانات الكتابة: باركود الفاتورة بيفتحها، وباركود الصنف بيفتح تكويده.
      الصفحة تقدر تمسك الباركود بنفسها (نقطة البيع) بـ erp-scan + preventDefault. */

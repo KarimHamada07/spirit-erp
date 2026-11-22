@@ -67,11 +67,6 @@ class PurchaseItemInline(admin.TabularInline):
     autocomplete_fields = ("variant",)
 
 
-class SaleItemInline(admin.TabularInline):
-    model = SaleItem
-    extra = 1
-
-
 def _confirm(modeladmin, request, queryset):
     for inv in queryset:
         try:
@@ -86,38 +81,40 @@ _confirm.short_description = "تأكيد الفواتير المحددة (تحد
 _confirm.allowed_permissions = ("change",)
 
 
+class ConfirmedFilter(admin.SimpleListFilter):
+    """فلتر الحالة بكلام واضح بدل نعم/لا"""
+    title = "الحالة"
+    parameter_name = "status"
+    labels = ("مستنية تأكيد", "اتأكدت")
+
+    def lookups(self, request, model_admin):
+        return [("pending", self.labels[0]), ("done", self.labels[1])]
+
+    def queryset(self, request, queryset):
+        if self.value() == "pending":
+            return queryset.filter(is_confirmed=False)
+        if self.value() == "done":
+            return queryset.filter(is_confirmed=True)
+        return queryset
+
+
+class PurchaseStatusFilter(ConfirmedFilter):
+    labels = ("مستنية تأكيد الاستلام", "اتأكد استلامها")
+
+
 @admin.register(PurchaseInvoice)
 class PurchaseInvoiceAdmin(admin.ModelAdmin):
     list_display = ("id", "supplier", "date", "total", "is_confirmed")
-    list_filter = ("is_confirmed",)
+    list_filter = (PurchaseStatusFilter, "supplier")
+    search_fields = ("supplier__name", "=id")
+    date_hierarchy = "date"
     inlines = [PurchaseItemInline]
     actions = [_confirm, _purchase_labels]
 
 
-def _export_sales(modeladmin, request, queryset):
-    rows = [[i.pk, i.date, str(i.customer or ""), i.get_payment_type_display(),
-             "مؤكدة" if i.is_confirmed else "مسودة", i.total, i.profit]
-            for i in queryset.select_related("customer").prefetch_related("items")]
-    return xlsx_response([("فواتير البيع", ["رقم", "التاريخ", "العميل", "النوع", "الحالة", "الإجمالي", "الربح"],
-                           rows)], "sale_invoices")
+from .sale_admin import make_admin  # noqa: E402
 
-
-_export_sales.short_description = "تصدير الفواتير المحددة إلى Excel"
-
-
-@admin.register(SaleInvoice)
-class SaleInvoiceAdmin(admin.ModelAdmin):
-    list_display = ("id", "customer", "date", "payment_type", "total", "profit",
-                    "is_confirmed")
-    list_filter = ("payment_type", "is_confirmed")
-    inlines = [SaleItemInline]
-    actions = [_confirm, _export_sales]
-
-    def get_readonly_fields(self, request, obj=None):
-        # التاريخ بيتحط لوحده بتاريخ النهارده؛ تعديله لمدير الحسابات بس
-        if request.user.has_perm("trade.change_invoice_date"):
-            return ()
-        return ("date",)
+admin.site.register(SaleInvoice, make_admin(_confirm))
 
 
 @admin.register(Customer)
@@ -343,7 +340,9 @@ _confirm_returns.allowed_permissions = ("change",)
 @admin.register(PurchaseReturn)
 class PurchaseReturnAdmin(admin.ModelAdmin):
     list_display = ("id", "supplier", "date", "total", "is_confirmed")
-    list_filter = ("is_confirmed",)
+    list_filter = (ConfirmedFilter, "supplier")
+    search_fields = ("supplier__name", "=id")
+    date_hierarchy = "date"
     inlines = [PurchaseReturnItemInline]
     actions = [_confirm_returns]
     readonly_fields = ("is_confirmed",)

@@ -93,6 +93,9 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   المرتجع `pos_return`: بالعميل والصنف (FIFO على بنود البيع، مرتجع لكل فاتورة بنفس `group`) أو برقم الفاتورة،
   ورد الفلوس سطور خزن و/أو حساب (`SaleReturn.account_amount` هو اللي بيقلل المديونية). السيري للجملة بس
   (`ClothingModel.series_sizes`، المقاس ممكن يتكرر). كشف العميل فيه `summary` (فواتير/مرتجعات/دفعات).
+- فاتورة البيع في لوحة الإدارة: `sale_admin.py` (البنود بكود الصنف ← الاسم/التصنيف لوحدهم، اللون والمقاس اختيار، الكمية
+  مش أكتر من الرصيد، والسعر مش أقل من `price_for(channel)`؛ البائع من العميل؛ الربحية لـ `approve_saleinvoice` بس؛
+  الجافاسكربت في `templates/admin/trade/saleinvoice/change_form.html`، والـ inline prefix = `items`).
 - نقطة البيع: سعر الجملة `Variant.wholesale_price` حسب القناة، وتعديل السعر بصلاحية `change_sale_price` بس
   (السيرفر بيتحقق). المرتجع من نفس الشاشة برقم الفاتورة (`pos_return_lookup` / `pos_return`).
   الفاتورة ليها رابط موقّع للعميل `/i/<token>/` بيتبعت واتساب.

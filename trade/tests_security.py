@@ -54,3 +54,24 @@ class LoginLockoutTests(TestCase):
         self.assertContains(r, "اتقفل 15 دقيقة")
         cache.clear()
         self.assertEqual(self.attempt("right-pass-1").status_code, 302)
+
+
+class SupplierMenuTests(TestCase):
+    def test_supplier_group_statement_and_filter(self):
+        from trade.models import PurchaseInvoice, Supplier
+        from trade.roles import ROLE_ACCOUNTS_MANAGER
+        _u, boss = login("boss", ROLE_ACCOUNTS_MANAGER)
+        s = Supplier.objects.create(name="مصنع التجربة", phone="01000000001")
+        PurchaseInvoice.objects.create(supplier=s, date="2026-11-01")
+        page = boss.get(reverse("dashboard")).content.decode()
+        nav = page.split('id="jazzy-navigation"')[1]
+        # جروب الموردين تحت جروب العملاء وفيه الأربع صفحات
+        self.assertLess(nav.index("كشف حساب عميل"), nav.index("مرتجع مورد"))
+        for name in ("فواتير التوريد", "مرتجع مورد", "كشف حساب مورد"):
+            self.assertIn(name, nav)
+        r = boss.get(reverse("supplier_statement_page"), {"supplier": s.pk})
+        self.assertContains(r, "كشف حساب مورد: مصنع التجربة")
+        self.assertContains(r, f"/suppliers/{s.pk}/statement/pdf/")
+        r = boss.get(reverse("admin:trade_purchaseinvoice_changelist"), {"status": "pending"})
+        self.assertContains(r, "مستنية تأكيد الاستلام")
+        self.assertContains(r, "مصنع التجربة")

@@ -100,7 +100,7 @@
 <div class="alert alert-light border mb-3"><i class="fas fa-phone-volume text-danger"></i>
   آخر متابعة تحصيل ({{ followup.created_at|date:"d/m" }}): {{ followup.note }}
   {% if followup.next_date %} — <b>الميعاد الجاي: {{ followup.next_date|date:"d/m/Y" }}</b>{% endif %}
-  {% if perms.trade.view_debtfollowup %}<a href="{% url 'debts' %}" class="mr-2">متابعة التحصيل</a>{% endif %}
+  {% if perms.trade.view_debtfollowup %}<a href="{% url 'debts' %}" class="mr-2">مديونيات العملاء</a>{% endif %}
 </div>
 {% endif %}
 

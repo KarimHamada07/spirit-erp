@@ -112,6 +112,6 @@ def reminder_text(rows, min_days=30, limit=25):
         if r["followup"]:
             lines.append(f"   آخر متابعة: {r['followup'].note}")
     if len(rows) > limit:
-        lines.append(f"... و {len(rows) - limit} عميل كمان (افتح صفحة متابعة التحصيل)")
+        lines.append(f"... و {len(rows) - limit} عميل كمان (افتح صفحة مديونيات العملاء)")
     lines.append(f"(العملاء اللي مديونيتهم أقدم من {min_days} يوم أو ميعاد متابعتهم جه)")
     return "\n".join(lines)

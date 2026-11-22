@@ -36,7 +36,7 @@ def debts(request):
         visible = [r for r in visible if r["bucket"] == int(bucket)]
 
     if request.GET.get("export") == "xlsx":
-        return xlsx_response([("متابعة التحصيل",
+        return xlsx_response([("مديونيات العملاء",
                                ["العميل", "الموبايل", "البائع", "المتبقي", "عمر المديونية (يوم)",
                                 "أقدم فاتورة مفتوحة", "آخر دفعة", "آخر متابعة", "ميعاد المتابعة"],
                                [[r["customer"].name, r["customer"].phone,
@@ -49,7 +49,7 @@ def debts(request):
 
     return render(request, "trade/debts.html", {
         **admin.site.each_context(request),
-        "title": "متابعة التحصيل",
+        "title": "مديونيات العملاء",
         "rows": visible, "all_count": len(rows),
         "remind_count": len(reminder_rows(rows, min_days)),
         "due_count": sum(1 for r in rows if r["due"]),
