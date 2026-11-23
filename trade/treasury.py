@@ -35,10 +35,29 @@ PAYMENT_METHOD_FOR_BOX = {"cash": "cash", "instapay": "instapay", "wallet": "wal
                           "bank": "transfer", "shipping": "shipping"}
 
 
+# العهد لكل نوع سداد في فاتورة البيع (بتتعمل لو مش موجودة بنفس النوع والشخص؛ تقدر تقفل أي واحدة من "الخزن")
+CUSTODY_BOXES = {
+    "cash": ["المحل", "كريم", "دالي", "محمد أسامة", "فليكس", "هشام", "محمد طارق", "أحمد طارق"],
+    "wallet": ["كريم", "محمد أسامة", "فليكس", "هشام"],
+    "instapay": ["دالي", "هشام", "محمد طارق", "أحمد طارق"],
+    "bank": ["دالي", "محمد طارق", "أحمد طارق"],
+}
+_BOX_PREFIX = {"cash": "كاش", "wallet": "محفظة", "instapay": "إنستاباي", "bank": "تحويل بنكي"}
+
+
+def ensure_custody_boxes():
+    for method, holders in CUSTODY_BOXES.items():
+        for holder in holders:
+            if not CashBox.objects.filter(method=method, holder=holder).exists():
+                CashBox.objects.get_or_create(name=f"{_BOX_PREFIX[method]} {holder}",
+                                              defaults={"method": method, "holder": holder})
+
+
 def ensure_defaults(using="default", **kwargs):
     """بيتنفذ بعد كل migrate: يضيف الخزن والبائعين ونسب العمولة لو مش موجودين (من غير ما يمسح أي تعديل)"""
     for name, method, holder in DEFAULT_BOXES:
         CashBox.objects.get_or_create(name=name, defaults={"method": method, "holder": holder})
+    ensure_custody_boxes()
     for name, commissionable in DEFAULT_SELLERS:
         Seller.objects.get_or_create(name=name, defaults={"is_commissionable": commissionable})
     for channel, _label in CommissionRate.CHANNELS:
