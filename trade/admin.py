@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 
@@ -353,13 +355,44 @@ class PurchaseReturnAdmin(admin.ModelAdmin):
         return super().has_change_permission(request, obj)
 
 
+def invoice_discount_note(inv):
+    """تنبيه لو فاتورة البيع عليها خصم: المرتجع بيترد بسعر القطعة بعد نصيبها من الخصم"""
+    if not inv.discount:
+        return ""
+    gross = sum((i.quantity * i.unit_price for i in inv.items.all()), Decimal("0"))
+    pct = f" ({inv.discount * 100 / gross:.1f}%)" if gross else ""
+    return (f"⚠️ فاتورة البيع #{inv.pk} عليها خصم {inv.discount:,.2f}{pct}. قيمة المرتجع بتتحسب بسعر القطعة "
+            f"بعد نصيبها من الخصم (مش بسعرها الكامل)، فالخصم بيرجع من قيمة المرتجع.")
+
+
 @admin.register(SaleReturn)
 class SaleReturnAdmin(admin.ModelAdmin):
     list_display = ("id", "invoice", "date", "refund_mode", "refund_box", "total", "is_confirmed")
     list_filter = ("refund_mode", "is_confirmed")
     inlines = [SaleReturnItemInline]
     actions = [_confirm_returns]
-    readonly_fields = ("is_confirmed",)
+    readonly_fields = ("is_confirmed", "discount_note")
+    change_form_template = "admin/trade/salereturn/change_form.html"
+
+    @admin.display(description="خصم فاتورة البيع")
+    def discount_note(self, obj):
+        if obj is None or not obj.invoice_id:
+            return "بيظهر لما تختار الفاتورة"
+        return invoice_discount_note(obj.invoice) or "الفاتورة من غير خصم"
+
+    def render_change_form(self, request, context, *args, **kwargs):
+        # بيانات خصم كل فاتورة عشان التنبيه يظهر أول ما تختارها
+        notes = {}
+        for inv in SaleInvoice.objects.filter(is_confirmed=True, discount__gt=0).prefetch_related("items"):
+            notes[inv.pk] = invoice_discount_note(inv)
+        context["discount_notes"] = notes
+        return super().render_change_form(request, context, *args, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        note = invoice_discount_note(obj.invoice) if obj.invoice_id else ""
+        if note:
+            messages.warning(request, note)
 
     def has_change_permission(self, request, obj=None):
         if obj is not None and obj.is_confirmed:

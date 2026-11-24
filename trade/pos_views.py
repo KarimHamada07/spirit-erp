@@ -329,7 +329,8 @@ def _invoice_context(invoice):
         payments = []
         for p in invoice.payment_plan:
             if p.get("box") == "account":
-                label = "تسوية من رصيد العميل" if "تسوية" in p.get("name", "") else "من الحساب (آجل)"
+                name = p.get("name", "")
+                label = "تسوية من رصيد العميل" if "تسوية" in name else ("آجل" if name == "آجل" else "من الحساب (آجل)")
             else:
                 b = boxes.get(p["box"])
                 label = methods.get(b.method, b.name) if b else p.get("name", "")
@@ -350,6 +351,8 @@ def _invoice_context(invoice):
         "total": gross - invoice.discount,
         "paid": invoice.paid_total,
         "remaining": invoice.remaining,
+        "returned": invoice.returned_on_account,
+        "installments": list(invoice.payments.order_by("date", "id")) if invoice.pk else [],
         "pieces": invoice.pieces,
         "series_count": series_count,
         "wholesale": invoice.channel == "wholesale",

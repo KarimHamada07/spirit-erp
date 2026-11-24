@@ -44,13 +44,11 @@
 
     {% if wholesale %}
     <table class="items">
-      <thead><tr><th class="c-code">الكود</th><th>الصنف</th><th>اللون</th><th>مقاسات السيري</th><th>العدد</th><th>سعر القطعة</th><th>سعر السيري</th><th>الإجمالي</th></tr></thead>
+      <thead><tr><th class="c-code">الكود</th><th>الصنف</th><th>اللون</th><th>العدد</th><th>سعر القطعة</th><th>الإجمالي</th></tr></thead>
       <tbody>
         {% for r in rows %}<tr><td class="c-code">{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td>
-          <td><span dir="ltr">{{ r.size }}</span></td>
           <td style="white-space:nowrap">{% if r.series_pieces %}<b>{{ r.qty }}</b> سيري ({{ r.series_pieces }} قطع){% else %}<b>{{ r.qty }}</b> قطعة{% endif %}</td>
           <td class="num">{% if r.piece_price is not None %}{{ r.piece_price|floatformat:2 }}{% else %}—{% endif %}</td>
-          <td class="num">{% if r.series_pieces %}{{ r.price|floatformat:2 }}{% else %}—{% endif %}</td>
           <td class="num">{{ r.total|floatformat:2 }}</td></tr>{% endfor %}
       </tbody>
     </table>
@@ -66,11 +64,17 @@
 
     <div class="bottom">
       <div class="totals">
-        {% if wholesale %}<div><span>إجمالي السيريهات</span><b>{{ series_count }}</b></div>{% endif %}
         <div><span>إجمالي القطع</span><b>{{ pieces }}</b></div>
         <div><span>إجمالي الفاتورة</span><span class="num">{{ gross|floatformat:2 }}</span></div>
         <div><span>الخصم{% if invoice.discount_percent %} ({{ invoice.discount_percent|floatformat:"-2" }}%){% endif %}</span><span class="num">{{ invoice.discount|floatformat:2 }}</span></div>
         <div class="net"><span>صافي الفاتورة</span><span class="num">{{ total|floatformat:2 }}</span></div>
+        {% if installments or invoice.payment_type == "credit" %}
+        <div class="inst-h">الدفعات</div>
+        {% for d in installments %}<div class="inst"><span>دفعة {{ d.date|date:"d/m/Y" }}</span><span class="num">{{ d.amount|floatformat:2 }}</span></div>
+        {% empty %}<div class="inst"><span>لسه مفيش دفعات</span><span class="num">0.00</span></div>{% endfor %}
+        {% if returned %}<div class="inst"><span>مرتجعات على الحساب</span><span class="num">{{ returned|floatformat:2 }}</span></div>{% endif %}
+        <div class="rem"><span>المتبقي</span><span class="num">{{ remaining|floatformat:2 }}</span></div>
+        {% endif %}
       </div>
       <div class="pay">
         <h4>طريقة السداد</h4>

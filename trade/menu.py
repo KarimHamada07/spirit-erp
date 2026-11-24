@@ -45,6 +45,7 @@ MENU = [
     ]),
     ("المخزون", [
         ("المخزون", "inventory", "fas fa-boxes-stacked", "trade.view_variant"),
+        ("إذن صرف", "dispatch_list", "fas fa-dolly-flatbed", "trade.view_variant"),
         ("الجرد", "stock_counts", "fas fa-clipboard-list", "trade.view_stockcount"),
         ("اقتراحات الطلب", "reorder", "fas fa-cart-flatbed", "trade.view_purchaseinvoice"),
         ("الموديلات", "admin:trade.clothingmodel", "fas fa-shirt", "trade.view_clothingmodel"),

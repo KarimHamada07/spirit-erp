@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% block content_title %}إذن صرف{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+{% block content %}
+<form method="get" class="card"><div class="card-body d-flex flex-wrap align-items-end" style="gap:10px">
+  <div><label class="mb-1 d-block">التاريخ</label><input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control"></div>
+  <div style="flex:1 1 220px"><label class="mb-1 d-block">العميل أو رقم الفاتورة</label><input name="q" value="{{ q }}" class="form-control"></div>
+  <button class="btn btn-primary" data-tip="اعرض فواتير البيع المؤكدة في اليوم ده">عرض</button>
+  {% if invoices %}<a class="btn btn-dark" target="_blank" href="{% url 'dispatch_print' %}?ids={{ ids }}"
+     data-tip="اطبع إذن صرف لكل فواتير اليوم (كل إذن في صفحة)"><i class="fas fa-print"></i> اطبع كل الأذونات ({{ invoices|length }})</a>{% endif %}
+</div></form>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+  <thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>العميل</th><th>عدد القطع</th><th></th></tr></thead>
+  <tbody>{% for inv in invoices %}<tr>
+    <td>#{{ inv.pk }}</td><td>{{ inv.date|date:"d/m/Y" }}</td><td>{{ inv.customer.name|default:"عميل نقدي" }}</td><td>{{ inv.pieces }}</td>
+    <td><a class="btn btn-sm btn-outline-dark" target="_blank" href="{% url 'dispatch_print' %}?ids={{ inv.pk }}" data-tip="اطبع إذن الصرف للمخزن (من غير أسعار)"><i class="fas fa-print"></i> إذن صرف</a></td>
+  </tr>{% empty %}<tr><td colspan="5" class="text-muted p-3">مفيش فواتير بيع مؤكدة في اليوم ده.</td></tr>{% endfor %}</tbody>
+</table></div></div></div>
+{% endblock %}

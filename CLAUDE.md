@@ -86,6 +86,8 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
   `approve_leaverequest`؛ `employee_views.leave_approver_qs`). اعتماد المرتبات `add_employeetxn` (مدير الحسابات/الأدمن).
   `EmployeeProfile.start_date`: اللي قبله مش غياب.
 - المأموريات: `mission_views.py` (بداية/وصول/نهاية باللوكيشن، وخط السير على خريطة جوجل).
+- إذن الصرف: `dispatch_views.py` (فواتير البيع المؤكدة في يوم ← ورقة للمخزن بالأصناف من غير أسعار؛ مش بيحرّك المخزون).
+  مرتجع العميل في لوحة الإدارة بينبّه لو فاتورة البيع عليها خصم (`admin.invoice_discount_note`).
 - الجرد واقتراحات الطلب: `stock_count_views.py` (`StockCount.apply` بصلاحية `apply_stockcount`).
 - المبيعات: `SaleInvoice.channel` (قطاعي/جملة/تسويق/أون لاين؛ الجملة بسعر الجملة والباقي قطاعي)، `delivery`،
   `payment_plan` (خزن + "account" = من الحساب، و`account_amount`). حد ائتمان العميل أو تاريخ غير النهارده (من غير
@@ -96,7 +98,7 @@ DJANGO_SECRET_KEY=x python manage.py test trade      # الاختبارات بإ
 - فاتورة البيع في لوحة الإدارة: `sale_admin.py` (البنود بكود الصنف ← الاسم/التصنيف لوحدهم، اللون والمقاس اختيار، الكمية
   مش أكتر من الرصيد، والسعر مش أقل من `price_for(channel)`؛ البائع من العميل؛ الربحية لـ `approve_saleinvoice` بس؛
   الجافاسكربت في `templates/admin/trade/saleinvoice/change_form.html`، والـ inline prefix = `items`).
-  "نوع الفاتورة" (`pay_method`: نقدي/محفظة/إنستاباي/تحويل/تسوية) + "العهدة" (`pay_box` = خزنة من نفس النوع،
+  "نوع الفاتورة" (`pay_method`: نقدي/محفظة/إنستاباي/تحويل/آجل/تسوية) + "العهدة" (`pay_box` = خزنة من نفس النوع،
   مش بتظهر في الطباعة) بيتحفظوا في `payment_plan`؛ التسوية = `account` من رصيد العميل. أكشن `confirm_sales` بيخصم
   المخزن ويسجل الفلوس في الخزنة (`record_sale_payments`). العهد الافتراضية `treasury.CUSTODY_BOXES`.
 - نقطة البيع: سعر الجملة `Variant.wholesale_price` حسب القناة، وتعديل السعر بصلاحية `change_sale_price` بس

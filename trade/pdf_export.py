@@ -118,19 +118,19 @@ def invoice_pdf(invoice, ctx):
         [str(invoice.date), customer, kind, channel, seller],
     ], [26 * mm, 46 * mm, 26 * mm, 26 * mm, 36 * mm]))
     story.append(Spacer(1, 6 * mm))
-    data = [["الكود", "الصنف", "الكمية", "السعر", "الإجمالي"]]
+    data = [["الكود", "الصنف", "الكمية", "سعر القطعة" if ctx.get("wholesale") else "السعر", "الإجمالي"]]
     for r in ctx["rows"]:
-        name = r["name"] + (f" - {r['color']}" if r.get("color") else "") + (f" ({r['size']})" if r.get("size") else "")
+        size = "" if r.get("series_pieces") else r.get("size")      # السيري من غير مقاساته
+        name = r["name"] + (f" - {r['color']}" if r.get("color") else "") + (f" ({size})" if size else "")
         if r.get("series_pieces"):
             qty = f"{r['qty']} سيري ({r['series_pieces']} قطع)"
         else:
             qty = f"{r['qty']} قطعة" if r.get("unit") else str(r["qty"])
-        data.append([r["code"], name, qty, _money(r["price"]), _money(r["total"])])
-    if ctx.get("wholesale"):
-        data.append(["", "إجمالي السيريهات", str(ctx["series_count"]), "", ""])
+        price = r["piece_price"] if r.get("series_pieces") and r.get("piece_price") is not None else r["price"]
+        data.append([r["code"], name, qty, _money(price), _money(r["total"])])
     data.append(["", "عدد القطع", str(ctx["pieces"]), "", ""])
     story.append(_table(data, [24 * mm, 70 * mm, 20 * mm, 28 * mm, 28 * mm],
-                        total_rows=tuple(range(len(data) - (2 if ctx.get("wholesale") else 1), len(data)))))
+                        total_rows=(len(data) - 1,)))
     story.append(Spacer(1, 6 * mm))
     summary = [
         ["الإجمالي قبل الخصم", _money(ctx["gross"])],
@@ -141,6 +141,8 @@ def invoice_pdf(invoice, ctx):
     for p in ctx["payments"]:
         summary.append([f"دفع: {p['box']}", _money(p["amount"])])
     if invoice.payment_type == "credit":
+        for d in ctx.get("installments", []):
+            summary.append([f"دفعة {d.date:%d/%m/%Y}", _money(d.amount)])
         summary.append(["المدفوع", _money(ctx["paid"])])
         summary.append(["المتبقي (آجل)", _money(ctx["remaining"])])
     t = Table([[_p(b), _p(a)] for a, b in summary], colWidths=[40 * mm, 60 * mm], hAlign="RIGHT")

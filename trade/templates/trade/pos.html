@@ -957,6 +957,8 @@
           inv = d.invoice; cust = null;
           show(d.items, "فاتورة #" + inv.id + " — " + inv.date + " — " + inv.type + (inv.customer ? " — " + inv.customer : "") +
                (inv.discount ? " (عليها خصم، والمرتجع بياخد نصيبه منه)" : ""));
+          if (inv.discount) say("warning", "⚠️ فاتورة البيع دي عليها خصم " + money(inv.discount) +
+            ". قيمة المرتجع بتتحسب بسعر القطعة بعد نصيبها من الخصم، فالخصم بيرجع من قيمة المرتجع.");
         }).catch(function () { say("danger", "تعذر الاتصال بالسيرفر"); });
     }
     function loadCustomer() {

@@ -161,11 +161,10 @@ class WholesaleSeriesTests(SalesBase):
         r = self.boss.post(reverse("pos_checkout"), json.dumps(body), content_type="application/json")
         self.assertTrue(r.json()["ok"], r.content)
         page = self.boss.get(r.json()["print_url"]).content.decode()
-        self.assertIn("مقاسات السيري", page)
         self.assertIn("<b>2</b> سيري (4 قطع)", page)
         self.assertIn("<b>1</b> قطعة", page)
-        self.assertIn("إجمالي السيريهات", page)
-        self.assertIn("L×2", page)
+        for gone in ("مقاسات السيري", "إجمالي السيريهات", "سعر السيري", "L×2"):
+            self.assertNotIn(gone, page)
         pdf = self.boss.get(reverse("sale_pdf", args=[r.json()["id"]]))
         self.assertEqual(pdf.status_code, 200)
 
@@ -323,3 +322,34 @@ class SaleAdminFormTests(SalesBase):
         self.assertEqual((inv2.is_confirmed, inv2.payment_type, inv2.account_amount), (True, "credit", D("500")))
         self.assertEqual(self.balance(), D("500"))
         self.assertIn("تسوية من رصيد العميل", self.boss.get(reverse("sale_print", args=[inv2.pk])).content.decode())
+
+
+class InvoiceExtrasTests(SaleAdminFormTests):
+    def test_print_button_installments_credit_and_dispatch(self):
+        from trade.models import Payment
+        # آجل: على حساب العميل من غير عهدة
+        self.assertEqual(self.post(self.boss, qty=2, method="credit", box="").status_code, 302)
+        inv = SaleInvoice.objects.order_by("-id").first()
+        self.assertEqual((inv.payment_type, inv.payment_plan[0]["name"]), ("credit", "آجل"))
+        page = self.boss.get(reverse("admin:trade_saleinvoice_change", args=[inv.pk])).content.decode()
+        self.assertIn(reverse("sale_print", args=[inv.pk]), page)               # زرار الطباعة
+        self.boss.post(reverse("admin:trade_saleinvoice_changelist"), {"action": "confirm_sales", "_selected_action": [inv.pk]})
+        Payment.objects.create(customer=self.cust, invoice=inv, amount=D("300"), box=self.box)
+        html = self.boss.get(reverse("sale_print", args=[inv.pk])).content.decode()
+        for text in ("الدفعات", "300.00", "المتبقي", "700.00", "<span>آجل</span>"):
+            self.assertIn(text, html)
+        # إذن الصرف: من غير أسعار
+        r = self.boss.get(reverse("dispatch_list"))
+        self.assertContains(r, f"#{inv.pk}")
+        r = self.boss.get(reverse("dispatch_print"), {"ids": inv.pk})
+        self.assertContains(r, "إذن صرف")
+        self.assertContains(r, self.v.model.code)
+        self.assertNotContains(r, "500.00")
+
+    def test_return_discount_warning(self):
+        self.assertEqual(self.post(self.boss, qty=2, discount="100").status_code, 302)
+        inv = SaleInvoice.objects.order_by("-id").first()
+        self.boss.post(reverse("admin:trade_saleinvoice_changelist"), {"action": "confirm_sales", "_selected_action": [inv.pk]})
+        page = self.boss.get(reverse("admin:trade_salereturn_add")).content.decode()
+        raw = page.split('id="discount-notes" type="application/json">')[1].split("</script>")[0]
+        self.assertIn("عليها خصم 100.00", json.loads(raw)[str(inv.pk)])
