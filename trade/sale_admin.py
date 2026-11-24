@@ -18,7 +18,9 @@ from .models import CashBox, ClothingModel, Customer, SaleInvoice, SaleItem, Var
 
 # نوع الفاتورة (طريقة السداد) ← نوع الخزنة. "تسوية" = من رصيد العميل في الشركة (بيتخصم من حسابه)
 PAY_METHODS = [("cash", "نقدي"), ("wallet", "محفظة"), ("instapay", "إنستاباي"), ("bank", "تحويل بنكي"),
-               ("settle", "تسوية (من رصيد العميل)")]
+               ("credit", "آجل"), ("settle", "تسوية (من رصيد العميل)")]
+# آجل وتسوية الاتنين على حساب العميل ومن غير عهدة: الآجل = عليه يدفعه بعدين، والتسوية = من رصيد ليه عندنا
+ACCOUNT_METHODS = {"credit": "آجل", "settle": "تسوية من رصيد العميل"}
 SETTLE = "settle"
 
 
@@ -26,11 +28,11 @@ def plan_choice(inv):
     """(نوع الفاتورة، الخزنة) من طرق السداد المتسجلة على الفاتورة"""
     plan = inv.payment_plan or []
     if plan and plan[0].get("box") == "account":
-        return SETTLE, None
+        return ("credit" if plan[0].get("name") == "آجل" else SETTLE), None
     if plan:
         box = CashBox.objects.filter(pk=plan[0].get("box")).first()
         return (box.method if box else "cash"), box
-    return ("cash" if inv.payment_type == "cash" else SETTLE), None
+    return ("cash" if inv.payment_type == "cash" else "credit"), None
 
 PROFIT_PERM = "trade.approve_saleinvoice"
 
@@ -180,9 +182,11 @@ class SaleInvoiceForm(forms.ModelForm):
         if self.instance.pk and self.instance.is_confirmed:
             return data
         method, box = data.get("pay_method"), data.get("pay_box")
-        if method == SETTLE:
+        if method in ACCOUNT_METHODS:
             if not customer:
-                self.add_error("customer", "التسوية من رصيد العميل: اختار العميل")
+                self.add_error("customer", f"{ACCOUNT_METHODS[method]}: اختار العميل")
+            elif method == "credit" and customer.customer_type == "cash":
+                self.add_error("pay_method", f"{customer.name} عميل نقدي ومينفعش يتسجل عليه آجل")
             data["pay_box"] = None
             self.instance.payment_type = "credit"
         elif method:
@@ -211,7 +215,7 @@ class PaidFilter(admin.SimpleListFilter):
     parameter_name = "paid"
 
     def lookups(self, request, model_admin):
-        return [("paid", "اتدفعت (نقدي/محفظة/إنستاباي/تحويل)"), ("settle", "تسوية من رصيد العميل")]
+        return [("paid", "اتدفعت (نقدي/محفظة/إنستاباي/تحويل)"), ("settle", "على حساب العميل (آجل/تسوية)")]
 
     def queryset(self, request, queryset):
         if self.value() == "paid":
@@ -321,9 +325,10 @@ def make_admin(confirm_action):
             if inv.is_confirmed:
                 return
             total = inv.total
-            if form.cleaned_data.get("pay_method") == SETTLE:
+            method = form.cleaned_data.get("pay_method")
+            if method in ACCOUNT_METHODS:
                 inv.payment_type, inv.account_amount = "credit", total
-                inv.payment_plan = [{"box": "account", "name": "تسوية من رصيد العميل", "amount": str(total)}]
+                inv.payment_plan = [{"box": "account", "name": ACCOUNT_METHODS[method], "amount": str(total)}]
             else:
                 box = form.cleaned_data.get("pay_box")
                 inv.payment_type, inv.account_amount = "cash", Decimal("0")

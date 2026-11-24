@@ -1,6 +1,25 @@
 {% extends "admin/change_form.html" %}
 {% block extrajs %}{{ block.super }}
 {{ sale_admin_data|json_script:"sale-admin-data" }}
+{% if original.pk %}
+<script>
+// زرار "طباعة" تحت "احفظ" على طول
+(function () {
+  function add() {
+    var save = document.querySelector('[name="_save"]');
+    if (!save || document.getElementById("print-invoice")) return;
+    var a = document.createElement("a");
+    a.id = "print-invoice"; a.href = "{% url 'sale_print' original.pk %}"; a.target = "_blank";
+    a.className = "btn btn-block btn-outline-danger"; a.style.marginTop = "6px";
+    a.setAttribute("data-tip", "افتح الفاتورة للطباعة (A4 للجملة، حراري للقطاعي)");
+    a.innerHTML = '<i class="fas fa-print"></i> طباعة';
+    var host = save.closest(".form-group") || save;
+    host.parentNode.insertBefore(a, host.nextSibling);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", add); else add();
+})();
+</script>
+{% endif %}
 <style>
   .si-ro { background: var(--erp-soft,#f4f4f5) !important; border-style: dashed !important; min-width: 0; }
   #items-group td { padding: 6px 4px !important; vertical-align: top; }
@@ -109,7 +128,7 @@
     });
     var mine = boxOpts.filter(function (o) { return o[0] && BOXES[o[0]] === method; });
     if (mine.length === 1) b.value = mine[0][0];
-    wrap.style.display = method === "settle" ? "none" : "";
+    wrap.style.display = (method === "settle" || method === "credit") ? "none" : "";
     if (window.jQuery && window.jQuery(b).data("select2")) window.jQuery(b).trigger("change.select2");
   }
   if (window.jQuery) window.jQuery(document).on("change", "#id_pay_method", filterBoxes);

@@ -1,0 +1,40 @@
+{% load static %}<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>إذن صرف</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  {% include "trade/_doc_style.html" %}
+  <style>
+    .sheet + .sheet { page-break-before: always; break-before: page; }
+    .sign { display: flex; justify-content: space-between; margin-top: 28px; font-size: 13.5px; }
+    .sign div { width: 45%; border-top: 1px solid #000; padding-top: 4px; text-align: center; }
+  </style>
+</head>
+<body>
+  {% include "trade/_print_bar.html" with default_size="a5" print_kind="dispatch" %}
+  {% for n in notes %}
+  <div class="sheet">
+    <div class="brand">
+      <img src="{% static 'trade/img/invoice_logo.png' %}" alt="" onerror="this.style.display='none'">
+      <div class="shop">{{ shop_name }}</div>
+      <div class="no">فاتورة بيع<br><b style="font-size:16px;color:#000">#{{ n.inv.pk }}</b></div>
+    </div>
+    <div class="doc-title"><span>إذن صرف</span></div>
+    <div class="info">
+      <div>التاريخ: <b>{{ n.inv.date|date:"d/m/Y" }}</b></div>
+      <div>اسم العميل: <b>{{ n.inv.customer.name|default:"عميل نقدي" }}</b>{% if n.inv.customer.shop_name %} — {{ n.inv.customer.shop_name }}{% endif %}</div>
+    </div>
+    <table class="items">
+      <thead><tr><th>كود الصنف</th><th>اسم الصنف</th><th>اللون</th><th>المقاس</th><th>الكمية</th></tr></thead>
+      <tbody>{% for r in n.rows %}<tr><td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.color|default:"—" }}</td><td>{{ r.size }}</td><td><b>{{ r.qty }}</b></td></tr>{% endfor %}</tbody>
+      <tfoot><tr><td colspan="4"><b>إجمالي القطع</b></td><td><b>{{ n.pieces }}</b></td></tr></tfoot>
+    </table>
+    <div class="sign"><div>أمين المخزن</div><div>المستلم</div></div>
+  </div>
+  {% empty %}
+  <div class="sheet">مفيش فواتير مؤكدة بالأرقام دي.</div>
+  {% endfor %}
+</body>
+</html>

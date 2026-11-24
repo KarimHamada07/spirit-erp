@@ -1,0 +1,26 @@
+{% extends "admin/change_form.html" %}
+{% block extrajs %}{{ block.super }}
+{{ discount_notes|json_script:"discount-notes" }}
+<script>
+// تنبيه أول ما تختار فاتورة بيع عليها خصم
+(function () {
+  var NOTES = JSON.parse(document.getElementById("discount-notes").textContent || "{}");
+  function show() {
+    var sel = document.getElementById("id_invoice");
+    if (!sel) return;
+    var box = document.getElementById("ret-discount-alert");
+    if (!box) {
+      box = document.createElement("div"); box.id = "ret-discount-alert";
+      box.className = "alert alert-warning"; box.style.fontWeight = "700";
+      var host = sel.closest(".form-group") || sel.parentNode;
+      host.parentNode.insertBefore(box, host.nextSibling);
+    }
+    var note = NOTES[sel.value];
+    box.textContent = note || ""; box.style.display = note ? "" : "none";
+  }
+  if (window.jQuery) window.jQuery(document).on("change", "#id_invoice", show);
+  document.addEventListener("change", function (e) { if (e.target.id === "id_invoice") show(); });
+  if (window.jQuery) window.jQuery(function () { setTimeout(show, 50); }); else document.addEventListener("DOMContentLoaded", show);
+})();
+</script>
+{% endblock %}
